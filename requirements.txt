@@ -6,3 +6,4 @@ aiofiles==24.1.0
 numpy
 opencv-python-headless
 gunicorn==22.0.0
+reportlab

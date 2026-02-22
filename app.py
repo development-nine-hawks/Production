@@ -13,6 +13,7 @@ import shutil
 import csv
 import io
 import os
+import tempfile
 from datetime import datetime
 
 import config
@@ -102,6 +103,55 @@ def download_pattern(pid: int, db: Session = Depends(get_db)):
     if not os.path.exists(fp):
         raise HTTPException(404, "File not found")
     return FileResponse(fp, media_type="image/png", filename=p.filename)
+
+
+@app.get("/api/patterns/{pid}/pdf")
+def download_pattern_pdf(
+    pid: int,
+    size_mm: float = Query(..., description="Pattern size in mm"),
+    db: Session = Depends(get_db),
+):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.utils import ImageReader
+
+    p = db.query(Pattern).filter(Pattern.id == pid).first()
+    if not p:
+        raise HTTPException(404, "Pattern not found")
+    fp = os.path.join(config.PATTERNS_DIR, p.filename)
+    if not os.path.exists(fp):
+        raise HTTPException(404, "File not found")
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False,
+                                      dir=config.DATA_DIR)
+    tmp.close()
+
+    page_w, page_h = A4
+    pattern_size_pts = size_mm * mm
+
+    c = canvas.Canvas(tmp.name, pagesize=A4)
+    x = (page_w - pattern_size_pts) / 2
+    y = (page_h - pattern_size_pts) / 2
+
+    img = ImageReader(fp)
+    c.drawImage(img, x, y, width=pattern_size_pts, height=pattern_size_pts)
+
+    c.setStrokeColorRGB(0.7, 0.7, 0.7)
+    c.setLineWidth(0.25)
+    c.rect(x, y, pattern_size_pts, pattern_size_pts)
+
+    c.setFont("Helvetica", 8)
+    c.setFillColorRGB(0.4, 0.4, 0.4)
+    c.drawString(15 * mm, page_h - 12 * mm,
+                 f"PhoneCDP | {p.serial_number} | "
+                 f"{size_mm}mm x {size_mm}mm | Seed: {p.seed}")
+
+    c.save()
+
+    pdf_filename = f"{p.serial_number}_{size_mm}mm.pdf"
+    return FileResponse(tmp.name, media_type="application/pdf",
+                        filename=pdf_filename)
 
 
 @app.get("/api/patterns/{pid}/preview")
