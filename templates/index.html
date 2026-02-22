@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhoneCDP - Copy Detection Pattern System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 50:'#f0f5ff',100:'#e0eaff',200:'#c2d5ff',500:'#4f7cff',600:'#3b63e0',700:'#2c4db3',800:'#1e3a8a',900:'#152552' }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body class="h-full bg-gray-50 text-gray-900">
+
+    <nav class="bg-brand-800 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+                        <svg class="w-5 h-5 text-brand-800" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.349L11 6.477V16h2a1 1 0 110 2H7a1 1 0 110-2h2V6.477L6.237 7.582l1.715 5.349a1 1 0 01-.285 1.05A3.989 3.989 0 015 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.617a1 1 0 01.894-1.789l1.599.799L9 4.323V3a1 1 0 011-1z"/></svg>
+                    </div>
+                    <span class="text-xl font-bold tracking-tight">PhoneCDP</span>
+                    <span class="text-xs bg-brand-600 px-2 py-0.5 rounded-full uppercase tracking-wider">v1.0</span>
+                </div>
+                <div class="flex items-center gap-1">
+                    <a href="#/" class="nav-link px-3 py-2 rounded-md text-sm font-medium hover:bg-brand-700 transition" data-page="dashboard">Dashboard</a>
+                    <a href="#/generate" class="nav-link px-3 py-2 rounded-md text-sm font-medium hover:bg-brand-700 transition" data-page="generate">Generate</a>
+                    <a href="#/verify" class="nav-link px-3 py-2 rounded-md text-sm font-medium hover:bg-brand-700 transition" data-page="verify">Verify</a>
+                    <a href="#/results" class="nav-link px-3 py-2 rounded-md text-sm font-medium hover:bg-brand-700 transition" data-page="results">Results</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main id="app" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"></main>
+
+    <div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
+        <div class="bg-gray-900 text-white px-5 py-3 rounded-lg shadow-xl flex items-center gap-3 max-w-sm">
+            <span id="toast-icon"></span>
+            <span id="toast-message" class="text-sm"></span>
+        </div>
+    </div>
+
+    <div id="image-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70" onclick="closeImageModal()">
+        <div class="relative max-w-4xl max-h-[90vh] p-2">
+            <img id="modal-image" class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"/>
+            <button onclick="closeImageModal()" class="absolute -top-3 -right-3 bg-white text-gray-800 w-8 h-8 rounded-full shadow-lg flex items-center justify-center hover:bg-gray-100 text-lg font-bold">&times;</button>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

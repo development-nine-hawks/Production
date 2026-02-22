@@ -1,0 +1,56 @@
+/* PhoneCDP Production Styles */
+
+/* Smooth transitions */
+* { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+/* Spinner animation */
+@keyframes spin { to { transform: rotate(360deg); } }
+.animate-spin { animation: spin 1s linear infinite; }
+
+/* Toast slide-in */
+#toast { animation: slideUp .3s ease-out; }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Drag-and-drop hover pulse */
+#dz.border-brand-500 { animation: pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(79,124,255,.3); } 50% { box-shadow: 0 0 0 8px rgba(79,124,255,0); } }
+
+/* Table row hover */
+tbody tr { transition: background-color .15s ease; }
+
+/* Image hover zoom hint */
+img.cursor-pointer { transition: transform .2s ease, box-shadow .2s ease; }
+img.cursor-pointer:hover { transform: scale(1.02); box-shadow: 0 4px 15px rgba(0,0,0,.1); }
+
+/* Modal backdrop transition */
+#image-modal { transition: opacity .2s ease; }
+#image-modal img { animation: zoomIn .25s ease-out; }
+@keyframes zoomIn { from { transform: scale(.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* Confidence gauge animation */
+.bg-green-500, .bg-yellow-500, .bg-red-500 { transition: width .6s ease-out; }
+
+/* Score bar animation */
+.bg-green-400, .bg-yellow-400, .bg-red-400 { transition: width .5s ease-out; }
+
+/* Active nav highlight */
+.nav-link { transition: background-color .15s ease; }
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+/* Responsive table */
+@media (max-width: 768px) {
+    table { font-size: .8rem; }
+    th, td { padding: .5rem .75rem !important; }
+}
+
+/* Print styles */
+@media print {
+    nav, #toast, button, .no-print { display: none !important; }
+    .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl { box-shadow: none !important; }
+    .border { border-color: #ddd !important; }
+}
