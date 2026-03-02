@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, Text, DateTime, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, Float, Text, DateTime, ForeignKey, text
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from datetime import datetime
 import config
@@ -16,6 +16,7 @@ class Pattern(Base):
     label = Column(String(100), default="")
     filename = Column(String(255), nullable=False)
     pattern_size = Column(Integer, default=512)
+    block_size = Column(Integer, default=8)
     notes = Column(Text, default="")
     created_at = Column(DateTime, default=datetime.utcnow)
     verifications = relationship("Verification", back_populates="pattern",
@@ -27,6 +28,7 @@ class Verification(Base):
     id = Column(Integer, primary_key=True, index=True)
     pattern_id = Column(Integer, ForeignKey("patterns.id"), nullable=False)
     captured_filename = Column(String(255), default="")
+    markers_filename = Column(String(255), default="")
     aligned_filename = Column(String(255), default="")
     verdict = Column(String(20), default="")
     confidence = Column(Float, default=0.0)
@@ -44,6 +46,13 @@ class Verification(Base):
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    # Migrate: add markers_filename if missing (safe on repeated runs)
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE verifications ADD COLUMN markers_filename VARCHAR(255) DEFAULT ''"))
+            conn.commit()
+    except Exception:
+        pass
 
 
 def get_db():

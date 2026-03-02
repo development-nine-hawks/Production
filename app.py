@@ -53,6 +53,7 @@ class PatternCreate(BaseModel):
     label: str = ""
     notes: str = ""
     pattern_size: int = 512
+    block_size: int = 8
 
 
 @app.get("/api/patterns")
@@ -61,8 +62,8 @@ def list_patterns(db: Session = Depends(get_db)):
     return [{
         "id": p.id, "seed": p.seed, "serial_number": p.serial_number,
         "label": p.label, "filename": p.filename, "pattern_size": p.pattern_size,
-        "created_at": p.created_at.isoformat(), "notes": p.notes,
-        "verification_count": len(p.verifications),
+        "block_size": p.block_size, "created_at": p.created_at.isoformat(),
+        "notes": p.notes, "verification_count": len(p.verifications),
     } for p in patterns]
 
 
@@ -70,17 +71,19 @@ def list_patterns(db: Session = Depends(get_db)):
 def create_pattern(data: PatternCreate, db: Session = Depends(get_db)):
     result = generate_pattern(
         output_dir=config.PATTERNS_DIR, seed=data.seed,
-        serial_number=data.serial_number, pattern_size=data.pattern_size)
+        serial_number=data.serial_number, pattern_size=data.pattern_size,
+        block_size=data.block_size)
     p = Pattern(seed=result["seed"], serial_number=data.serial_number,
                 label=data.label, filename=result["filename"],
-                pattern_size=data.pattern_size, notes=data.notes)
+                pattern_size=data.pattern_size, block_size=data.block_size,
+                notes=data.notes)
     db.add(p)
     db.commit()
     db.refresh(p)
     return {"id": p.id, "seed": p.seed, "serial_number": p.serial_number,
             "label": p.label, "filename": p.filename,
-            "pattern_size": p.pattern_size, "created_at": p.created_at.isoformat(),
-            "notes": p.notes}
+            "pattern_size": p.pattern_size, "block_size": p.block_size,
+            "created_at": p.created_at.isoformat(), "notes": p.notes}
 
 
 @app.get("/api/patterns/{pid}")
@@ -90,7 +93,8 @@ def get_pattern(pid: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "Pattern not found")
     return {"id": p.id, "seed": p.seed, "serial_number": p.serial_number,
             "label": p.label, "filename": p.filename,
-            "pattern_size": p.pattern_size, "created_at": p.created_at.isoformat(),
+            "pattern_size": p.pattern_size, "block_size": p.block_size,
+            "created_at": p.created_at.isoformat(),
             "notes": p.notes, "verification_count": len(p.verifications)}
 
 
@@ -202,12 +206,14 @@ async def run_verify(
     with open(cap_path, "wb") as f:
         shutil.copyfileobj(captured.file, f)
 
-    result = verify_pattern(original_path, cap_path, uploads_dir=config.UPLOADS_DIR)
+    result = verify_pattern(original_path, cap_path, uploads_dir=config.UPLOADS_DIR,
+                            block_size=p.block_size)
     if result.get("verdict") == "ERROR":
         raise HTTPException(400, result.get("error", "Verification failed"))
 
     v = Verification(
         pattern_id=p.id, captured_filename=cap_name,
+        markers_filename=result.get("markers_filename", ""),
         aligned_filename=result.get("aligned_filename", ""),
         verdict=result["verdict"], confidence=result["confidence"],
         score_moire=result["scores"]["moire"],
@@ -256,13 +262,15 @@ async def batch_verify(
         with open(cap_path, "wb") as f:
             shutil.copyfileobj(cap.file, f)
 
-        r = verify_pattern(original_path, cap_path, uploads_dir=config.UPLOADS_DIR)
+        r = verify_pattern(original_path, cap_path, uploads_dir=config.UPLOADS_DIR,
+                           block_size=p.block_size)
         if r.get("verdict") == "ERROR":
             results.append({"filename": cap.filename, "verdict": "ERROR", "error": r.get("error")})
             continue
 
         v = Verification(
             pattern_id=p.id, captured_filename=cap_name,
+            markers_filename=r.get("markers_filename", ""),
             aligned_filename=r.get("aligned_filename", ""),
             verdict=r["verdict"], confidence=r["confidence"],
             score_moire=r["scores"]["moire"], score_color=r["scores"]["color"],
@@ -307,10 +315,14 @@ def get_image(vid: int, image_type: str, db: Session = Depends(get_db)):
         fp = os.path.join(config.PATTERNS_DIR, v.pattern.filename)
     elif image_type == "captured":
         fp = os.path.join(config.UPLOADS_DIR, v.captured_filename)
+    elif image_type == "markers":
+        if not v.markers_filename:
+            raise HTTPException(404, "markers image not available for this verification")
+        fp = os.path.join(config.UPLOADS_DIR, v.markers_filename)
     elif image_type == "aligned":
         fp = os.path.join(config.UPLOADS_DIR, v.aligned_filename)
     else:
-        raise HTTPException(400, "Use: original, captured, aligned")
+        raise HTTPException(400, "Use: original, captured, markers, aligned")
     if not os.path.exists(fp):
         raise HTTPException(404, f"{image_type} file not found")
     return FileResponse(fp)
