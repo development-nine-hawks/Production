@@ -1,63 +1,75 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, Text, DateTime, ForeignKey, text
-from sqlalchemy.orm import declarative_base, sessionmaker, relationship
-from datetime import datetime
+"""
+MongoDB + Cloudinary database layer for PhoneCDP.
+Replaces SQLAlchemy/SQLite with pymongo and cloudinary.
+"""
+import urllib.request
+import cloudinary
+import cloudinary.uploader
+from pymongo import MongoClient, ReturnDocument, ASCENDING, DESCENDING
 import config
 
-engine = create_engine(config.DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-
-class Pattern(Base):
-    __tablename__ = "patterns"
-    id = Column(Integer, primary_key=True, index=True)
-    seed = Column(Integer, nullable=False)
-    serial_number = Column(String(50), default="")
-    label = Column(String(100), default="")
-    filename = Column(String(255), nullable=False)
-    pattern_size = Column(Integer, default=512)
-    block_size = Column(Integer, default=8)
-    notes = Column(Text, default="")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    verifications = relationship("Verification", back_populates="pattern",
-                                 cascade="all, delete-orphan")
-
-
-class Verification(Base):
-    __tablename__ = "verifications"
-    id = Column(Integer, primary_key=True, index=True)
-    pattern_id = Column(Integer, ForeignKey("patterns.id"), nullable=False)
-    captured_filename = Column(String(255), default="")
-    markers_filename = Column(String(255), default="")
-    aligned_filename = Column(String(255), default="")
-    verdict = Column(String(20), default="")
-    confidence = Column(Float, default=0.0)
-    score_moire = Column(Float, default=0.0)
-    score_color = Column(Float, default=0.0)
-    score_correlation = Column(Float, default=0.0)
-    score_gradient = Column(Float, default=0.0)
-    markers_found = Column(Integer, default=0)
-    alignment_method = Column(String(20), default="")
-    print_size_mm = Column(Integer, nullable=True)
-    notes = Column(Text, default="")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    pattern = relationship("Pattern", back_populates="verifications")
+_client = None
+_db = None
 
 
 def init_db():
-    Base.metadata.create_all(bind=engine)
-    # Migrate: add markers_filename if missing (safe on repeated runs)
+    """Connect to MongoDB Atlas, create indexes, configure Cloudinary."""
+    global _client, _db
+
+    _client = MongoClient(config.MONGODB_URI)
+    _db = _client[config.MONGODB_DB]
+
+    # Indexes
+    _db.patterns.create_index([("id", ASCENDING)], unique=True)
+    _db.patterns.create_index([("created_at", DESCENDING)])
+    _db.verifications.create_index([("id", ASCENDING)], unique=True)
+    _db.verifications.create_index([("pattern_id", ASCENDING)])
+    _db.verifications.create_index([("created_at", DESCENDING)])
+
+    # Cloudinary
+    cloudinary.config(
+        cloud_name=config.CLOUDINARY_CLOUD_NAME,
+        api_key=config.CLOUDINARY_API_KEY,
+        api_secret=config.CLOUDINARY_API_SECRET,
+    )
+
+
+def get_db():
+    """Return the pymongo database object."""
+    return _db
+
+
+def get_next_id(collection_name: str) -> int:
+    """Auto-increment integer ID via a counters collection."""
+    doc = _db.counters.find_one_and_update(
+        {"_id": collection_name},
+        {"$inc": {"seq": 1}},
+        upsert=True,
+        return_document=ReturnDocument.AFTER,
+    )
+    return doc["seq"]
+
+
+def upload_to_cloudinary(file_path: str, folder: str, public_id: str | None = None):
+    """Upload a local file to Cloudinary. Returns dict with secure_url and public_id."""
+    result = cloudinary.uploader.upload(
+        file_path,
+        folder=folder,
+        public_id=public_id,
+        overwrite=True,
+        resource_type="image",
+    )
+    return {"secure_url": result["secure_url"], "public_id": result["public_id"]}
+
+
+def destroy_cloudinary(public_id: str):
+    """Delete an image from Cloudinary by public_id."""
     try:
-        with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE verifications ADD COLUMN markers_filename VARCHAR(255) DEFAULT ''"))
-            conn.commit()
+        cloudinary.uploader.destroy(public_id, resource_type="image")
     except Exception:
         pass
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+def download_from_cloudinary(url: str, local_path: str):
+    """Download a Cloudinary image to a local temp path."""
+    urllib.request.urlretrieve(url, local_path)
