@@ -1,9 +1,19 @@
 services:
   - type: web
-    name: phonecdp
+    name: production
     runtime: docker
     plan: free
     healthCheckPath: /api/health
     envVars:
       - key: PYTHON_VERSION
         value: "3.11"
+      - key: MONGODB_URI
+        value: "mongodb+srv://admin:admin@cluster0.tzdyf6b.mongodb.net/?appName=Cluster0"
+      - key: MONGODB_DB
+        value: "phonecdp"
+      - key: CLOUDINARY_CLOUD_NAME
+        value: "dmjlwqdhh"
+      - key: CLOUDINARY_API_KEY
+        value: "273192873281951"
+      - key: CLOUDINARY_API_SECRET
+        value: "dX7OUUZ6MdBzKvdv84Bzh-j1lcg"
