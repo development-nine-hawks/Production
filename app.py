@@ -11,6 +11,7 @@ import shutil
 import csv
 import io
 import os
+import time
 import tempfile
 from datetime import datetime
 
@@ -205,16 +206,27 @@ def delete_pattern(pid: int):
     if p.get("cloudinary_public_id"):
         destroy_cloudinary(p["cloudinary_public_id"])
 
-    # Delete all verification images from Cloudinary
+    # Delete captured images from Cloudinary
     for v in db.verifications.find({"pattern_id": pid}):
-        for key in ["captured", "markers", "aligned"]:
-            cid = (v.get("cloudinary_ids") or {}).get(key)
-            if cid:
-                destroy_cloudinary(cid)
+        cid = (v.get("cloudinary_ids") or {}).get("captured")
+        if cid:
+            destroy_cloudinary(cid)
 
     db.verifications.delete_many({"pattern_id": pid})
     db.patterns.delete_one({"id": pid})
     return {"message": "Deleted"}
+
+
+def cleanup_old_uploads(max_age_seconds=86400):
+    """Delete files in uploads/ older than max_age_seconds (default 1 day)."""
+    now = time.time()
+    for fname in os.listdir(config.UPLOADS_DIR):
+        fpath = os.path.join(config.UPLOADS_DIR, fname)
+        try:
+            if os.path.isfile(fpath) and now - os.path.getmtime(fpath) > max_age_seconds:
+                os.remove(fpath)
+        except OSError:
+            pass
 
 
 # ── Verify API ───────────────────────────────────────────────────────────
@@ -244,37 +256,26 @@ async def run_verify(
     with open(cap_path, "wb") as f:
         shutil.copyfileobj(captured.file, f)
 
+    cleanup_old_uploads()
+
     result = verify_pattern(original_tmp.name, cap_path,
                             uploads_dir=config.UPLOADS_DIR,
                             block_size=p["block_size"])
     if result.get("verdict") == "ERROR":
         raise HTTPException(400, result.get("error", "Verification failed"))
 
-    # Upload images to Cloudinary
-    try:
-        captured_cloud = upload_to_cloudinary(cap_path, folder="phonecdp/captures")
-        markers_cloud = upload_to_cloudinary(
-            os.path.join(config.UPLOADS_DIR, result["markers_filename"]),
-            folder="phonecdp/markers",
-        )
-        aligned_cloud = upload_to_cloudinary(
-            os.path.join(config.UPLOADS_DIR, result["aligned_filename"]),
-            folder="phonecdp/aligned",
-        )
-    except Exception as e:
-        raise HTTPException(500, f"Image upload failed: {e}")
+    # Upload only captured image to Cloudinary
+    captured_cloud = upload_to_cloudinary(cap_path, folder="phonecdp/captures")
 
     vid = get_next_id("verifications")
     doc = {
         "id": vid,
         "pattern_id": p["id"],
         "captured_url": captured_cloud["secure_url"],
-        "markers_url": markers_cloud["secure_url"],
-        "aligned_url": aligned_cloud["secure_url"],
+        "markers_filename": result["markers_filename"],
+        "aligned_filename": result["aligned_filename"],
         "cloudinary_ids": {
             "captured": captured_cloud["public_id"],
-            "markers": markers_cloud["public_id"],
-            "aligned": aligned_cloud["public_id"],
         },
         "verdict": result["verdict"],
         "confidence": result["confidence"],
@@ -290,10 +291,8 @@ async def run_verify(
     }
     db.verifications.insert_one(doc)
 
-    # Clean up local temp files
-    for fp in [original_tmp.name, cap_path,
-               os.path.join(config.UPLOADS_DIR, result["markers_filename"]),
-               os.path.join(config.UPLOADS_DIR, result["aligned_filename"])]:
+    # Clean up temp files (keep markers/aligned for serving)
+    for fp in [original_tmp.name, cap_path]:
         try:
             os.remove(fp)
         except OSError:
@@ -322,6 +321,8 @@ async def batch_verify(
     if not p:
         raise HTTPException(404, "Pattern not found")
 
+    cleanup_old_uploads()
+
     # Download original pattern from Cloudinary to temp
     original_tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False, dir=config.PATTERNS_DIR)
     original_tmp.close()
@@ -348,33 +349,18 @@ async def batch_verify(
                 pass
             continue
 
-        # Upload images to Cloudinary
-        try:
-            captured_cloud = upload_to_cloudinary(cap_path, folder="phonecdp/captures")
-            markers_cloud = upload_to_cloudinary(
-                os.path.join(config.UPLOADS_DIR, r["markers_filename"]),
-                folder="phonecdp/markers",
-            )
-            aligned_cloud = upload_to_cloudinary(
-                os.path.join(config.UPLOADS_DIR, r["aligned_filename"]),
-                folder="phonecdp/aligned",
-            )
-        except Exception as e:
-            results.append({"filename": cap.filename, "verdict": "ERROR",
-                            "error": f"Image upload failed: {e}"})
-            continue
+        # Upload only captured image to Cloudinary
+        captured_cloud = upload_to_cloudinary(cap_path, folder="phonecdp/captures")
 
         vid = get_next_id("verifications")
         doc = {
             "id": vid,
             "pattern_id": p["id"],
             "captured_url": captured_cloud["secure_url"],
-            "markers_url": markers_cloud["secure_url"],
-            "aligned_url": aligned_cloud["secure_url"],
+            "markers_filename": r["markers_filename"],
+            "aligned_filename": r["aligned_filename"],
             "cloudinary_ids": {
                 "captured": captured_cloud["public_id"],
-                "markers": markers_cloud["public_id"],
-                "aligned": aligned_cloud["public_id"],
             },
             "verdict": r["verdict"],
             "confidence": r["confidence"],
@@ -390,14 +376,11 @@ async def batch_verify(
         }
         db.verifications.insert_one(doc)
 
-        # Clean up local files
-        for fp in [cap_path,
-                   os.path.join(config.UPLOADS_DIR, r["markers_filename"]),
-                   os.path.join(config.UPLOADS_DIR, r["aligned_filename"])]:
-            try:
-                os.remove(fp)
-            except OSError:
-                pass
+        # Clean up temp captured file (keep markers/aligned for serving)
+        try:
+            os.remove(cap_path)
+        except OSError:
+            pass
 
         results.append({
             "id": vid, "filename": cap.filename, "verdict": doc["verdict"],
@@ -452,16 +435,19 @@ def get_image(vid: int, image_type: str):
         return RedirectResponse(url=p["image_url"])
     elif image_type == "captured":
         url = v.get("captured_url")
-    elif image_type == "markers":
-        url = v.get("markers_url")
-    elif image_type == "aligned":
-        url = v.get("aligned_url")
+        if not url:
+            raise HTTPException(404, "Captured image not available")
+        return RedirectResponse(url=url)
+    elif image_type in ("markers", "aligned"):
+        filename = v.get(f"{image_type}_filename")
+        if not filename:
+            raise HTTPException(404, f"{image_type} image not available")
+        filepath = os.path.join(config.UPLOADS_DIR, filename)
+        if not os.path.isfile(filepath):
+            raise HTTPException(404, f"{image_type} image expired")
+        return FileResponse(filepath, media_type="image/png")
     else:
         raise HTTPException(400, "Use: original, captured, markers, aligned")
-
-    if not url:
-        raise HTTPException(404, f"{image_type} image not available")
-    return RedirectResponse(url=url)
 
 
 # ── Results API ──────────────────────────────────────────────────────────
@@ -607,11 +593,10 @@ def delete_result(rid: int):
     if not v:
         raise HTTPException(404, "Not found")
 
-    # Delete Cloudinary images
-    for key in ["captured", "markers", "aligned"]:
-        cid = (v.get("cloudinary_ids") or {}).get(key)
-        if cid:
-            destroy_cloudinary(cid)
+    # Delete captured from Cloudinary
+    cid = (v.get("cloudinary_ids") or {}).get("captured")
+    if cid:
+        destroy_cloudinary(cid)
 
     db.verifications.delete_one({"id": rid})
     return {"message": "Deleted"}

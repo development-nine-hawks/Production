@@ -1202,14 +1202,12 @@ def verify_pattern(original_path, captured_path, uploads_dir="uploads", block_si
         cv2.putText(markers_vis, label, (tx, ty),
                     cv2.FONT_HERSHEY_SIMPLEX, font_scale, vis_color, 2)
 
-    markers_filename = f"markers_{ts}.jpg"
-    cv2.imwrite(os.path.join(uploads_dir, markers_filename), markers_vis,
-                [cv2.IMWRITE_JPEG_QUALITY, 85])
+    markers_filename = f"markers_{ts}.png"
+    cv2.imwrite(os.path.join(uploads_dir, markers_filename), markers_vis)
 
     # Save aligned
-    aligned_filename = f"aligned_{ts}.jpg"
-    cv2.imwrite(os.path.join(uploads_dir, aligned_filename), aligned_bgr,
-                [cv2.IMWRITE_JPEG_QUALITY, 85])
+    aligned_filename = f"aligned_{ts}.png"
+    cv2.imwrite(os.path.join(uploads_dir, aligned_filename), aligned_bgr)
 
     return {
         "verdict": verdict,
