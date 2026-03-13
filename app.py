@@ -251,15 +251,18 @@ async def run_verify(
         raise HTTPException(400, result.get("error", "Verification failed"))
 
     # Upload images to Cloudinary
-    captured_cloud = upload_to_cloudinary(cap_path, folder="phonecdp/captures")
-    markers_cloud = upload_to_cloudinary(
-        os.path.join(config.UPLOADS_DIR, result["markers_filename"]),
-        folder="phonecdp/markers",
-    )
-    aligned_cloud = upload_to_cloudinary(
-        os.path.join(config.UPLOADS_DIR, result["aligned_filename"]),
-        folder="phonecdp/aligned",
-    )
+    try:
+        captured_cloud = upload_to_cloudinary(cap_path, folder="phonecdp/captures")
+        markers_cloud = upload_to_cloudinary(
+            os.path.join(config.UPLOADS_DIR, result["markers_filename"]),
+            folder="phonecdp/markers",
+        )
+        aligned_cloud = upload_to_cloudinary(
+            os.path.join(config.UPLOADS_DIR, result["aligned_filename"]),
+            folder="phonecdp/aligned",
+        )
+    except Exception as e:
+        raise HTTPException(500, f"Image upload failed: {e}")
 
     vid = get_next_id("verifications")
     doc = {
@@ -346,15 +349,20 @@ async def batch_verify(
             continue
 
         # Upload images to Cloudinary
-        captured_cloud = upload_to_cloudinary(cap_path, folder="phonecdp/captures")
-        markers_cloud = upload_to_cloudinary(
-            os.path.join(config.UPLOADS_DIR, r["markers_filename"]),
-            folder="phonecdp/markers",
-        )
-        aligned_cloud = upload_to_cloudinary(
-            os.path.join(config.UPLOADS_DIR, r["aligned_filename"]),
-            folder="phonecdp/aligned",
-        )
+        try:
+            captured_cloud = upload_to_cloudinary(cap_path, folder="phonecdp/captures")
+            markers_cloud = upload_to_cloudinary(
+                os.path.join(config.UPLOADS_DIR, r["markers_filename"]),
+                folder="phonecdp/markers",
+            )
+            aligned_cloud = upload_to_cloudinary(
+                os.path.join(config.UPLOADS_DIR, r["aligned_filename"]),
+                folder="phonecdp/aligned",
+            )
+        except Exception as e:
+            results.append({"filename": cap.filename, "verdict": "ERROR",
+                            "error": f"Image upload failed: {e}"})
+            continue
 
         vid = get_next_id("verifications")
         doc = {
