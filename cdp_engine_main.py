@@ -30,14 +30,6 @@ _RING_INNER  = int(round( 6 * _MHF / 24))                  #  8 — BL inner rin
 _RING_THICK  = int(round( 3 * _MHF / 24))                  #  4 — draw thickness
 BLOCK_SIZE = 8
 
-# Label-aware detection: aspect ratios within this range are treated as
-# "near-square" (likely the CDP pattern itself). Anything outside is
-# treated as a potential label card wrapping the pattern.
-LABEL_ASPECT_RANGE = (0.75, 1.33)
-# When markers can't be found in a label, crop the bottom fraction to
-# search for the pattern geometrically.
-LABEL_PATTERN_BOTTOM_FRACTION = 0.50
-
 # Verification weights
 # Correlation measures PRNG block reproduction — the most CDP-specific test.
 # Moire measures frequency spectrum; color stats are similar for genuine/counterfeit.
@@ -159,78 +151,36 @@ def _find_pattern_contour(gray, min_area_pct=0.05):
     # detected region inward. Shifting up ~20 recovers those edge pixels.
     _, binary = cv2.threshold(blurred, min(int(otsu_val) + 20, 220), 255,
                               cv2.THRESH_BINARY_INV)
-
-    # Try two morphology strategies:
-    # 1. Close only (original) — works for standalone patterns
-    # 2. Erode then close — breaks thin connections (card borders, text
-    #    strokes) that merge separate dark regions into one huge contour
-    close_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
-    erode_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-    morph_passes = [
-        cv2.morphologyEx(binary, cv2.MORPH_CLOSE, close_kernel),
-        cv2.morphologyEx(cv2.erode(binary, erode_kernel), cv2.MORPH_CLOSE, close_kernel),
-    ]
-
-    def _score_contours(morphed_img):
-        contours, _ = cv2.findContours(morphed_img, cv2.RETR_EXTERNAL,
-                                       cv2.CHAIN_APPROX_SIMPLE)
-        best, best_sc = None, -1
-        for cnt in contours:
-            area = cv2.contourArea(cnt)
-            if area < (h * w) * min_area_pct:
-                continue
-            bx, by, bw, bh = cv2.boundingRect(cnt)
-            aspect = bw / (bh + 1e-10)
-            if not (0.5 < aspect < 2.0):
-                continue
-            if area > (h * w) * 0.85:
-                continue
-            region = gray[by:by + bh, bx:bx + bw]
-            region_mean = float(region.mean())
-            region_std = float(region.std())
-            if region_mean > image_mean * 0.95:
-                continue
-            darkness = max(0, image_mean - region_mean)
-            squareness_bonus = (1.0 - abs(1.0 - aspect)) * 20
-            score = darkness + region_std + squareness_bonus
-            if score > best_sc:
-                best_sc = score
-                best = cnt
-        return best
-
-    # Pass 1: close only (works for standalone patterns)
-    best_contour = _score_contours(morph_passes[0])
-    if best_contour is not None:
-        return best_contour
-
-    # Pass 2: erode+close (breaks thin connections in labels).
-    # Only run when the image is significantly larger than the expected
-    # pattern — for a standalone pattern-sized image, erode would break
-    # the pattern into fragments and return a wrong sub-region.
-    max_pat = max(PATTERN_SIZE)
-    if min(h, w) > max_pat * 1.15:
-        best_contour = _score_contours(morph_passes[1])
-    else:
-        best_contour = None
-    if best_contour is not None:
-        # The erode shrinks the contour by ~2-3px, losing pattern edge pixels.
-        # Dilate back by a LARGER kernel to slightly overshoot — a generous crop
-        # (with a few background pixels) is far better than a tight crop that
-        # misses pattern edge pixels, because alignment can handle extra pixels
-        # but cannot recover missing ones.
-        bx, by, bw, bh = cv2.boundingRect(best_contour)
-        restore_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
-        restored = cv2.dilate(morph_passes[1], restore_kernel)
-        contours_r, _ = cv2.findContours(restored, cv2.RETR_EXTERNAL,
-                                         cv2.CHAIN_APPROX_SIMPLE)
-        for cnt in contours_r:
-            cx, cy, cw, ch = cv2.boundingRect(cnt)
-            # Match the contour that overlaps with the original detection
-            if abs(cx - bx) < 10 and abs(cy - by) < 10:
-                return cnt
-        return best_contour  # fallback to eroded contour if no match
-
-    return None
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
+    closed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
+    contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL,
+                                   cv2.CHAIN_APPROX_SIMPLE)
+    best_contour = None
+    best_score = -1
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+        if area < (h * w) * min_area_pct:
+            continue
+        bx, by, bw, bh = cv2.boundingRect(cnt)
+        aspect = bw / (bh + 1e-10)
+        if not (0.5 < aspect < 2.0):
+            continue
+        # Reject only if the contour AREA covers almost the whole image — a
+        # rotated square's bounding rect grows to √2× its size at 45°, so a
+        # bounding-rect size check would wrongly reject rotated patterns.
+        if area > (h * w) * 0.85:
+            continue
+        region = gray[by:by + bh, bx:bx + bw]
+        region_mean = float(region.mean())
+        region_std = float(region.std())
+        if region_mean > image_mean * 0.95:
+            continue
+        darkness = max(0, image_mean - region_mean)
+        score = darkness + region_std
+        if score > best_score:
+            best_score = score
+            best_contour = cnt
+    return best_contour
 
 
 def _crop_from_contour(image, contour):
@@ -413,197 +363,56 @@ def _find_square_group(circles):
     return best_group
 
 
-def _extract_pattern_from_label(label_image):
-    """Extract the CDP pattern from within a label using contour hierarchy.
-
-    Uses RETR_TREE to find nested contours. The 3px alignment border around
-    the QR creates a near-perfect-square child contour inside the label.
-    This works regardless of label orientation (any rotation).
-
-    Returns (cropped_image, (rel_x, rel_y, rel_w, rel_h)) where the bbox
-    is relative to label_image coordinates.
-    """
-    h, w = label_image.shape[:2]
-    gray = cv2.cvtColor(label_image, cv2.COLOR_BGR2GRAY) \
-        if len(label_image.shape) == 3 else label_image
-
-    # Threshold and find contour hierarchy
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    otsu_val, _ = cv2.threshold(blurred, 0, 255,
-                                cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-    _, binary = cv2.threshold(blurred, min(int(otsu_val) + 20, 220), 255,
-                              cv2.THRESH_BINARY_INV)
-    close_k = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
-    closed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, close_k)
-    contours, hierarchy = cv2.findContours(closed, cv2.RETR_TREE,
-                                           cv2.CHAIN_APPROX_SIMPLE)
-
-    # Find the most-square nested contour (the QR alignment border).
-    # Must be: a child contour (has parent), near-square (0.85-1.18 aspect),
-    # and reasonably sized (> 0.5% of image area).
-    best_contour = None
-    best_squareness = float('inf')
-    for i, cnt in enumerate(contours):
-        area = cv2.contourArea(cnt)
-        pct = area / (h * w)
-        if pct < 0.005 or pct > 0.50:
-            continue
-        parent = hierarchy[0][i][3]
-        if parent < 0:  # must be a child, not top-level
-            continue
-        cbx, cby, cbw, cbh = cv2.boundingRect(cnt)
-        aspect = cbw / (cbh + 1e-10)
-        if not (0.85 <= aspect <= 1.18):
-            continue
-        squareness_err = abs(1.0 - aspect)
-        if squareness_err < best_squareness:
-            best_squareness = squareness_err
-            best_contour = cnt
-
-    if best_contour is not None:
-        cbx, cby, cbw, cbh = cv2.boundingRect(best_contour)
-        # Use _crop_from_contour for perspective correction -- the phone
-        # photo may be tilted and the perspective warp corrects this.
-        cropped, bbox, quad = _crop_from_contour(label_image, best_contour)
-        return cropped, (cbx, cby, cbw, cbh)
-
-    # Fallback: center square
-    side = min(h, w)
-    cx, cy = w // 2, h // 2
-    x1 = max(0, cx - side // 2)
-    y1 = max(0, cy - side // 2)
-    return label_image[y1:y1 + side, x1:x1 + side], (x1, y1, side, side)
-
-
-def _marker_crop(image, gray, circles_input=None):
-    """Shared helper: find 4 markers forming a square, extrapolate pattern
-    corners, perspective-warp, and return the cropped pattern.
-
-    Returns (cropped, bbox, True, quad) on success, or None on failure.
-    """
-    h, w = gray.shape
-    circles = circles_input if circles_input is not None else _find_markers_in_image(gray)
-    if circles is None:
-        return None
-    group = _find_square_group(circles)
-    if group is None:
-        return None
-
-    pts = group.astype(np.float32)
-    s = pts.sum(axis=1);  d = pts[:, 1] - pts[:, 0]
-    M_tl = pts[np.argmin(s)];  M_br = pts[np.argmax(s)]
-    M_tr = pts[np.argmin(d)];  M_bl = pts[np.argmax(d)]
-    C = (M_tl + M_tr + M_br + M_bl) / 4.0
-    pw = float(max(PATTERN_SIZE))
-    off = float(FIDUCIAL_MARKER_OFFSET)
-    scale = (pw / 2.0) / (pw / 2.0 - off)   # ~1.153 for 34/512
-    src_pts = np.float32([
-        C + (M_tl - C) * scale,
-        C + (M_tr - C) * scale,
-        C + (M_br - C) * scale,
-        C + (M_bl - C) * scale,
-    ])
-    out_size = max(
-        int(max(np.linalg.norm(src_pts[1] - src_pts[0]),
-                np.linalg.norm(src_pts[2] - src_pts[3]))),
-        int(max(np.linalg.norm(src_pts[3] - src_pts[0]),
-                np.linalg.norm(src_pts[2] - src_pts[1]))),
-        64)
-    dst_pts = np.float32([
-        [0, 0], [out_size - 1, 0],
-        [out_size - 1, out_size - 1], [0, out_size - 1]
-    ])
-    M_warp = cv2.getPerspectiveTransform(src_pts, dst_pts)
-    cropped = cv2.warpPerspective(image, M_warp, (out_size, out_size),
-                                  borderValue=(255, 255, 255))
-    bx = int(max(0, src_pts[:, 0].min()))
-    by = int(max(0, src_pts[:, 1].min()))
-    bw = int(min(w - bx, src_pts[:, 0].max() - src_pts[:, 0].min()))
-    bh = int(min(h - by, src_pts[:, 1].max() - src_pts[:, 1].min()))
-    return cropped, (bx, by, bw, bh), True, src_pts
-
-
 def detect_and_crop_pattern(image):
-    """Detect and crop the CDP pattern from a captured image.
-
-    Uses contour detection as primary (with squareness bonus to prefer the
-    CDP pattern over surrounding label branding). Falls back to marker-based
-    detection when contours fail. For non-square contours (labels), searches
-    for the pattern within the label region.
-    """
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     h, w = gray.shape
 
-    # === PRIMARY: Contour detection with squareness preference ===
-    # The squareness bonus in _find_pattern_contour ensures the square CDP
-    # pattern is preferred over a rectangular label contour, even when both
-    # are visible in the image.
     contour = _find_pattern_contour(gray, min_area_pct=0.003)
     if contour is not None:
-        bx, by, bw, bh = cv2.boundingRect(contour)
-        aspect = bw / (bh + 1e-10)
+        cropped, bbox, quad = _crop_from_contour(image, contour)
+        return cropped, bbox, True, quad
 
-        if LABEL_ASPECT_RANGE[0] <= aspect <= LABEL_ASPECT_RANGE[1]:
-            # Near-square: likely the CDP pattern (standalone or within label)
-            cropped, bbox, quad = _crop_from_contour(image, contour)
-            return cropped, bbox, True, quad
-
-        # Non-square contour (likely a label card wrapping the pattern).
-        # Use RETR_TREE on the FULL image to find the QR alignment border
-        # as a nested child contour. This uses the same thresholding as the
-        # standalone path, giving equivalent crop quality.
-        blurred_full = cv2.GaussianBlur(gray, (5, 5), 0)
-        otsu_val, _ = cv2.threshold(blurred_full, 0, 255,
-                                    cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-        _, binary_full = cv2.threshold(blurred_full,
-                                       min(int(otsu_val) + 20, 220), 255,
-                                       cv2.THRESH_BINARY_INV)
-        close_k = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
-        closed_full = cv2.morphologyEx(binary_full, cv2.MORPH_CLOSE, close_k)
-        tree_contours, tree_hier = cv2.findContours(
-            closed_full, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
-        # Find the most-square nested contour (the QR alignment border)
-        best_inner = None
-        best_sq_err = float('inf')
-        for i, cnt in enumerate(tree_contours):
-            area = cv2.contourArea(cnt)
-            pct = area / (h * w)
-            if pct < 0.003 or pct > 0.50:
-                continue
-            parent = tree_hier[0][i][3]
-            if parent < 0:
-                continue
-            cbx2, cby2, cbw2, cbh2 = cv2.boundingRect(cnt)
-            casp = cbw2 / (cbh2 + 1e-10)
-            if not (0.85 <= casp <= 1.18):
-                continue
-            sq_err = abs(1.0 - casp)
-            if sq_err < best_sq_err:
-                best_sq_err = sq_err
-                best_inner = cnt
-
-        if best_inner is not None:
-            cropped, inner_bbox, quad = _crop_from_contour(image, best_inner)
-            cbx2, cby2, cbw2, cbh2 = cv2.boundingRect(best_inner)
-            return cropped, (cbx2, cby2, cbw2, cbh2), True, quad
-
-        # Fallback: use _extract_pattern_from_label on the label ROI
-        label_roi = image[by:by + bh, bx:bx + bw]
-        pattern_from_label, rel_bbox = _extract_pattern_from_label(label_roi)
-        orig_bbox = (rel_bbox[0] + bx, rel_bbox[1] + by,
-                     rel_bbox[2], rel_bbox[3])
-        return pattern_from_label, orig_bbox, True, None
-
-    # === FALLBACK: Marker-based detection (when contours fail entirely) ===
-    # Only try markers on images significantly larger than the pattern.
-    # For pattern-sized images, contour failure means the image IS the
-    # pattern — return it unmodified (matching main branch behavior).
-    max_pat = max(PATTERN_SIZE)
-    if min(h, w) > max_pat * 1.15:
-        result = _marker_crop(image, gray)
-        if result is not None:
-            return result
+    circles = _find_markers_in_image(gray)
+    if circles is not None:
+        group = _find_square_group(circles)
+        if group is not None:
+            # group = 4 marker centre positions (cx, cy).
+            # Extrapolate the actual pattern corners from the marker centres.
+            # Markers sit at off_frac from each corner; we scale outward from
+            # the centroid using the inverse of that fraction so the corners are
+            # correct even when the pattern is rotated or tilted.
+            pts = group.astype(np.float32)
+            s = pts.sum(axis=1);  d = pts[:, 1] - pts[:, 0]
+            M_tl = pts[np.argmin(s)];  M_br = pts[np.argmax(s)]
+            M_tr = pts[np.argmin(d)];  M_bl = pts[np.argmax(d)]
+            C = (M_tl + M_tr + M_br + M_bl) / 4.0
+            pw = float(max(PATTERN_SIZE))
+            off = float(FIDUCIAL_MARKER_OFFSET)
+            scale = (pw / 2.0) / (pw / 2.0 - off)   # ~1.153 for 34/512
+            src_pts = np.float32([
+                C + (M_tl - C) * scale,
+                C + (M_tr - C) * scale,
+                C + (M_br - C) * scale,
+                C + (M_bl - C) * scale,
+            ])
+            out_size = max(
+                int(max(np.linalg.norm(src_pts[1] - src_pts[0]),
+                        np.linalg.norm(src_pts[2] - src_pts[3]))),
+                int(max(np.linalg.norm(src_pts[3] - src_pts[0]),
+                        np.linalg.norm(src_pts[2] - src_pts[1]))),
+                64)
+            dst_pts = np.float32([
+                [0, 0], [out_size - 1, 0],
+                [out_size - 1, out_size - 1], [0, out_size - 1]
+            ])
+            M_warp = cv2.getPerspectiveTransform(src_pts, dst_pts)
+            cropped = cv2.warpPerspective(image, M_warp, (out_size, out_size),
+                                          borderValue=(255, 255, 255))
+            bx = int(max(0, src_pts[:, 0].min()))
+            by = int(max(0, src_pts[:, 1].min()))
+            bw = int(min(w - bx, src_pts[:, 0].max() - src_pts[:, 0].min()))
+            bh = int(min(h - by, src_pts[:, 1].max() - src_pts[:, 1].min()))
+            return cropped, (bx, by, bw, bh), True, src_pts
 
     return image, (0, 0, w, h), False, None
 
@@ -1279,10 +1088,6 @@ def verify_pattern(original_path, captured_path, uploads_dir="uploads", block_si
     original_gray = cv2.cvtColor(original_bgr, cv2.COLOR_BGR2GRAY)
 
     # Step 0: Crop
-    # Template matching was here but removed -- it bypasses the verification
-    # pipeline entirely, giving 100% for any digital copy (including
-    # counterfeits). The 1% gap from perspective warp interpolation is
-    # acceptable and honest.
     cropped_bgr, bbox, pattern_found, pattern_quad = detect_and_crop_pattern(captured_bgr)
     if pattern_found:
         captured_bgr = cropped_bgr
@@ -1292,8 +1097,7 @@ def verify_pattern(original_path, captured_path, uploads_dir="uploads", block_si
 
     # Step 2: Align
     target = (original_bgr.shape[1], original_bgr.shape[0])
-    aligned_bgr, alignment_method = align_captured_image(
-        captured_bgr, target, markers, original_gray_ref=original_gray)
+    aligned_bgr, alignment_method = align_captured_image(captured_bgr, target, markers, original_gray_ref=original_gray)
     aligned_rgb = cv2.cvtColor(aligned_bgr, cv2.COLOR_BGR2RGB)
     aligned_gray = cv2.cvtColor(aligned_bgr, cv2.COLOR_BGR2GRAY)
 

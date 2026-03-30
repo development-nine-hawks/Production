@@ -127,7 +127,13 @@ def download_pattern(pid: int):
     p = db.patterns.find_one({"id": pid})
     if not p:
         raise HTTPException(404, "Pattern not found")
-    return RedirectResponse(url=p["image_url"])
+    # Download from Cloudinary and serve with attachment disposition
+    # so the browser downloads instead of opening in a new tab.
+    tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False, dir=config.DATA_DIR)
+    tmp.close()
+    download_from_cloudinary(p["image_url"], tmp.name)
+    filename = p.get("filename", f"{p['serial_number']}.png")
+    return FileResponse(tmp.name, media_type="image/png", filename=filename)
 
 
 @app.get("/api/patterns/{pid}/pdf")
@@ -184,6 +190,382 @@ def download_pattern_pdf(
     pdf_filename = f"{p['serial_number']}_{size_mm}mm.pdf"
     return FileResponse(tmp_pdf.name, media_type="application/pdf",
                         filename=pdf_filename)
+
+
+@app.get("/api/patterns/{pid}/label-pdf")
+def download_pattern_label_pdf(
+    pid: int,
+    size_mm: float = Query(..., description="Pattern size in mm"),
+):
+    from reportlab.lib.units import mm
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.utils import ImageReader
+
+    db = get_db()
+    p = db.patterns.find_one({"id": pid})
+    if not p:
+        raise HTTPException(404, "Pattern not found")
+
+    # Download pattern image from Cloudinary to temp file
+    tmp_img = tempfile.NamedTemporaryFile(suffix=".png", delete=False, dir=config.DATA_DIR)
+    tmp_img.close()
+    download_from_cloudinary(p["image_url"], tmp_img.name)
+
+    tmp_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False, dir=config.DATA_DIR)
+    tmp_pdf.close()
+
+    # --- NINEHAWK branded label layout (proportions matched to reference) ---
+    pat = size_mm * mm
+    pad_side = pat * 0.33
+    pad_bottom = pat * 0.27
+    pad_top = pat * 0.06
+    banner_h = pat * 0.50
+    gap_banner_wm1 = pat * 0.10
+    wm1_h = pat * 0.12
+    gap_wm1_wm2 = pat * 0.02
+    wm2_h = pat * 0.18
+    gap_wm2_sta = pat * 0.04
+    sta_h = pat * 0.28
+    gap_sta_pat = pat * 0.09
+
+    label_w = pat + 2 * pad_side
+    label_h = (pad_top + banner_h + gap_banner_wm1 + wm1_h + gap_wm1_wm2 +
+               wm2_h + gap_wm2_sta + sta_h + gap_sta_pat + pat + pad_bottom)
+    corner_r = pat * 0.06
+    border_inset = pat * 0.03
+
+    # Place the label centered on an A4 page
+    from reportlab.lib.pagesizes import A4
+    page_w, page_h = A4
+    ox = (page_w - label_w) / 2   # x offset to center label on page
+    oy = (page_h - label_h) / 2   # y offset to center label on page
+
+    c = canvas.Canvas(tmp_pdf.name, pagesize=A4)
+    c.saveState()
+    c.translate(ox, oy)  # shift all drawing so the label is centered
+
+    # --- Outer rounded border ---
+    c.setStrokeColorRGB(0.15, 0.15, 0.15)
+    c.setLineWidth(1.5)
+    c.setFillColorRGB(1, 1, 1)
+    c.roundRect(1, 1, label_w - 2, label_h - 2, corner_r, stroke=1, fill=1)
+
+    # --- Inner rounded border (double-border effect) ---
+    c.setStrokeColorRGB(0.24, 0.24, 0.24)
+    c.setLineWidth(0.5)
+    c.roundRect(border_inset, border_inset,
+                label_w - 2 * border_inset, label_h - 2 * border_inset,
+                corner_r - border_inset, stroke=1, fill=0)
+
+    # --- Black banner with rounded corners ---
+    ban_margin = border_inset + pat * 0.03
+    ban_y = label_h - pad_top - border_inset - banner_h
+    ban_w = label_w - 2 * ban_margin
+    ban_r = pat * 0.04
+    c.setFillColorRGB(0, 0, 0)
+    c.roundRect(ban_margin, ban_y, ban_w, banner_h, ban_r, stroke=0, fill=1)
+
+    # Banner image
+    banner_img_path = os.path.join(config.BASE_DIR, "static", "img", "ninehawk_banner.png")
+    if os.path.exists(banner_img_path):
+        banner_img = ImageReader(banner_img_path)
+        img_pad = banner_h * 0.12
+        img_h = banner_h - 2 * img_pad
+        orig_w, orig_h = banner_img.getSize()
+        img_w = img_h * (orig_w / orig_h)
+        if img_w > ban_w - 2 * img_pad:
+            img_w = ban_w - 2 * img_pad
+            img_h = img_w * (orig_h / orig_w)
+        img_x = ban_margin + (ban_w - img_w) / 2
+        img_y = ban_y + (banner_h - img_h) / 2
+        c.drawImage(banner_img, img_x, img_y, width=img_w, height=img_h,
+                    mask='auto')
+
+    # --- Watermark 1: light NINEHAWK ---
+    wm1_y = ban_y - gap_banner_wm1 - wm1_h
+    wm1_fs = min(wm1_h * 0.70, label_w * 0.06)
+    c.setFillColorRGB(0.82, 0.82, 0.82)
+    c.setFont("Helvetica-Bold", wm1_fs)
+    c.drawCentredString(label_w / 2, wm1_y + wm1_h * 0.20, "NINEHAWK")
+
+    # --- Watermark 2: darker NINEHAWK ---
+    wm2_y = wm1_y - gap_wm1_wm2 - wm2_h
+    wm2_fs = min(wm2_h * 0.65, label_w * 0.08)
+    c.setFillColorRGB(0.60, 0.60, 0.60)
+    c.setFont("Helvetica-Bold", wm2_fs)
+    c.drawCentredString(label_w / 2, wm2_y + wm2_h * 0.20, "NINEHAWK")
+
+    # --- "SCAN TO AUTHENTICATE" bold text ---
+    sta_y = wm2_y - gap_wm2_sta - sta_h
+    sta_fs = min(sta_h * 0.30, label_w * 0.08)
+    c.setFillColorRGB(0, 0, 0)
+    c.setFont("Helvetica-Bold", sta_fs)
+    c.drawCentredString(label_w / 2, sta_y + sta_h * 0.55, "SCAN TO")
+    c.drawCentredString(label_w / 2, sta_y + sta_h * 0.15, "AUTHENTICATE")
+
+    # --- CDP pattern with alignment aids ---
+    border_pts = pat * 0.006
+    pat_x = (label_w - pat) / 2
+    pat_y = pad_bottom
+    c.setStrokeColorRGB(0.12, 0.12, 0.12)
+    c.setLineWidth(border_pts)
+    c.rect(pat_x - border_pts, pat_y - border_pts,
+           pat + 2 * border_pts, pat + 2 * border_pts)
+    img = ImageReader(tmp_img.name)
+    c.drawImage(img, pat_x, pat_y, width=pat, height=pat)
+
+    c.restoreState()
+    c.save()
+
+    # Clean up temp image
+    try:
+        os.remove(tmp_img.name)
+    except OSError:
+        pass
+
+    pdf_filename = f"{p['serial_number']}_label_{size_mm}mm.pdf"
+    return FileResponse(tmp_pdf.name, media_type="application/pdf",
+                        filename=pdf_filename)
+
+
+@app.get("/api/patterns/{pid}/label-png")
+def download_pattern_label_png(
+    pid: int,
+    size_px: int = Query(512, description="Pattern size in pixels"),
+):
+    import cv2
+    import numpy as np
+    import base64
+    from playwright.sync_api import sync_playwright
+
+    db = get_db()
+    p = db.patterns.find_one({"id": pid})
+    if not p:
+        raise HTTPException(404, "Pattern not found")
+
+    # Download pattern image from Cloudinary
+    tmp_img = tempfile.NamedTemporaryFile(suffix=".png", delete=False, dir=config.DATA_DIR)
+    tmp_img.close()
+    download_from_cloudinary(p["image_url"], tmp_img.name)
+
+    pat_bgr = cv2.imread(tmp_img.name)
+    if pat_bgr is None:
+        raise HTTPException(500, "Failed to load pattern image")
+    pat_bgr = cv2.resize(pat_bgr, (size_px, size_px), interpolation=cv2.INTER_AREA)
+
+    # Load banner as base64
+    banner_b64_path = os.path.join(config.BASE_DIR, "static", "img", "ninehawk_banner_b64.txt")
+    banner_img_path = os.path.join(config.BASE_DIR, "static", "img", "ninehawk_banner.png")
+    if not os.path.exists(banner_b64_path) and os.path.exists(banner_img_path):
+        with open(banner_img_path, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
+        with open(banner_b64_path, "w") as f:
+            f.write(b64)
+    with open(banner_b64_path) as f:
+        banner_b64 = f.read()
+
+    # Encode QR pattern as base64 PNG (use a magenta placeholder, overlay real pixels later)
+    placeholder = np.zeros((size_px, size_px, 3), dtype=np.uint8)
+    placeholder[:] = (255, 0, 255)  # magenta - easy to find
+    _, buf = cv2.imencode('.png', placeholder)
+    qr_b64 = base64.b64encode(buf).decode()
+
+    # Build HTML label with layered absolute positioning
+    pat = size_px
+    card_w = int(pat * 1.70)
+    card_h = int(pat * 3.33)
+    frame_pad = int(pat * 0.14)
+    border_gap = int(pat * 0.04)  # padding from card edge to the single border
+    cr = int(pat * 0.08)
+    ban_h = int(pat * 0.42)
+    ban_top = int(pat * 0.16)
+
+    # Calculate QR frame position (from reference: ~65% down the card)
+    frame_w = pat + 2 * frame_pad
+    frame_h = pat + 2 * frame_pad
+    frame_left = (card_w - frame_w) // 2
+    frame_top = int(card_h * 0.58)
+
+    # Watermark repeat count to fill card height
+    wm_item_h = int(pat * 0.24)
+    wm_count = (card_h // wm_item_h) + 2
+
+    html = f"""<!DOCTYPE html>
+<html><head><style>
+  * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+  body {{ width: {card_w}px; height: {card_h}px; overflow: hidden; background: transparent; margin: 0; }}
+
+  /* Layer 6: Card - outer container */
+  .card {{
+    width: {card_w}px; height: {card_h}px;
+    background: white;
+    border: none;
+    border-radius: {cr}px;
+    position: relative;
+    overflow: hidden;
+  }}
+  .card-inner-border {{
+    position: absolute;
+    top: {border_gap}px; left: {border_gap}px;
+    right: {border_gap}px; bottom: {border_gap}px;
+    border: 20px solid #222;
+    border-radius: {max(1, cr - border_gap)}px;
+    pointer-events: none;
+    z-index: 0;
+  }}
+
+  /* Layer 4: Watermarks - repeating column, clipped to card */
+  .watermarks {{
+    position: absolute;
+    top: {ban_top + ban_h + int(pat*0.05)}px;
+    left: 0; right: 0;
+    bottom: {int(pat * 0.15)}px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: {int(pat * 0.12)}px;
+    z-index: 1;
+    overflow: hidden;
+  }}
+  .watermarks img {{
+    height: {wm_item_h}px;
+    flex-shrink: 0;
+    filter: invert(1);
+    mix-blend-mode: multiply;
+    opacity: 0.18;
+  }}
+
+  /* Layer 5: Black banner */
+  .banner {{
+    position: absolute;
+    top: {ban_top + border_gap + 20}px;
+    left: {int(pat * 0.05) + border_gap}px;
+    right: {int(pat * 0.05) + border_gap}px;
+    height: {ban_h}px;
+    background: black;
+    border-radius: {int(pat * 0.05)}px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+  }}
+  .banner img {{ height: 45%; object-fit: contain; }}
+
+  /* Layer 3: "SCAN TO AUTHENTICATE" text */
+  .scan-text {{
+    position: absolute;
+    top: {frame_top - int(pat * 0.35)}px;
+    left: 0; right: 0;
+    text-align: center;
+    font-family: 'Arial Black', 'Impact', sans-serif;
+    font-weight: 900;
+    font-size: {int(pat * 0.09)}px;
+    color: black;
+    line-height: 1.5;
+    letter-spacing: 2px;
+    z-index: 2;
+  }}
+
+  /* Layer 2: QR container (white bg covers watermarks) */
+  .qr-container {{
+    position: absolute;
+    top: {frame_top}px;
+    left: {frame_left}px;
+    width: {frame_w}px;
+    height: {frame_h}px;
+    background: white;
+    border: 10px solid #333;
+    border-radius: {int(pat * 0.03)}px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+  }}
+
+  /* Layer 1: QR code */
+  .qr-code {{
+    border: 3px solid #222;
+    line-height: 0;
+  }}
+  .qr-code img {{
+    width: {pat}px;
+    height: {pat}px;
+    display: block;
+  }}
+</style></head>
+<body>
+<div class="card">
+  <!-- Layer 6: inner border -->
+  <div class="card-inner-border"></div>
+
+  <!-- Layer 4: Watermark strip (repeating, behind everything) -->
+  <div class="watermarks">
+    {"".join(f'<img src="data:image/png;base64,{banner_b64}" />' for _ in range(wm_count))}
+  </div>
+
+  <!-- Layer 5: Black banner (covers watermarks) -->
+  <div class="banner">
+    <img src="data:image/png;base64,{banner_b64}" />
+  </div>
+
+  <!-- Layer 3: Scan text -->
+  <div class="scan-text">SCAN TO<br>AUTHENTICATE</div>
+
+  <!-- Layer 2: QR container (white bg covers watermarks) -->
+  <div class="qr-container">
+    <!-- Layer 1: QR code -->
+    <div class="qr-code">
+      <img src="data:image/png;base64,{qr_b64}" />
+    </div>
+  </div>
+</div>
+</body>
+</html>"""
+
+    # Render HTML to PNG
+    tmp_html_out = tempfile.NamedTemporaryFile(suffix=".png", delete=False, dir=config.DATA_DIR)
+    tmp_html_out.close()
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        page = browser.new_page(viewport={"width": card_w, "height": card_h})
+        page.set_content(html)
+        page.wait_for_timeout(200)
+        page.screenshot(path=tmp_html_out.name, full_page=True)
+        browser.close()
+
+    # Load rendered label, find magenta placeholder, replace with real QR pixels
+    label = cv2.imread(tmp_html_out.name)
+    # Find magenta region (BGR: 255, 0, 255)
+    magenta_mask = (label[:, :, 0] > 200) & (label[:, :, 1] < 50) & (label[:, :, 2] > 200)
+    ys, xs = np.where(magenta_mask)
+    if len(ys) > 0:
+        qr_y1, qr_x1 = ys.min(), xs.min()
+        qr_y2, qr_x2 = ys.max() + 1, xs.max() + 1
+        qr_h_found = qr_y2 - qr_y1
+        qr_w_found = qr_x2 - qr_x1
+        # Resize pattern to fit the placeholder exactly
+        pat_resized = cv2.resize(pat_bgr, (qr_w_found, qr_h_found), interpolation=cv2.INTER_AREA)
+        label[qr_y1:qr_y2, qr_x1:qr_x2] = pat_resized
+
+    # Save final label
+    tmp_out = tempfile.NamedTemporaryFile(suffix=".png", delete=False, dir=config.DATA_DIR)
+    tmp_out.close()
+    cv2.imwrite(tmp_out.name, label)
+
+    # Save and return
+    tmp_out = tempfile.NamedTemporaryFile(suffix=".png", delete=False, dir=config.DATA_DIR)
+    tmp_out.close()
+    cv2.imwrite(tmp_out.name, label)
+
+    # Clean up pattern temp
+    try:
+        os.remove(tmp_img.name)
+    except OSError:
+        pass
+
+    png_filename = f"{p['serial_number']}_label.png"
+    return FileResponse(tmp_out.name, media_type="image/png",
+                        filename=png_filename)
 
 
 @app.get("/api/patterns/{pid}/preview")
