@@ -42,9 +42,9 @@ LABEL_PATTERN_BOTTOM_FRACTION = 0.50
 # Correlation measures PRNG block reproduction — the most CDP-specific test.
 # Moire measures frequency spectrum; color stats are similar for genuine/counterfeit.
 WEIGHT_MOIRE = 0.40
-WEIGHT_COLOR = 0.10
-WEIGHT_CORRELATION = 0.35
-WEIGHT_GRADIENT = 0.15
+WEIGHT_COLOR = 0.10 #10
+WEIGHT_CORRELATION = 0.35 #35
+WEIGHT_GRADIENT = 0.15 #15
 
 # Thresholds — calibrate after testing genuine vs counterfeit prints
 THRESHOLD_AUTHENTIC = 0.65
@@ -535,23 +535,28 @@ def detect_and_crop_pattern(image):
     h, w = gray.shape
 
     # === PRIMARY: Contour detection with squareness preference ===
-    # The squareness bonus in _find_pattern_contour ensures the square CDP
-    # pattern is preferred over a rectangular label contour, even when both
-    # are visible in the image.
+    # _find_pattern_contour runs FIRST. For standalone QR photos, it finds
+    # the pattern directly. For label photos, it finds the label card.
     contour = _find_pattern_contour(gray, min_area_pct=0.003)
     if contour is not None:
         bx, by, bw, bh = cv2.boundingRect(contour)
         aspect = bw / (bh + 1e-10)
 
         if LABEL_ASPECT_RANGE[0] <= aspect <= LABEL_ASPECT_RANGE[1]:
-            # Near-square: likely the CDP pattern (standalone or within label)
-            cropped, bbox, quad = _crop_from_contour(image, contour)
-            return cropped, bbox, True, quad
+            # Near-square: could be the CDP pattern. Reject if too large
+            # (>15% of image = paper/background, not a QR pattern) or
+            # too low texture (uniform dark region, not CDP texture).
+            area_pct = cv2.contourArea(contour) / (h * w)
+            region = gray[by:by + bh, bx:bx + bw]
+            region_std = float(region.std())
+            if area_pct < 0.10 and region_std > 25:
+                cropped, bbox, quad = _crop_from_contour(image, contour)
+                return cropped, bbox, True, quad
+            # Too large or low texture — fall through to label/RETR_TREE path
 
         # Non-square contour (likely a label card wrapping the pattern).
         # Use RETR_TREE on the FULL image to find the QR alignment border
-        # as a nested child contour. This uses the same thresholding as the
-        # standalone path, giving equivalent crop quality.
+        # as a nested child contour within the label hierarchy.
         blurred_full = cv2.GaussianBlur(gray, (5, 5), 0)
         otsu_val, _ = cv2.threshold(blurred_full, 0, 255,
                                     cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
@@ -563,13 +568,14 @@ def detect_and_crop_pattern(image):
         tree_contours, tree_hier = cv2.findContours(
             closed_full, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-        # Find the most-square nested contour (the QR alignment border)
+        # Find the most-square nested contour (the QR alignment border).
+        # Minimum area 0.5% prevents picking tiny fiducial marker circles.
         best_inner = None
-        best_sq_err = float('inf')
+        best_bbox_area = float('inf')
         for i, cnt in enumerate(tree_contours):
             area = cv2.contourArea(cnt)
             pct = area / (h * w)
-            if pct < 0.003 or pct > 0.50:
+            if pct < 0.005 or pct > 0.50:
                 continue
             parent = tree_hier[0][i][3]
             if parent < 0:
@@ -578,9 +584,13 @@ def detect_and_crop_pattern(image):
             casp = cbw2 / (cbh2 + 1e-10)
             if not (0.85 <= casp <= 1.18):
                 continue
-            sq_err = abs(1.0 - casp)
-            if sq_err < best_sq_err:
-                best_sq_err = sq_err
+            # Among all near-square nested contours, prefer the SMALLEST.
+            # The innermost contour (QR alignment border) is always smaller
+            # than the outer contour (QR frame). Picking the smallest gives
+            # the tightest crop around the actual QR pattern.
+            bbox_area = cbw2 * cbh2
+            if bbox_area < best_bbox_area:
+                best_bbox_area = bbox_area
                 best_inner = cnt
 
         if best_inner is not None:

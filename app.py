@@ -197,6 +197,7 @@ def download_pattern_label_pdf(
     pid: int,
     size_mm: float = Query(..., description="Pattern size in mm"),
 ):
+    from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
     from reportlab.pdfgen import canvas
     from reportlab.lib.utils import ImageReader
@@ -206,120 +207,51 @@ def download_pattern_label_pdf(
     if not p:
         raise HTTPException(404, "Pattern not found")
 
-    # Download pattern image from Cloudinary to temp file
-    tmp_img = tempfile.NamedTemporaryFile(suffix=".png", delete=False, dir=config.DATA_DIR)
-    tmp_img.close()
-    download_from_cloudinary(p["image_url"], tmp_img.name)
+    # Generate the label PNG using the same HTML/Playwright pipeline
+    # as the label-png endpoint, then embed it on an A4 PDF page.
+    # This guarantees both PNG and PDF outputs look identical.
+    import requests
+    label_png_url = f"http://localhost:{config.PORT}/api/patterns/{pid}/label-png"
+    tmp_label = tempfile.NamedTemporaryFile(suffix=".png", delete=False, dir=config.DATA_DIR)
+    tmp_label.close()
+    try:
+        resp = requests.get(label_png_url, timeout=30)
+        resp.raise_for_status()
+        with open(tmp_label.name, 'wb') as f:
+            f.write(resp.content)
+    except Exception:
+        raise HTTPException(500, "Failed to generate label PNG")
 
     tmp_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False, dir=config.DATA_DIR)
     tmp_pdf.close()
 
-    # --- NINEHAWK branded label layout (proportions matched to reference) ---
-    pat = size_mm * mm
-    pad_side = pat * 0.33
-    pad_bottom = pat * 0.27
-    pad_top = pat * 0.06
-    banner_h = pat * 0.50
-    gap_banner_wm1 = pat * 0.10
-    wm1_h = pat * 0.12
-    gap_wm1_wm2 = pat * 0.02
-    wm2_h = pat * 0.18
-    gap_wm2_sta = pat * 0.04
-    sta_h = pat * 0.28
-    gap_sta_pat = pat * 0.09
+    # Get label image dimensions to calculate scaling
+    import cv2
+    label_img = cv2.imread(tmp_label.name)
+    if label_img is None:
+        raise HTTPException(500, "Failed to read label image")
+    label_h_px, label_w_px = label_img.shape[:2]
 
-    label_w = pat + 2 * pad_side
-    label_h = (pad_top + banner_h + gap_banner_wm1 + wm1_h + gap_wm1_wm2 +
-               wm2_h + gap_wm2_sta + sta_h + gap_sta_pat + pat + pad_bottom)
-    corner_r = pat * 0.06
-    border_inset = pat * 0.03
+    # Scale: the QR pattern is size_px (default 512) pixels in the label.
+    # We want it to print at size_mm. Calculate the overall scale factor.
+    pat_px = 512  # default pattern size in the label PNG
+    scale = (size_mm * mm) / pat_px  # points per pixel
+    label_w_pts = label_w_px * scale
+    label_h_pts = label_h_px * scale
 
-    # Place the label centered on an A4 page
-    from reportlab.lib.pagesizes import A4
+    # Center on A4
     page_w, page_h = A4
-    ox = (page_w - label_w) / 2   # x offset to center label on page
-    oy = (page_h - label_h) / 2   # y offset to center label on page
+    ox = (page_w - label_w_pts) / 2
+    oy = (page_h - label_h_pts) / 2
 
     c = canvas.Canvas(tmp_pdf.name, pagesize=A4)
-    c.saveState()
-    c.translate(ox, oy)  # shift all drawing so the label is centered
-
-    # --- Outer rounded border ---
-    c.setStrokeColorRGB(0.15, 0.15, 0.15)
-    c.setLineWidth(1.5)
-    c.setFillColorRGB(1, 1, 1)
-    c.roundRect(1, 1, label_w - 2, label_h - 2, corner_r, stroke=1, fill=1)
-
-    # --- Inner rounded border (double-border effect) ---
-    c.setStrokeColorRGB(0.24, 0.24, 0.24)
-    c.setLineWidth(0.5)
-    c.roundRect(border_inset, border_inset,
-                label_w - 2 * border_inset, label_h - 2 * border_inset,
-                corner_r - border_inset, stroke=1, fill=0)
-
-    # --- Black banner with rounded corners ---
-    ban_margin = border_inset + pat * 0.03
-    ban_y = label_h - pad_top - border_inset - banner_h
-    ban_w = label_w - 2 * ban_margin
-    ban_r = pat * 0.04
-    c.setFillColorRGB(0, 0, 0)
-    c.roundRect(ban_margin, ban_y, ban_w, banner_h, ban_r, stroke=0, fill=1)
-
-    # Banner image
-    banner_img_path = os.path.join(config.BASE_DIR, "static", "img", "ninehawk_banner.png")
-    if os.path.exists(banner_img_path):
-        banner_img = ImageReader(banner_img_path)
-        img_pad = banner_h * 0.12
-        img_h = banner_h - 2 * img_pad
-        orig_w, orig_h = banner_img.getSize()
-        img_w = img_h * (orig_w / orig_h)
-        if img_w > ban_w - 2 * img_pad:
-            img_w = ban_w - 2 * img_pad
-            img_h = img_w * (orig_h / orig_w)
-        img_x = ban_margin + (ban_w - img_w) / 2
-        img_y = ban_y + (banner_h - img_h) / 2
-        c.drawImage(banner_img, img_x, img_y, width=img_w, height=img_h,
-                    mask='auto')
-
-    # --- Watermark 1: light NINEHAWK ---
-    wm1_y = ban_y - gap_banner_wm1 - wm1_h
-    wm1_fs = min(wm1_h * 0.70, label_w * 0.06)
-    c.setFillColorRGB(0.82, 0.82, 0.82)
-    c.setFont("Helvetica-Bold", wm1_fs)
-    c.drawCentredString(label_w / 2, wm1_y + wm1_h * 0.20, "NINEHAWK")
-
-    # --- Watermark 2: darker NINEHAWK ---
-    wm2_y = wm1_y - gap_wm1_wm2 - wm2_h
-    wm2_fs = min(wm2_h * 0.65, label_w * 0.08)
-    c.setFillColorRGB(0.60, 0.60, 0.60)
-    c.setFont("Helvetica-Bold", wm2_fs)
-    c.drawCentredString(label_w / 2, wm2_y + wm2_h * 0.20, "NINEHAWK")
-
-    # --- "SCAN TO AUTHENTICATE" bold text ---
-    sta_y = wm2_y - gap_wm2_sta - sta_h
-    sta_fs = min(sta_h * 0.30, label_w * 0.08)
-    c.setFillColorRGB(0, 0, 0)
-    c.setFont("Helvetica-Bold", sta_fs)
-    c.drawCentredString(label_w / 2, sta_y + sta_h * 0.55, "SCAN TO")
-    c.drawCentredString(label_w / 2, sta_y + sta_h * 0.15, "AUTHENTICATE")
-
-    # --- CDP pattern with alignment aids ---
-    border_pts = pat * 0.006
-    pat_x = (label_w - pat) / 2
-    pat_y = pad_bottom
-    c.setStrokeColorRGB(0.12, 0.12, 0.12)
-    c.setLineWidth(border_pts)
-    c.rect(pat_x - border_pts, pat_y - border_pts,
-           pat + 2 * border_pts, pat + 2 * border_pts)
-    img = ImageReader(tmp_img.name)
-    c.drawImage(img, pat_x, pat_y, width=pat, height=pat)
-
-    c.restoreState()
+    img = ImageReader(tmp_label.name)
+    c.drawImage(img, ox, oy, width=label_w_pts, height=label_h_pts)
     c.save()
 
-    # Clean up temp image
+    # Clean up
     try:
-        os.remove(tmp_img.name)
+        os.remove(tmp_label.name)
     except OSError:
         pass
 
