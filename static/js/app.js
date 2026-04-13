@@ -51,7 +51,9 @@ function navigate() {
         const on = (pg === 'dashboard' && h === '/') || (pg && h.startsWith('/' + pg));
         l.classList.toggle('bg-brand-700', on);
     });
-    fn(document.getElementById('app'), p);
+    const el = document.getElementById('app');
+    el.innerHTML = spin('Loading...');
+    requestAnimationFrame(() => fn(el, p));
 }
 window.addEventListener('hashchange', navigate);
 window.addEventListener('load', navigate);
