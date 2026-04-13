@@ -39,12 +39,12 @@ LABEL_ASPECT_RANGE = (0.75, 1.33)
 LABEL_PATTERN_BOTTOM_FRACTION = 0.50
 
 # Verification weights
-# Correlation measures PRNG block reproduction — the most CDP-specific test.
-# Moire measures frequency spectrum; color stats are similar for genuine/counterfeit.
-WEIGHT_MOIRE = 0.40
-WEIGHT_COLOR = 0.10 #10
-WEIGHT_CORRELATION = 0.35 #35
-WEIGHT_GRADIENT = 0.15 #15
+# Moire is the most discriminative test — counterfeits lose grating fidelity.
+# Correlation (PRNG block) can score high on quality counterfeits, so weight reduced.
+WEIGHT_MOIRE = 0.65
+WEIGHT_COLOR = 0.10
+WEIGHT_CORRELATION = 0.10
+WEIGHT_GRADIENT = 0.15
 
 # Thresholds — calibrate after testing genuine vs counterfeit prints
 THRESHOLD_AUTHENTIC = 0.65
@@ -543,62 +543,55 @@ def detect_and_crop_pattern(image):
         aspect = bw / (bh + 1e-10)
 
         if LABEL_ASPECT_RANGE[0] <= aspect <= LABEL_ASPECT_RANGE[1]:
-            # Near-square: could be the CDP pattern. Reject if too large
-            # (>15% of image = paper/background, not a QR pattern) or
-            # too low texture (uniform dark region, not CDP texture).
+            # Near-square: could be the CDP pattern directly.
             area_pct = cv2.contourArea(contour) / (h * w)
             region = gray[by:by + bh, bx:bx + bw]
             region_std = float(region.std())
             if area_pct < 0.10 and region_std > 25:
                 cropped, bbox, quad = _crop_from_contour(image, contour)
                 return cropped, bbox, True, quad
-            # Too large or low texture — fall through to label/RETR_TREE path
 
-        # Non-square contour (likely a label card wrapping the pattern).
-        # Use RETR_TREE on the FULL image to find the QR alignment border
-        # as a nested child contour within the label hierarchy.
-        blurred_full = cv2.GaussianBlur(gray, (5, 5), 0)
-        otsu_val, _ = cv2.threshold(blurred_full, 0, 255,
-                                    cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-        _, binary_full = cv2.threshold(blurred_full,
-                                       min(int(otsu_val) + 20, 220), 255,
-                                       cv2.THRESH_BINARY_INV)
-        close_k = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
-        closed_full = cv2.morphologyEx(binary_full, cv2.MORPH_CLOSE, close_k)
-        tree_contours, tree_hier = cv2.findContours(
-            closed_full, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    # === RETR_TREE: find CDP as a nested child contour ===
+    # Always try this — works for label-embedded patterns at any angle,
+    # and also catches cases where _find_pattern_contour returned None.
+    blurred_full = cv2.GaussianBlur(gray, (5, 5), 0)
+    otsu_val, _ = cv2.threshold(blurred_full, 0, 255,
+                                cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    _, binary_full = cv2.threshold(blurred_full,
+                                   min(int(otsu_val) + 20, 220), 255,
+                                   cv2.THRESH_BINARY_INV)
+    close_k = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
+    closed_full = cv2.morphologyEx(binary_full, cv2.MORPH_CLOSE, close_k)
+    tree_contours, tree_hier = cv2.findContours(
+        closed_full, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-        # Find the most-square nested contour (the QR alignment border).
-        # Minimum area 0.5% prevents picking tiny fiducial marker circles.
-        best_inner = None
-        best_bbox_area = float('inf')
-        for i, cnt in enumerate(tree_contours):
-            area = cv2.contourArea(cnt)
-            pct = area / (h * w)
-            if pct < 0.005 or pct > 0.50:
-                continue
-            parent = tree_hier[0][i][3]
-            if parent < 0:
-                continue
-            cbx2, cby2, cbw2, cbh2 = cv2.boundingRect(cnt)
-            casp = cbw2 / (cbh2 + 1e-10)
-            if not (0.85 <= casp <= 1.18):
-                continue
-            # Among all near-square nested contours, prefer the SMALLEST.
-            # The innermost contour (QR alignment border) is always smaller
-            # than the outer contour (QR frame). Picking the smallest gives
-            # the tightest crop around the actual QR pattern.
-            bbox_area = cbw2 * cbh2
-            if bbox_area < best_bbox_area:
-                best_bbox_area = bbox_area
-                best_inner = cnt
+    best_inner = None
+    best_bbox_area = float('inf')
+    for i, cnt in enumerate(tree_contours):
+        area = cv2.contourArea(cnt)
+        pct = area / (h * w)
+        if pct < 0.005 or pct > 0.50:
+            continue
+        parent = tree_hier[0][i][3]
+        if parent < 0:
+            continue
+        cbx2, cby2, cbw2, cbh2 = cv2.boundingRect(cnt)
+        casp = cbw2 / (cbh2 + 1e-10)
+        if not (0.85 <= casp <= 1.18):
+            continue
+        bbox_area = cbw2 * cbh2
+        if bbox_area < best_bbox_area:
+            best_bbox_area = bbox_area
+            best_inner = cnt
 
-        if best_inner is not None:
-            cropped, inner_bbox, quad = _crop_from_contour(image, best_inner)
-            cbx2, cby2, cbw2, cbh2 = cv2.boundingRect(best_inner)
-            return cropped, (cbx2, cby2, cbw2, cbh2), True, quad
+    if best_inner is not None:
+        cropped, inner_bbox, quad = _crop_from_contour(image, best_inner)
+        cbx2, cby2, cbw2, cbh2 = cv2.boundingRect(best_inner)
+        return cropped, (cbx2, cby2, cbw2, cbh2), True, quad
 
-        # Fallback: use _extract_pattern_from_label on the label ROI
+    # Fallback: extract pattern from label ROI if _find_pattern_contour found something
+    if contour is not None:
+        bx, by, bw, bh = cv2.boundingRect(contour)
         label_roi = image[by:by + bh, bx:bx + bw]
         pattern_from_label, rel_bbox = _extract_pattern_from_label(label_roi)
         orig_bbox = (rel_bbox[0] + bx, rel_bbox[1] + by,
@@ -937,6 +930,34 @@ def align_captured_image(captured, original_size, markers=None, original_gray_re
     if markers and original_gray_ref is not None:
         hough_pos = markers.get("hough_positions", {})   # {ic: (cx,cy)} raw Hough
 
+        # Guard: need ≥3 actual Hough detections for a reliable perspective warp.
+        # With fewer, the remaining positions are fixed-position guesses that
+        # assume the pattern fills the crop perfectly — wrong when the contour
+        # crop is imprecise (oblique angles, small prints).  In that case
+        # resize the crop and try all 4 rotations via NCC to find orientation.
+        if len(hough_pos) < 3:
+            resized = cv2.resize(captured, (target_w, target_h),
+                                 interpolation=cv2.INTER_AREA)
+            gray_r = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY) \
+                if len(resized.shape) == 3 else resized
+            thumb = 128
+            ref_t = cv2.resize(original_gray_ref, (thumb, thumb)).astype(np.float32)
+            ref_f = ref_t - ref_t.mean()
+            ref_n = np.linalg.norm(ref_f) + 1e-9
+            best_rot, best_ncc = 0, -1.0
+            for rot in range(4):
+                g = np.rot90(gray_r, rot)
+                t = cv2.resize(g, (thumb, thumb)).astype(np.float32)
+                f = t - t.mean()
+                n = np.linalg.norm(f) + 1e-9
+                ncc = float(np.dot(ref_f.ravel(), f.ravel()) / (ref_n * n))
+                if ncc > best_ncc:
+                    best_ncc, best_rot = ncc, rot
+            if best_rot != 0:
+                resized = np.rot90(resized, best_rot).copy()
+            rot_names = ["0", "90CW", "180", "90CCW"]
+            return resized, f"resize ({rot_names[best_rot]})"
+
         # Build P: 4 positions keyed by image corner name (tl/tr/bl/br).
         # Priority: Hough detection (correct image-corner proximity) first.
         # Fill any missing corners with fixed-position estimates computed
@@ -960,6 +981,14 @@ def align_captured_image(captured, original_size, markers=None, original_gray_re
             if ic in hough_pos and ic in reliable_hough:
                 P[ic] = hough_pos[ic]
 
+        # Second pass: for corners still missing, use Hough detections even if
+        # ring counting was unreliable (e.g. perspective/angle killed contrast).
+        # Actual detected circle positions are always more accurate than fixed
+        # estimates, which assume the pattern fills the crop at perfect 0° alignment.
+        for ic in ["tl", "tr", "bl", "br"]:
+            if ic not in P and ic in hough_pos:
+                P[ic] = hough_pos[ic]
+
         off_frac = FIDUCIAL_MARKER_OFFSET / max(PATTERN_SIZE)
         fixed_est = {
             "tl": (int(round(iw * off_frac)),         int(round(ih * off_frac))),
@@ -969,7 +998,7 @@ def align_captured_image(captured, original_size, markers=None, original_gray_re
         }
         for ic in ["tl", "tr", "bl", "br"]:
             if ic not in P:
-                P[ic] = fixed_est[ic]   # always gives len(P) == 4
+                P[ic] = fixed_est[ic]   # last resort: pattern fills the crop at 0°
 
         if len(P) == 4:
             pos_tl, pos_tr = P["tl"], P["tr"]
@@ -1051,18 +1080,24 @@ def align_captured_image(captured, original_size, markers=None, original_gray_re
                             if alt_ok > ncc_ok:
                                 ncc_ok, best_idx = alt_ok, alt_idx
 
-                dst = np.float32(DST_LIST[best_idx])
-                M   = cv2.getPerspectiveTransform(src, dst)
-                aligned = cv2.warpPerspective(captured, M, (w, h))
+                # Only trust the perspective warp if at least one rotation hypothesis
+                # gave a meaningful NCC score.  If all scores are near-zero, the marker
+                # positions are unreliable (e.g. oblique camera angle distorted Hough
+                # detections) — fall through to step 3 (marker crop+resize) which is
+                # more robust in that case.
+                if best_score >= 0.05:
+                    dst = np.float32(DST_LIST[best_idx])
+                    M   = cv2.getPerspectiveTransform(src, dst)
+                    aligned = cv2.warpPerspective(captured, M, (w, h))
 
-                # Relabel markers to reflect the true orientation
-                remap = LABEL_REMAP[best_idx]
-                for ic_name, correct_label in remap.items():
-                    markers[correct_label] = P[ic_name]
-                markers["markers_found"]      = 4
-                markers["rotation_detected"]  = [0, 90, 180, 270][best_idx]
+                    # Relabel markers to reflect the true orientation
+                    remap = LABEL_REMAP[best_idx]
+                    for ic_name, correct_label in remap.items():
+                        markers[correct_label] = P[ic_name]
+                    markers["markers_found"]      = 4
+                    markers["rotation_detected"]  = [0, 90, 180, 270][best_idx]
 
-                return aligned, f"perspective ({ROT_NAMES[best_idx]})"
+                    return aligned, f"perspective ({ROT_NAMES[best_idx]})"
 
     # --- Step 3: Marker-guided crop (≥2 markers — much better than full-frame resize) ---
     if markers and markers.get("markers_found", 0) >= 2:
