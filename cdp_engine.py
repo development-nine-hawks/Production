@@ -1450,6 +1450,17 @@ def verify_pattern(original_path, captured_path, uploads_dir="uploads", block_si
     aligned_filename = f"aligned_{ts}.png"
     cv2.imwrite(os.path.join(uploads_dir, aligned_filename), aligned_bgr)
 
+    # Per-block scoring for analytics / research-paper plots (one entry per
+    # 16x16 block — used to render heatmaps, scatter, histograms downstream).
+    try:
+        from cdp_analytics import compute_per_block_scores
+        per_block = compute_per_block_scores(
+            aligned_gray, original_gray, aligned_rgb, original_rgb,
+            block_size=block_size)
+        per_block_serialised = {k: v.tolist() for k, v in per_block.items()}
+    except Exception:
+        per_block_serialised = None
+
     return {
         "verdict": verdict,
         "confidence": float(final),
@@ -1462,4 +1473,5 @@ def verify_pattern(original_path, captured_path, uploads_dir="uploads", block_si
         "markers_filename": markers_filename,
         "aligned_filename": aligned_filename,
         "pattern_found": pattern_found,
+        "per_block_scores": per_block_serialised,
     }

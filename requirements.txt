@@ -10,3 +10,4 @@ gunicorn==22.0.0
 reportlab
 requests
 playwright
+matplotlib

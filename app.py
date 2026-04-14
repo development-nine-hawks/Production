@@ -578,18 +578,26 @@ async def run_verify(
     if result.get("verdict") == "ERROR":
         raise HTTPException(400, result.get("error", "Verification failed"))
 
-    # Upload only captured image to Cloudinary
+    # Upload captured + aligned to Cloudinary (aligned needed for analytics plots)
     captured_cloud = upload_to_cloudinary(cap_path, folder="phonecdp/captures")
+    aligned_path = os.path.join(config.UPLOADS_DIR, result["aligned_filename"])
+    aligned_cloud = None
+    try:
+        aligned_cloud = upload_to_cloudinary(aligned_path, folder="phonecdp/aligned")
+    except Exception:
+        pass
 
     vid = get_next_id("verifications")
     doc = {
         "id": vid,
         "pattern_id": p["id"],
         "captured_url": captured_cloud["secure_url"],
+        "aligned_url": aligned_cloud["secure_url"] if aligned_cloud else None,
         "markers_filename": result["markers_filename"],
         "aligned_filename": result["aligned_filename"],
         "cloudinary_ids": {
             "captured": captured_cloud["public_id"],
+            "aligned": aligned_cloud["public_id"] if aligned_cloud else None,
         },
         "verdict": result["verdict"],
         "confidence": result["confidence"],
@@ -597,6 +605,7 @@ async def run_verify(
         "score_color": result["scores"]["color"],
         "score_correlation": result["scores"]["correlation"],
         "score_gradient": result["scores"]["gradient"],
+        "per_block_scores": result.get("per_block_scores"),
         "markers_found": result["markers_found"],
         "alignment_method": result["alignment_method"],
         "print_size_mm": print_size_mm,
@@ -663,18 +672,26 @@ async def batch_verify(
                 pass
             continue
 
-        # Upload only captured image to Cloudinary
+        # Upload captured + aligned to Cloudinary (aligned needed for analytics)
         captured_cloud = upload_to_cloudinary(cap_path, folder="phonecdp/captures")
+        aligned_path = os.path.join(config.UPLOADS_DIR, r["aligned_filename"])
+        aligned_cloud = None
+        try:
+            aligned_cloud = upload_to_cloudinary(aligned_path, folder="phonecdp/aligned")
+        except Exception:
+            pass
 
         vid = get_next_id("verifications")
         doc = {
             "id": vid,
             "pattern_id": p["id"],
             "captured_url": captured_cloud["secure_url"],
+            "aligned_url": aligned_cloud["secure_url"] if aligned_cloud else None,
             "markers_filename": r["markers_filename"],
             "aligned_filename": r["aligned_filename"],
             "cloudinary_ids": {
                 "captured": captured_cloud["public_id"],
+                "aligned": aligned_cloud["public_id"] if aligned_cloud else None,
             },
             "verdict": r["verdict"],
             "confidence": r["confidence"],
@@ -682,6 +699,7 @@ async def batch_verify(
             "score_color": r["scores"]["color"],
             "score_correlation": r["scores"]["correlation"],
             "score_gradient": r["scores"]["gradient"],
+            "per_block_scores": r.get("per_block_scores"),
             "markers_found": r["markers_found"],
             "alignment_method": r["alignment_method"],
             "print_size_mm": print_size_mm,
@@ -762,6 +780,155 @@ def get_image(vid: int, image_type: str):
         return FileResponse(filepath, media_type="image/png")
     else:
         raise HTTPException(400, "Use: original, captured, markers, aligned")
+
+
+# ── Analytics / research-paper plots ───────────────────────────────────────
+
+def _load_aligned_and_reference(v, db):
+    """Fetch aligned + reference grayscale (and RGB) for plot rendering.
+
+    Returns (aligned_gray, reference_gray, aligned_rgb, reference_rgb) or None.
+    Tries local aligned file first, falls back to Cloudinary `aligned_url`.
+    """
+    import cv2
+    import numpy as np
+
+    p = db.patterns.find_one({"id": v["pattern_id"]})
+    if not p:
+        return None
+    ref_tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False, dir=config.DATA_DIR)
+    ref_tmp.close()
+    download_from_cloudinary(p["image_url"], ref_tmp.name)
+    ref_bgr = cv2.imread(ref_tmp.name)
+    try:
+        os.remove(ref_tmp.name)
+    except OSError:
+        pass
+    if ref_bgr is None:
+        return None
+
+    aligned_bgr = None
+    fn = v.get("aligned_filename")
+    if fn:
+        local = os.path.join(config.UPLOADS_DIR, fn)
+        if os.path.isfile(local):
+            aligned_bgr = cv2.imread(local)
+
+    if aligned_bgr is None and v.get("aligned_url"):
+        a_tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False, dir=config.DATA_DIR)
+        a_tmp.close()
+        try:
+            download_from_cloudinary(v["aligned_url"], a_tmp.name)
+            aligned_bgr = cv2.imread(a_tmp.name)
+        finally:
+            try:
+                os.remove(a_tmp.name)
+            except OSError:
+                pass
+
+    if aligned_bgr is None:
+        return None
+
+    return (
+        cv2.cvtColor(aligned_bgr, cv2.COLOR_BGR2GRAY),
+        cv2.cvtColor(ref_bgr, cv2.COLOR_BGR2GRAY),
+        cv2.cvtColor(aligned_bgr, cv2.COLOR_BGR2RGB),
+        cv2.cvtColor(ref_bgr, cv2.COLOR_BGR2RGB),
+    )
+
+
+def _get_per_block_scores(v, db):
+    """Return per-block score arrays. Use stored if present, otherwise compute."""
+    import numpy as np
+    from cdp_analytics import compute_per_block_scores
+
+    stored = v.get("per_block_scores")
+    if stored:
+        return {k: np.array(arr, dtype=np.float32) for k, arr in stored.items()}
+
+    imgs = _load_aligned_and_reference(v, db)
+    if imgs is None:
+        raise HTTPException(404, "Aligned image not available — cannot compute analytics")
+    aligned_gray, reference_gray, aligned_rgb, reference_rgb = imgs
+
+    p = db.patterns.find_one({"id": v["pattern_id"]})
+    bs = (p or {}).get("block_size", 16)
+    return compute_per_block_scores(aligned_gray, reference_gray,
+                                    aligned_rgb, reference_rgb, block_size=bs)
+
+
+@app.get("/api/verify/{vid}/plot/{test}/{plot_type}.png")
+def get_verification_plot(vid: int, test: str, plot_type: str):
+    """Render a single per-block plot.
+
+    test:       moire | correlation | gradient | color
+    plot_type:  heatmap | scatter | histogram | delta
+    """
+    import cv2
+    from cdp_analytics import (render_heatmap, render_scatter,
+                               render_histogram, render_delta_map)
+
+    db = get_db()
+    v = db.verifications.find_one({"id": vid})
+    if not v:
+        raise HTTPException(404, "Verification not found")
+
+    if test not in ("moire", "correlation", "gradient", "color"):
+        raise HTTPException(400, "test must be moire|correlation|gradient|color")
+    if plot_type not in ("heatmap", "scatter", "histogram", "delta"):
+        raise HTTPException(400, "plot_type must be heatmap|scatter|histogram|delta")
+
+    if plot_type == "delta":
+        imgs = _load_aligned_and_reference(v, db)
+        if imgs is None:
+            raise HTTPException(404, "Aligned image not available")
+        png = render_delta_map(imgs[0], imgs[1])
+    else:
+        scores = _get_per_block_scores(v, db)
+        arr = scores[test]
+        if plot_type == "heatmap":
+            imgs = _load_aligned_and_reference(v, db)
+            aligned_gray = imgs[0] if imgs else None
+            png = render_heatmap(arr, test, aligned_gray=aligned_gray)
+        elif plot_type == "scatter":
+            png = render_scatter(arr, test)
+        else:
+            png = render_histogram(arr, test)
+
+    return StreamingResponse(io.BytesIO(png), media_type="image/png")
+
+
+@app.get("/api/verify/{vid}/report.pdf")
+def get_verification_report_pdf(vid: int):
+    """Multi-page PDF with all plots for the verification."""
+    from cdp_analytics import render_full_report_pdf
+
+    db = get_db()
+    v = db.verifications.find_one({"id": vid})
+    if not v:
+        raise HTTPException(404, "Verification not found")
+
+    scores = _get_per_block_scores(v, db)
+    imgs = _load_aligned_and_reference(v, db)
+    aligned_gray = imgs[0] if imgs else None
+    reference_gray = imgs[1] if imgs else None
+
+    # Add ISO-formatted timestamp into the dict for the cover page
+    v_view = dict(v)
+    if "_id" in v_view:
+        v_view.pop("_id")
+    if v_view.get("created_at"):
+        v_view["created_at"] = v_view["created_at"].isoformat() if hasattr(
+            v_view["created_at"], "isoformat") else str(v_view["created_at"])
+
+    pdf_bytes = render_full_report_pdf(v_view, scores,
+                                       aligned_gray=aligned_gray,
+                                       reference_gray=reference_gray)
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="verification_{vid}_report.pdf"'},
+    )
 
 
 # ── Results API ──────────────────────────────────────────────────────────
