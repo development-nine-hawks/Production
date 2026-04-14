@@ -9,3 +9,4 @@ opencv-python-headless
 gunicorn==22.0.0
 reportlab
 requests
+playwright
