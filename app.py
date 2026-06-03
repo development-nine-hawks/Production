@@ -207,27 +207,17 @@ def download_pattern_label_pdf(
     if not p:
         raise HTTPException(404, "Pattern not found")
 
-    # Generate the label PNG using the same HTML/Playwright pipeline
-    # as the label-png endpoint, then embed it on an A4 PDF page.
-    # This guarantees both PNG and PDF outputs look identical.
-    import requests
-    label_png_url = f"http://localhost:{config.PORT}/api/patterns/{pid}/label-png"
-    tmp_label = tempfile.NamedTemporaryFile(suffix=".png", delete=False, dir=config.DATA_DIR)
-    tmp_label.close()
-    try:
-        resp = requests.get(label_png_url, timeout=30)
-        resp.raise_for_status()
-        with open(tmp_label.name, 'wb') as f:
-            f.write(resp.content)
-    except Exception:
-        raise HTTPException(500, "Failed to generate label PNG")
+    # Render the label PNG in-process via the shared pipeline, then embed
+    # it on an A4 page. Same renderer as the label-png endpoint, so PNG and
+    # PDF look identical -- with no fragile HTTP self-call.
+    tmp_label_name = _render_label_png_file(p, 512)
 
     tmp_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False, dir=config.DATA_DIR)
     tmp_pdf.close()
 
     # Get label image dimensions to calculate scaling
     import cv2
-    label_img = cv2.imread(tmp_label.name)
+    label_img = cv2.imread(tmp_label_name)
     if label_img is None:
         raise HTTPException(500, "Failed to read label image")
     label_h_px, label_w_px = label_img.shape[:2]
@@ -245,13 +235,13 @@ def download_pattern_label_pdf(
     oy = (page_h - label_h_pts) / 2
 
     c = canvas.Canvas(tmp_pdf.name, pagesize=A4)
-    img = ImageReader(tmp_label.name)
+    img = ImageReader(tmp_label_name)
     c.drawImage(img, ox, oy, width=label_w_pts, height=label_h_pts)
     c.save()
 
     # Clean up
     try:
-        os.remove(tmp_label.name)
+        os.remove(tmp_label_name)
     except OSError:
         pass
 
@@ -260,20 +250,19 @@ def download_pattern_label_pdf(
                         filename=pdf_filename)
 
 
-@app.get("/api/patterns/{pid}/label-png")
-def download_pattern_label_png(
-    pid: int,
-    size_px: int = Query(512, description="Pattern size in pixels"),
-):
+def _render_label_png_file(p: dict, size_px: int = 512) -> str:
+    """Render the NINEHAWK branded label PNG for a pattern, in-process.
+
+    Returns the path to a temp PNG file. Shared by the label-png and
+    label-pdf endpoints so neither makes an HTTP call back to this same
+    server. (That self-call broke on Render: config.PORT reads the env
+    PORT Render injects (10000), but gunicorn is hardcoded to bind 8000,
+    so the call hit a closed port and 500'd.)
+    """
     import cv2
     import numpy as np
     import base64
     from playwright.sync_api import sync_playwright
-
-    db = get_db()
-    p = db.patterns.find_one({"id": pid})
-    if not p:
-        raise HTTPException(404, "Pattern not found")
 
     # Download pattern image from Cloudinary
     tmp_img = tempfile.NamedTemporaryFile(suffix=".png", delete=False, dir=config.DATA_DIR)
@@ -484,19 +473,28 @@ def download_pattern_label_png(
     tmp_out.close()
     cv2.imwrite(tmp_out.name, label)
 
-    # Save and return
-    tmp_out = tempfile.NamedTemporaryFile(suffix=".png", delete=False, dir=config.DATA_DIR)
-    tmp_out.close()
-    cv2.imwrite(tmp_out.name, label)
-
     # Clean up pattern temp
     try:
         os.remove(tmp_img.name)
     except OSError:
         pass
 
+    return tmp_out.name
+
+
+@app.get("/api/patterns/{pid}/label-png")
+def download_pattern_label_png(
+    pid: int,
+    size_px: int = Query(512, description="Pattern size in pixels"),
+):
+    db = get_db()
+    p = db.patterns.find_one({"id": pid})
+    if not p:
+        raise HTTPException(404, "Pattern not found")
+
+    out_path = _render_label_png_file(p, size_px)
     png_filename = f"{p['serial_number']}_label.png"
-    return FileResponse(tmp_out.name, media_type="image/png",
+    return FileResponse(out_path, media_type="image/png",
                         filename=png_filename)
 
 
