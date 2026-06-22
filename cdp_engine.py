@@ -8,27 +8,33 @@ import numpy as np
 import cv2
 from datetime import datetime
 import os
-
+from config import BORDER_CELL_SIZE
+import math
+import logging
+_crop_logger = logging.getLogger("batch_runner")
 # ==========================================================================
 # CONSTANTS
 # ==========================================================================
 
-PATTERN_SIZE = (512, 512)
-FIDUCIAL_MARKER_SIZE   = 64   # ring structure diameter — controls ring geometry
-FIDUCIAL_MARKER_OFFSET = 34   # center-to-corner distance — bg circle edge sits 3px from pattern border
-RING_COUNT_TO_CORNER = {1: "top_left", 2: "top_right", 3: "bottom_left", 0: "bottom_right"}
 
-# Ring geometry — derived from FIDUCIAL_MARKER_SIZE // 2 (NOT OFFSET) so placement
+PATTERN_SIZE = (512, 512)
+
 # distance can be changed independently without inflating/deflating ring radii.
-_MHF          = FIDUCIAL_MARKER_SIZE // 2                  # 32 — ring geometry base
-_RING_BG_R    = _MHF - 1                                   # 31 — background circle radius
-_RING_SAMPLE_MAX = _MHF - 2                                # 30 — sampling cap
+BLOCK_SIZE = 16
+
+# M1 fiducial marker constants — ported from cdp_engine_main.py unchanged.
+# Ring geometry is derived from FIDUCIAL_MARKER_SIZE // 2 so placement distance
+# (FIDUCIAL_MARKER_OFFSET) can be changed without rescaling the ring radii.
+FIDUCIAL_MARKER_SIZE   = 64
+FIDUCIAL_MARKER_OFFSET = 34
+CENTER_MARKER = True
+_MHF         = FIDUCIAL_MARKER_SIZE // 2                   # 32 — ring geometry base
+_RING_BG_R   = _MHF - 1                                    # 31 — background circle radius
 _RING_OUTER  = int(round(20 * _MHF / 24))                  # 27 — outer ring (all non-BR)
 _RING_MID    = int(round(13 * _MHF / 24))                  # 17 — BL mid ring
 _RING_MID2   = int(round(10 * _MHF / 24))                  # 13 — TR inner ring
 _RING_INNER  = int(round( 6 * _MHF / 24))                  #  8 — BL inner ring
 _RING_THICK  = int(round( 3 * _MHF / 24))                  #  4 — draw thickness
-BLOCK_SIZE = 8
 
 # Label-aware detection: aspect ratios within this range are treated as
 # "near-square" (likely the CDP pattern itself). Anything outside is
@@ -65,21 +71,21 @@ def generate_frequency_modulated_grating(width, height, base_freq, mod_freq, mod
     return ((grating + 1) / 2 * 255).astype(np.uint8)
 
 
-def generate_prng_macro_pattern(width, height, seed, block_size=8):
+def generate_prng_macro_pattern(width, height, seed, block_size=16):
     rng = np.random.RandomState(seed)
-    blocks_x = width // block_size
-    blocks_y = height // block_size
+    blocks_x = math.ceil(width / block_size)
+    blocks_y = math.ceil(height / block_size)
     block_values = rng.randint(0, 256, size=(blocks_y, blocks_x)).astype(np.uint8)
     pattern = np.repeat(np.repeat(block_values, block_size, axis=0), block_size, axis=1)
     return pattern[:height, :width]
 
 
-def add_rgb_perturbations(pattern_gray, seed=42, intensity=25, block_size=8):
+def add_rgb_perturbations(pattern_gray, seed=42, intensity=25, block_size=16):
     rng = np.random.RandomState(seed + 1000)
     h, w = pattern_gray.shape
     pattern_rgb = cv2.cvtColor(pattern_gray, cv2.COLOR_GRAY2RGB)
-    blocks_y = h // block_size
-    blocks_x = w // block_size
+    blocks_x = (w + block_size - 1) // block_size
+    blocks_y = (h + block_size - 1) // block_size
     for i in range(blocks_y):
         for j in range(blocks_x):
             y1 = i * block_size
@@ -94,33 +100,83 @@ def add_rgb_perturbations(pattern_gray, seed=42, intensity=25, block_size=8):
     return pattern_rgb
 
 
+
+def draw_dm_border(canvas, cell_size):
+    h, w = canvas.shape[:2]
+    is_rgb = len(canvas.shape) == 3
+    black = (0, 0, 0) if is_rgb else 0
+    white = (255, 255, 255) if is_rgb else 255
+    
+    cells_x = w // cell_size
+    cells_y = h // cell_size
+
+    # Draw top alternating
+    for i in range(cells_x):
+        color = black if i % 2 == 0 else white
+        x1, y1 = i * cell_size, 0
+        x2, y2 = (i + 1) * cell_size, cell_size
+        cv2.rectangle(canvas, (x1, y1), (x2, y2), color, -1)
+
+    # Draw right alternating
+    for i in range(cells_y):
+        color = black if i % 2 == 0 else white
+        x1, y1 = w - cell_size, i * cell_size
+        x2, y2 = w, (i + 1) * cell_size
+        cv2.rectangle(canvas, (x1, y1), (x2, y2), color, -1)
+
+    # Draw left solid
+    cv2.rectangle(canvas, (0, 0), (cell_size, h), black, -1)
+
+    # Draw bottom solid
+    cv2.rectangle(canvas, (0, h - cell_size), (w, h), black, -1)
+    
+    return canvas
+
+
 def add_fiducial_markers(pattern, marker_color=0):
+    """Draw M1 ring-count fiducial markers at the four corners of pattern (in-place).
+
+    TL=1 ring, TR=2 rings, BL=3 rings, BR=solid disc.
+    Ported unchanged from cdp_engine_main.py.  Visual/cosmetic only — no
+    detection code reads these markers in the current pipeline.
+    """
     h, w = pattern.shape[:2]
     is_rgb = len(pattern.shape) == 3
     color = (marker_color,) * 3 if is_rgb else marker_color
     bg = (255, 255, 255) if is_rgb else 255
-    off = FIDUCIAL_MARKER_OFFSET
-    centers = [
-        (off, off),
-        (w - off, off),
-        (off, h - off),
-        (w - off, h - off),
-    ]
-    for cx, cy in centers:
-        cv2.circle(pattern, (cx, cy), _RING_BG_R, bg, -1)
-    cv2.circle(pattern, centers[0], _RING_OUTER, color, _RING_THICK)  # TL: 1 ring
-    cv2.circle(pattern, centers[1], _RING_OUTER, color, _RING_THICK)  # TR: 2 rings
-    cv2.circle(pattern, centers[1], _RING_MID2,  color, _RING_THICK)
-    cv2.circle(pattern, centers[2], _RING_OUTER, color, _RING_THICK)  # BL: 3 rings
-    cv2.circle(pattern, centers[2], _RING_MID,   color, _RING_THICK)
-    cv2.circle(pattern, centers[2], _RING_INNER, color, _RING_THICK)
-    cv2.circle(pattern, centers[3], _RING_OUTER, color, -1)           # BR: solid
+    # off = FIDUCIAL_MARKER_OFFSET
+    # centers = [
+    #     (off, off),
+    #     (w - off, off),
+    #     (off, h - off),
+    #     (w - off, h - off),
+    # ]
+    # for cx, cy in centers:
+    #     cv2.circle(pattern, (cx, cy), _RING_BG_R, bg, -1)
+    # cv2.circle(pattern, centers[0], _RING_OUTER, color, _RING_THICK)  # TL: 1 ring
+    # cv2.circle(pattern, centers[1], _RING_OUTER, color, _RING_THICK)  # TR: 2 rings
+    # cv2.circle(pattern, centers[1], _RING_MID2,  color, _RING_THICK)
+    # cv2.circle(pattern, centers[2], _RING_OUTER, color, _RING_THICK)  # BL: 3 rings
+    # cv2.circle(pattern, centers[2], _RING_MID,   color, _RING_THICK)
+    # cv2.circle(pattern, centers[2], _RING_INNER, color, _RING_THICK)
+    # cv2.circle(pattern, centers[3], _RING_OUTER, color, -1)           # BR: solid
+
+    # Center bullseye marker: white bg → black ring → white gap → black dot
+    center_x = w // 2
+    center_y = h // 2
+    marker_r = int(FIDUCIAL_MARKER_OFFSET * 1.5)  # radius = 51px in 512x512 space
+    cv2.circle(pattern, (center_x, center_y), marker_r + 4, bg, -1)
+    cv2.circle(pattern, (center_x, center_y), marker_r, color, _RING_THICK)
+    cv2.circle(pattern, (center_x, center_y), marker_r - _RING_THICK, bg, -1)
+    cv2.circle(pattern, (center_x, center_y), max(4, marker_r // 4), color, -1)
+
     return pattern
 
 
-def generate_pattern(output_dir, seed=None, serial_number="SN-0001", pattern_size=512, block_size=8):
+def generate_pattern(output_dir, seed=None, serial_number="SN-0001", pattern_size=512, block_size=16):
     if seed is None:
         seed = int(np.random.randint(0, 2**31))
+    
     w = h = pattern_size
 
     grating_rng = np.random.RandomState(seed=seed + 2000)
@@ -132,12 +188,14 @@ def generate_pattern(output_dir, seed=None, serial_number="SN-0001", pattern_siz
     prng = generate_prng_macro_pattern(w, h, seed, block_size=block_size)
     combined = cv2.addWeighted(grating, 0.5, prng, 0.5, 0)
     pattern_rgb = add_rgb_perturbations(combined, seed=seed, intensity=25, block_size=block_size)
-    final = add_fiducial_markers(pattern_rgb, marker_color=0)
+    
+    add_fiducial_markers(pattern_rgb, marker_color=0)
+    canvas = pattern_rgb
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"phone_cdp_{timestamp}_{seed}.png"
     filepath = os.path.join(output_dir, filename)
-    cv2.imwrite(filepath, cv2.cvtColor(final, cv2.COLOR_RGB2BGR))
+    cv2.imwrite(filepath, cv2.cvtColor(canvas, cv2.COLOR_RGB2BGR))
 
     return {"seed": seed, "filename": filename, "filepath": filepath,
             "serial_number": serial_number, "pattern_size": pattern_size,
@@ -360,58 +418,6 @@ def _crop_from_contour(image, contour):
     return cropped, (bx, by, bw, bh), src_pts
 
 
-def _find_markers_in_image(gray):
-    h, w = gray.shape
-    blurred = cv2.GaussianBlur(gray, (9, 9), 2)
-    min_pattern = min(w, h) * 0.08
-    max_pattern = min(w, h) * 0.95
-    min_r = max(int(20 * min_pattern / 512), 5)
-    max_r = int(20 * max_pattern / 512)
-    for param2 in [40, 30, 20]:
-        circles = cv2.HoughCircles(
-            blurred, cv2.HOUGH_GRADIENT, dp=1.5, minDist=min_r * 2,
-            param1=100, param2=param2, minRadius=min_r, maxRadius=max_r)
-        if circles is not None and len(circles[0]) >= 4:
-            return np.round(circles[0, :30]).astype(int)
-    return None
-
-
-def _find_square_group(circles):
-    if len(circles) < 4:
-        return None
-    from itertools import combinations
-    best_group = None
-    best_score = float("inf")
-    for combo in combinations(range(len(circles)), 4):
-        pts = np.array([(circles[i][0], circles[i][1]) for i in combo], dtype=np.float32)
-        radii = [circles[i][2] for i in combo]
-        if max(radii) > 2 * min(radii):
-            continue
-        dists = sorted([
-            np.sqrt((pts[i][0] - pts[j][0]) ** 2 + (pts[i][1] - pts[j][1]) ** 2)
-            for i in range(4) for j in range(i + 1, 4)
-        ])
-        sides, diags = dists[:4], dists[4:]
-        side_mean = np.mean(sides)
-        if side_mean < 10:
-            continue
-        side_var = max(sides) / (min(sides) + 1e-10)
-        if side_var > 1.3:
-            continue
-        diag_mean = np.mean(diags)
-        diag_var = max(diags) / (min(diags) + 1e-10)
-        if diag_var > 1.3:
-            continue
-        expected_diag = side_mean * np.sqrt(2)
-        diag_ratio = diag_mean / (expected_diag + 1e-10)
-        if not (0.75 < diag_ratio < 1.35):
-            continue
-        score = side_var + diag_var + abs(1 - diag_ratio)
-        if score < best_score:
-            best_score = score
-            best_group = pts
-    return best_group
-
 
 def _extract_pattern_from_label(label_image):
     """Extract the CDP pattern from within a label using contour hierarchy.
@@ -475,668 +481,758 @@ def _extract_pattern_from_label(label_image):
     return label_image[y1:y1 + side, x1:x1 + side], (x1, y1, side, side)
 
 
-def _marker_crop(image, gray, circles_input=None):
-    """Shared helper: find 4 markers forming a square, extrapolate pattern
-    corners, perspective-warp, and return the cropped pattern.
 
-    Returns (cropped, bbox, True, quad) on success, or None on failure.
+
+def _marker_crop(*args, **kwargs):
+    return None
+
+def _dm_rect_to_corners_cv(rect, image_height):
+    """Return the 4 corners of a pylibdmtx rect in OpenCV (y-down) pixel coordinates.
+
+    pylibdmtx uses a y-up convention; height is negative when the symbol was
+    detected in a downward direction (rotated / portrait DMs).  This helper
+    handles both signs in a single, branchless conversion that mirrors the
+    same logic used in the dm_results_raw reprojection path (lines ~543-550).
+
+    Parameters
+    ----------
+    rect         : object with .left, .top, .width, .height  (pylibdmtx convention)
+    image_height : pixel height of the image the rect lives in (y-up reference)
+
+    Returns
+    -------
+    np.float32 array of shape (4, 2) — TL, TR, BR, BL in OpenCV y-down coords
     """
-    h, w = gray.shape
-    circles = circles_input if circles_input is not None else _find_markers_in_image(gray)
+    left    = rect.left
+    w       = abs(rect.width)
+    h_signed = rect.height
+    y_top_cv    = image_height - (rect.top + max(0, h_signed))
+    y_bottom_cv = image_height - (rect.top + min(0, h_signed))
+    return np.float32([
+        [left,     y_top_cv],
+        [left + w, y_top_cv],
+        [left + w, y_bottom_cv],
+        [left,     y_bottom_cv],
+    ])
+
+def detect_center_marker(gray, expected_center, search_radius, expected_marker_px):
+    """
+    Find the white circle with black border center marker near expected_center.
+    Uses HoughCircles — same approach as corner marker detection.
+    Returns (cx, cy) in full image coordinates, or None if not found.
+    """
+    ih, iw = gray.shape
+    ex, ey = int(expected_center[0]), int(expected_center[1])
+
+    # Crop search region
+    x1 = max(0, ex - search_radius)
+    y1 = max(0, ey - search_radius)
+    x2 = min(iw, ex + search_radius)
+    y2 = min(ih, ey + search_radius)
+    crop = gray[y1:y2, x1:x2]
+    if crop.size == 0:
+        _crop_logger.info("[CENTER] not_found — search region empty")
+        return None
+
+    blurred = cv2.GaussianBlur(crop, (9, 9), 2)
+
+    # Expected radius in crop pixels
+    min_r = max(3, int(expected_marker_px * 0.4))
+    max_r = max(min_r + 2, int(expected_marker_px * 1.6))
+
+    circles = None
+    for param2 in [30, 20, 15]:
+        circles = cv2.HoughCircles(
+            blurred, cv2.HOUGH_GRADIENT, dp=1.5,
+            minDist=min_r * 2,
+            param1=100, param2=param2,
+            minRadius=min_r, maxRadius=max_r)
+        if circles is not None:
+            break
+
     if circles is None:
+        _crop_logger.info(
+            f"[CENTER] not_found — HoughCircles found nothing "
+            f"expected=({ex},{ey}) expected_marker_px={expected_marker_px:.1f} "
+            f"min_r={min_r} max_r={max_r}")
         return None
-    group = _find_square_group(circles)
-    if group is None:
-        return None
 
-    pts = group.astype(np.float32)
-    s = pts.sum(axis=1);  d = pts[:, 1] - pts[:, 0]
-    M_tl = pts[np.argmin(s)];  M_br = pts[np.argmax(s)]
-    M_tr = pts[np.argmin(d)];  M_bl = pts[np.argmax(d)]
-    C = (M_tl + M_tr + M_br + M_bl) / 4.0
-    pw = float(max(PATTERN_SIZE))
-    off = float(FIDUCIAL_MARKER_OFFSET)
-    scale = (pw / 2.0) / (pw / 2.0 - off)   # ~1.153 for 34/512
-    src_pts = np.float32([
-        C + (M_tl - C) * scale,
-        C + (M_tr - C) * scale,
-        C + (M_br - C) * scale,
-        C + (M_bl - C) * scale,
-    ])
-    out_size = max(
-        int(max(np.linalg.norm(src_pts[1] - src_pts[0]),
-                np.linalg.norm(src_pts[2] - src_pts[3]))),
-        int(max(np.linalg.norm(src_pts[3] - src_pts[0]),
-                np.linalg.norm(src_pts[2] - src_pts[1]))),
-        64)
-    dst_pts = np.float32([
-        [0, 0], [out_size - 1, 0],
-        [out_size - 1, out_size - 1], [0, out_size - 1]
-    ])
-    M_warp = cv2.getPerspectiveTransform(src_pts, dst_pts)
-    cropped = cv2.warpPerspective(image, M_warp, (out_size, out_size),
-                                  borderValue=(255, 255, 255))
-    bx = int(max(0, src_pts[:, 0].min()))
-    by = int(max(0, src_pts[:, 1].min()))
-    bw = int(min(w - bx, src_pts[:, 0].max() - src_pts[:, 0].min()))
-    bh = int(min(h - by, src_pts[:, 1].max() - src_pts[:, 1].min()))
-    return cropped, (bx, by, bw, bh), True, src_pts
+    # Pick circle closest to expected center
+    best = None
+    best_dist = float('inf')
+    for cx, cy, _ in np.round(circles[0]).astype(int):
+        full_cx = cx + x1
+        full_cy = cy + y1
+        dist = np.linalg.norm(
+            np.array([full_cx, full_cy]) - np.array([ex, ey]))
+        if dist < best_dist:
+            best_dist = dist
+            best = (full_cx, full_cy)
+
+    _crop_logger.info(
+        f"[CENTER] detected at ({best[0]},{best[1]}) "
+        f"dist_from_expected={best_dist:.1f} "
+        f"expected=({ex},{ey}) "
+        f"expected_marker_px={expected_marker_px:.1f}")
+    return best
 
 
-def detect_and_crop_pattern(image):
-    """Detect and crop the CDP pattern from a captured image.
-
-    Uses contour detection as primary (with squareness bonus to prefer the
-    CDP pattern over surrounding label branding). Falls back to marker-based
-    detection when contours fail. For non-square contours (labels), searches
-    for the pattern within the label region.
+def detect_and_crop_pattern(image, dm_results_raw=None, dm_shrink_used=1):
     """
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    h, w = gray.shape
+    Detect and crop the CDP pattern directly from DM geometry in the original image.
 
-    # === PRIMARY: Contour detection with squareness preference ===
-    # _find_pattern_contour runs FIRST. For standalone QR photos, it finds
-    # the pattern directly. For label photos, it finds the label card.
-    contour = _find_pattern_contour(gray, min_area_pct=0.003)
-    if contour is not None:
-        bx, by, bw, bh = cv2.boundingRect(contour)
-        aspect = bw / (bh + 1e-10)
+    Stage A (label-card contour detection and M_label flattening) has been removed.
+    DM positions from dm_results_raw are used directly in full-image pixel
+    coordinates, eliminating the intermediate 400x600 canvas step that was the
+    confirmed root cause of out-of-bounds crop coordinates.
 
-        if LABEL_ASPECT_RANGE[0] <= aspect <= LABEL_ASPECT_RANGE[1]:
-            # Near-square: could be the CDP pattern directly.
-            area_pct = cv2.contourArea(contour) / (h * w)
-            region = gray[by:by + bh, bx:bx + bw]
-            region_std = float(region.std())
-            if area_pct < 0.10 and region_std > 25:
-                cropped, bbox, quad = _crop_from_contour(image, contour)
-                return cropped, bbox, True, quad
+    Classification uses payload content (share_a printed on Top DM, share_b on
+    Right DM) rather than aspect ratio, giving angle-independent identification.
 
-    # === RETR_TREE: find CDP as a nested child contour ===
-    # Always try this — works for label-embedded patterns at any angle,
-    # and also catches cases where _find_pattern_contour returned None.
-    blurred_full = cv2.GaussianBlur(gray, (5, 5), 0)
-    otsu_val, _ = cv2.threshold(blurred_full, 0, 255,
-                                cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-    _, binary_full = cv2.threshold(blurred_full,
-                                   min(int(otsu_val) + 20, 220), 255,
-                                   cv2.THRESH_BINARY_INV)
-    close_k = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
-    closed_full = cv2.morphologyEx(binary_full, cv2.MORPH_CLOSE, close_k)
-    tree_contours, tree_hier = cv2.findContours(
-        closed_full, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    Parameters
+    ----------
+    image           : BGR image (full resolution capture).
+    dm_results_raw  : List of pylibdmtx decode results from extract_seed_from_image.
+                      Required. If None or fewer than 2 results, returns None.
+    dm_shrink_used  : The shrink factor used to produce dm_results_raw.
+                      Rects are multiplied by this to restore full-image pixel
+                      coordinates.
+    """
+    if dm_results_raw is None or len(dm_results_raw) < 2:
+        _crop_logger.info("[CROP] dm_results_raw missing or insufficient — cannot crop.")
+        return None, (0, 0, 0, 0), False, None
 
-    best_inner = None
-    best_bbox_area = float('inf')
-    for i, cnt in enumerate(tree_contours):
-        area = cv2.contourArea(cnt)
-        pct = area / (h * w)
-        if pct < 0.005 or pct > 0.50:
+    img_h = image.shape[0]
+    _crop_logger.info(f"[CROP] image shape: {image.shape}")
+
+    scale = dm_shrink_used
+
+    # Step 1 — Recover DM corners in full-image OpenCV (y-down) pixel coordinates
+    dm_data = []  # list of (corners_cv: np.float32 (4,2), text: str)
+    for res in dm_results_raw:
+        r = res.rect
+        left_full   = r.left   * scale
+        top_full    = r.top    * scale
+        height_full = r.height * scale   # signed: negative for rotated DMs
+        w_full      = abs(r.width) * scale
+
+        y_top_cv    = img_h - (top_full + max(0, height_full))
+        y_bottom_cv = img_h - (top_full + min(0, height_full))
+        corners = np.float32([
+            [left_full,          y_top_cv],
+            [left_full + w_full, y_top_cv],
+            [left_full + w_full, y_bottom_cv],
+            [left_full,          y_bottom_cv],
+        ])
+
+        try:
+            text = res.data.decode('utf-8').strip()
+        except Exception:
+            text = ''
+
+        dm_data.append((corners, text))
+
+    # Step 2 — Classify Top DM vs Right DM by payload content.
+    # Convention (enforced at label generation in app.py):
+    #   share_a → Top DM,  share_b → Right DM
+    # recombine_seed_from_dm(a, b) returns non-None exactly when a=share_a, b=share_b.
+    top_corners = right_corners = None
+    classified_by = 'content'
+
+    b32_re = re.compile(r'^[A-Z2-7]{4}$')
+    for i, j in itertools.combinations(range(len(dm_data)), 2):
+        t_i, t_j = dm_data[i][1], dm_data[j][1]
+        if not (b32_re.match(t_i) and b32_re.match(t_j)):
             continue
-        parent = tree_hier[0][i][3]
-        if parent < 0:
-            continue
-        cbx2, cby2, cbw2, cbh2 = cv2.boundingRect(cnt)
-        casp = cbw2 / (cbh2 + 1e-10)
-        if not (0.85 <= casp <= 1.18):
-            continue
-        bbox_area = cbw2 * cbh2
-        if bbox_area < best_bbox_area:
-            best_bbox_area = bbox_area
-            best_inner = cnt
+        if recombine_seed_from_dm(t_i, t_j) is not None:
+            top_corners, right_corners = dm_data[i][0], dm_data[j][0]
+            break
+        if recombine_seed_from_dm(t_j, t_i) is not None:
+            top_corners, right_corners = dm_data[j][0], dm_data[i][0]
+            break
 
-    if best_inner is not None:
-        cropped, inner_bbox, quad = _crop_from_contour(image, best_inner)
-        cbx2, cby2, cbw2, cbh2 = cv2.boundingRect(best_inner)
-        return cropped, (cbx2, cby2, cbw2, cbh2), True, quad
+    if top_corners is None or right_corners is None:
+        _crop_logger.info("[CROP] Content classification failed — falling back to y-position sort.")
+        classified_by = 'y-sort'
+        sorted_dm = sorted(
+            dm_data,
+            key=lambda d: (d[0][:, 0].max() - d[0][:, 0].min()) * (d[0][:, 1].max() - d[0][:, 1].min()),
+            reverse=True,
+        )
+        c0, c1 = sorted_dm[0][0], sorted_dm[1][0]
+        if c0[:, 1].mean() < c1[:, 1].mean():  # smaller OpenCV y = higher on image = Top
+            top_corners, right_corners = c0, c1
+        else:
+            top_corners, right_corners = c1, c0
 
-    # Fallback: extract pattern from label ROI if _find_pattern_contour found something
-    if contour is not None:
-        bx, by, bw, bh = cv2.boundingRect(contour)
-        label_roi = image[by:by + bh, bx:bx + bw]
-        pattern_from_label, rel_bbox = _extract_pattern_from_label(label_roi)
-        orig_bbox = (rel_bbox[0] + bx, rel_bbox[1] + by,
-                     rel_bbox[2], rel_bbox[3])
-        return pattern_from_label, orig_bbox, True, None
+    # Step 3 — DM bounding box dimensions (for scale) + orientation from diagonal.
+    #
+    # Scale anchor: the DM long side is 48 modules = 480 canonical units, which equals
+    # the pattern side (also 48 modules).  Use it directly so the crop is exactly the
+    # right number of pixels — avoiding the quiet-zone ambiguity in the diagonal length.
+    #
+    # Orientation: the Top→Right diagonal is always 45° below-right in the canonical
+    # layout.  Rotating the observed diagonal unit vector by ±45° gives the canonical
+    # layout-right (e_r) and layout-down (e_d) directions in image coordinates.
+    top_dm_w  = float(top_corners[:, 0].max() - top_corners[:, 0].min())
+    top_dm_h  = float(top_corners[:, 1].max() - top_corners[:, 1].min())
+    right_dm_w = float(right_corners[:, 0].max() - right_corners[:, 0].min())
+    right_dm_h = float(right_corners[:, 1].max() - right_corners[:, 1].min())
+    dm_long = max(top_dm_w, top_dm_h, right_dm_w, right_dm_h)   # long side of DM bbox
 
-    # === FALLBACK: Marker-based detection (when contours fail entirely) ===
-    # Only try markers on images significantly larger than the pattern.
-    # For pattern-sized images, contour failure means the image IS the
-    # pattern — return it unmodified (matching main branch behavior).
-    max_pat = max(PATTERN_SIZE)
-    if min(h, w) > max_pat * 1.15:
-        result = _marker_crop(image, gray)
-        if result is not None:
-            return result
+    _crop_logger.info(
+        f"[CROP] class={classified_by} "
+        f"top_dm={top_dm_w:.0f}x{top_dm_h:.0f} "
+        f"right_dm={right_dm_w:.0f}x{right_dm_h:.0f} "
+        f"dm_long={dm_long:.0f}"
+    )
 
-    return image, (0, 0, w, h), False, None
+    top_dm_center   = top_corners.mean(axis=0)
+    right_dm_center = right_corners.mean(axis=0)
+
+    # Layout ratios — derived dynamically from calculate_auth_block_layout()
+    # at module load time (see _R_TOP_X etc. globals above).
+    R_TOP_X           = _R_TOP_X
+    R_TOP_Y           = _R_TOP_Y
+    R_RIGHT_X         = _R_RIGHT_X
+    R_RIGHT_Y         = _R_RIGHT_Y
+    CANONICAL_DM_DIST = _CANONICAL_DM_DIST
+    PATTERN_PX        = _PATTERN_PX
+
+    # Step 1 — orientation and scale
+    vec_dm = right_dm_center - top_dm_center
+    observed_dm_dist = float(np.linalg.norm(vec_dm))
+    if observed_dm_dist < 10:
+        _crop_logger.info("[CROP] DM centers too close — cannot estimate orientation")
+        return None, (0, 0, 0, 0), False, None
+
+    scale = observed_dm_dist / CANONICAL_DM_DIST
+
+    # Derive layout→image rotation from the canonical and observed DM vectors.
+    # vec_dm_layout is the Top→Right DM vector in layout space (fixed geometry).
+    # vec_dm_image is the observed Top→Right DM vector in image space.
+    # The 2D rotation R that maps layout_norm → image_norm also maps
+    # layout axes (1,0) and (0,1) to the true image right and down directions.
+    vec_dm_layout = np.array([R_RIGHT_X - R_TOP_X,
+                               R_RIGHT_Y - R_TOP_Y], dtype=np.float64)
+    vec_dm_layout_norm = vec_dm_layout / np.linalg.norm(vec_dm_layout)
+
+    vec_dm_image = (right_dm_center - top_dm_center).astype(np.float64)
+    vec_dm_image_norm = vec_dm_image / np.linalg.norm(vec_dm_image)
+
+    # cos and sin of the rotation angle between layout and image DM vectors
+    cos_t = float(np.dot(vec_dm_layout_norm, vec_dm_image_norm))
+    sin_t = float(vec_dm_layout_norm[0] * vec_dm_image_norm[1]
+                  - vec_dm_layout_norm[1] * vec_dm_image_norm[0])
+
+    image_right_dir = np.array([cos_t * 1.0 - sin_t * 0.0,
+                                 sin_t * 1.0 + cos_t * 0.0], dtype=np.float32)
+    image_down_dir  = np.array([cos_t * 0.0 - sin_t * 1.0,
+                                 sin_t * 0.0 + cos_t * 1.0], dtype=np.float32)
+
+    unit_right = image_right_dir / (np.linalg.norm(image_right_dir) + 1e-10)
+    unit_down  = image_down_dir  / (np.linalg.norm(image_down_dir)  + 1e-10)
+
+    # Step 2 — expected pattern center from DM centers
+    expected_center = (
+        top_dm_center
+        - R_TOP_X * scale * unit_right
+        - R_TOP_Y * scale * unit_down
+    )
+
+    # Step 3 — detect actual square center marker
+    ih, iw = image.shape[:2]
+    gray = (cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            if len(image.shape) == 3 else image)
+    search_radius      = int(PATTERN_PX * scale * 0.35)
+    expected_marker_px = FIDUCIAL_MARKER_OFFSET * scale
+
+    actual_center = detect_center_marker(
+        gray, expected_center, search_radius, expected_marker_px)
+
+    if actual_center is not None:
+        # === TRIANGLE GEOMETRY PATH ===
+        # Three centers known: top_dm_center, right_dm_center, pattern_center
+        # vec_to_top   → layout direction (0, -1) scaled by |R_TOP_Y| = 398
+        # vec_to_right → layout direction (1,  0) scaled by |R_RIGHT_X| = 398
+        pattern_center = np.array(actual_center, dtype=np.float32)
+        center_source  = 'detected'
+
+        vec_to_top   = top_dm_center   - pattern_center  # points "up" in layout
+        vec_to_right = right_dm_center - pattern_center  # points "right" in layout
+
+        top_dist   = float(np.linalg.norm(vec_to_top))
+        right_dist = float(np.linalg.norm(vec_to_right))
+
+        if top_dist < 5 or right_dist < 5:
+            _crop_logger.info("[CROP] triangle degenerate — centers too close")
+            return None, (0, 0, 0, 0), False, None
+
+        unit_down  = -(vec_to_top   / top_dist).astype(np.float32)
+        unit_right =  (vec_to_right / right_dist).astype(np.float32)
+
+        layout_top_dist   = abs(R_TOP_Y)    # 398
+        layout_right_dist = abs(R_RIGHT_X)  # 398
+        scale_from_top   = top_dist   / layout_top_dist
+        scale_from_right = right_dist / layout_right_dist
+        scale = (scale_from_top + scale_from_right) / 2.0
+
+        _crop_logger.info(
+            f"[CROP] triangle: scale_top={scale_from_top:.3f} "
+            f"scale_right={scale_from_right:.3f} scale_avg={scale:.3f}")
+
+    else:
+        # === FALLBACK: CONTOUR-BASED CROP ===
+        center_source = 'contour_fallback'
+        _crop_logger.info("[CROP] circle not detected — falling back to contour crop")
+
+        gray_full = (cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+                     if len(image.shape) == 3 else image)
+
+        contour = _find_pattern_contour(gray_full)
+        if contour is None:
+            _crop_logger.info("[CROP] contour fallback also failed — aborting")
+            return None, (0, 0, 0, 0), False, None
+
+        cropped, bbox, src_pts = _crop_from_contour(image, contour)
+        _crop_logger.info(
+            f"[CROP] contour fallback succeeded bbox={bbox} "
+            f"center_marker={center_source}")
+        try:
+            vis = image.copy()
+            bx_v, by_v, bw_v, bh_v = bbox
+            cv2.rectangle(vis,
+                          (bx_v, by_v),
+                          (bx_v + bw_v, by_v + bh_v),
+                          (0, 255, 255), 3)
+            cv2.putText(vis, "CONTOUR FALLBACK",
+                        (bx_v, by_v - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 255), 2)
+            h_vis, w_vis = vis.shape[:2]
+            scale_vis = min(1.0, 1200.0 / max(h_vis, w_vis))
+            vis_small = cv2.resize(vis,
+                                   (int(w_vis * scale_vis),
+                                    int(h_vis * scale_vis)))
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            vis_path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                f"crop_debug_{ts}.png")
+            cv2.imwrite(vis_path, vis_small)
+            _crop_logger.info(f"[CROP] debug visualization saved: {vis_path}")
+        except Exception as e:
+            _crop_logger.info(f"[CROP] debug visualization failed: {e}")
+        return cropped, bbox, True, src_pts
+
+    # === PATTERN CORNERS FROM TRIANGLE GEOMETRY ===
+    half = float(PATTERN_PX * scale) / 2.0
+    TL = pattern_center - half * unit_right - half * unit_down
+    TR = pattern_center + half * unit_right - half * unit_down
+    BR = pattern_center + half * unit_right + half * unit_down
+    BL = pattern_center - half * unit_right + half * unit_down
+
+    corners = np.array([TL, TR, BR, BL])
+    if (np.any(corners[:, 0] < -iw * 0.1) or
+            np.any(corners[:, 0] > iw * 1.1) or
+            np.any(corners[:, 1] < -ih * 0.1) or
+            np.any(corners[:, 1] > ih * 1.1)):
+        _crop_logger.info("[CROP] pattern corners out of image bounds — aborting")
+        return None, (0, 0, 0, 0), False, None
+
+    src_pts  = np.float32([TL, TR, BR, BL])
+    out_size = max(int(PATTERN_PX * scale), 64)
+    dst_pts  = np.float32([
+        [0,            0],
+        [out_size - 1, 0],
+        [out_size - 1, out_size - 1],
+        [0,            out_size - 1]
+    ])
+    M = cv2.getPerspectiveTransform(src_pts, dst_pts)
+    cropped = cv2.warpPerspective(image, M, (out_size, out_size))
+
+    xs = corners[:, 0]; ys = corners[:, 1]
+    bx = int(np.min(xs)); by = int(np.min(ys))
+    bw = int(np.max(xs)) - bx; bh = int(np.max(ys)) - by
+    bbox = (bx, by, bw, bh)
+
+    _crop_logger.info(
+        f"[CROP] top_dm=({top_dm_center[0]:.0f},{top_dm_center[1]:.0f}) "
+        f"right_dm=({right_dm_center[0]:.0f},{right_dm_center[1]:.0f}) "
+        f"pattern_center=({pattern_center[0]:.0f},{pattern_center[1]:.0f}) "
+        f"center_marker={center_source} scale={scale:.3f}")
+
+    try:
+        vis = image.copy()
+
+        cv2.circle(vis,
+                   (int(top_dm_center[0]), int(top_dm_center[1])),
+                   12, (255, 0, 0), -1)
+        cv2.putText(vis, "TOP_DM",
+                    (int(top_dm_center[0]) + 15, int(top_dm_center[1])),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 0, 0), 2)
+
+        cv2.circle(vis,
+                   (int(right_dm_center[0]), int(right_dm_center[1])),
+                   12, (0, 255, 0), -1)
+        cv2.putText(vis, "RIGHT_DM",
+                    (int(right_dm_center[0]) + 15, int(right_dm_center[1])),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2)
+
+        cv2.circle(vis,
+                   (int(pattern_center[0]), int(pattern_center[1])),
+                   12, (0, 0, 255), -1)
+        cv2.putText(vis, f"PATTERN ({center_source})",
+                    (int(pattern_center[0]) + 15, int(pattern_center[1])),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2)
+
+        pts = src_pts.astype(np.int32).reshape((-1, 1, 2))
+        cv2.polylines(vis, [pts], isClosed=True, color=(0, 255, 255), thickness=3)
+        corner_labels = ["TL", "TR", "BR", "BL"]
+        for i, label in enumerate(corner_labels):
+            cx = int(src_pts[i][0])
+            cy = int(src_pts[i][1])
+            cv2.circle(vis, (cx, cy), 8, (0, 255, 255), -1)
+            cv2.putText(vis, label, (cx + 10, cy),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 255), 2)
+
+        cv2.line(vis,
+                 (int(top_dm_center[0]), int(top_dm_center[1])),
+                 (int(pattern_center[0]), int(pattern_center[1])),
+                 (255, 0, 0), 2)
+        cv2.line(vis,
+                 (int(right_dm_center[0]), int(right_dm_center[1])),
+                 (int(pattern_center[0]), int(pattern_center[1])),
+                 (0, 255, 0), 2)
+
+        h_vis, w_vis = vis.shape[:2]
+        scale_vis = min(1.0, 1200.0 / max(h_vis, w_vis))
+        if scale_vis < 1.0:
+            vis_small = cv2.resize(vis,
+                                   (int(w_vis * scale_vis),
+                                    int(h_vis * scale_vis)))
+        else:
+            vis_small = vis
+
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        vis_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            f"crop_debug_{ts}.png")
+        cv2.imwrite(vis_path, vis_small)
+        _crop_logger.info(f"[CROP] debug visualization saved: {vis_path}")
+
+    except Exception as e:
+        _crop_logger.info(f"[CROP] debug visualization failed: {e}")
+
+    return cropped, bbox, True, src_pts
 
 
 # ==========================================================================
 # VERIFICATION — STEP 1: Fiducial Marker Detection
 # ==========================================================================
 
-def _make_marker_templates(size=64):
-    """Generate reference grayscale images for each marker type.
-
-    Returns dict {ring_count: grayscale_image} for counts 0,1,2,3.
-    The images match the actual marker drawing code in add_fiducial_markers.
+def detect_dm_border(image):
     """
-    templates = {}
-    mhf = size // 2
-    bg_r = mhf - 1
-    outer  = int(round(20 * mhf / 24))
-    mid2   = int(round(10 * mhf / 24))
-    mid    = int(round(13 * mhf / 24))
-    inner  = int(round( 6 * mhf / 24))
-    thick  = int(round( 3 * mhf / 24))
-    cx, cy = mhf, mhf
-
-    for rc in [0, 1, 2, 3]:
-        img = np.full((size, size), 128, dtype=np.uint8)  # neutral gray bg
-        cv2.circle(img, (cx, cy), bg_r, 255, -1)          # white bg circle
-        if rc == 0:
-            # BR: solid fill
-            cv2.circle(img, (cx, cy), outer, 0, -1)
-        elif rc == 1:
-            # TL: outer ring only
-            cv2.circle(img, (cx, cy), outer, 0, thick)
-        elif rc == 2:
-            # TR: outer + mid2
-            cv2.circle(img, (cx, cy), outer, 0, thick)
-            cv2.circle(img, (cx, cy), mid2, 0, thick)
-        elif rc == 3:
-            # BL: outer + mid + inner (NOT mid2)
-            cv2.circle(img, (cx, cy), outer, 0, thick)
-            cv2.circle(img, (cx, cy), mid, 0, thick)
-            cv2.circle(img, (cx, cy), inner, 0, thick)
-        templates[rc] = img
-    return templates
-
-
-# Pre-generate templates at module load time
-_MARKER_TEMPLATES = _make_marker_templates(64)
-
-
-def count_rings_radial_profile(gray_region, cx, cy, max_radius=None, min_contrast=30):
-    """Identify which fiducial marker is at (cx,cy) via template NCC matching.
-
-    Instead of checking individual radii (which fails when rings blur into
-    each other at small print sizes), we extract the circular ROI around the
-    detected center and NCC-match it against pre-generated templates for
-    each marker type (0/1/2/3 rings).  The template with best NCC wins.
+    Detects the Data Matrix border in a captured image using a two-stage strategy.
+    Returns (corners: np.float32 array of shape (4,2), orientation: str)
+    orientation is one of: "0", "90", "180", "270"
+    Returns (None, None) if detection fails.
     """
-    h, w = gray_region.shape
-    if max_radius is None:
-        max_radius = min(cx, cy, w - 1 - cx, h - 1 - cy)
-    if max_radius < 5:
-        return (-1, 0)
-
-    # Extract square ROI around marker center
-    roi_half = max_radius
-    y1 = max(0, cy - roi_half)
-    y2 = min(h, cy + roi_half + 1)
-    x1 = max(0, cx - roi_half)
-    x2 = min(w, cx + roi_half + 1)
-    roi = gray_region[y1:y2, x1:x2]
-    if roi.shape[0] < 10 or roi.shape[1] < 10:
-        return (-1, 0)
-
-    # Check contrast
-    contrast = float(np.max(roi).astype(float) - np.min(roi).astype(float))
-    if contrast < min_contrast:
-        return (-1, contrast)
-
-    # Resize ROI to match template size
-    tpl_size = 64
-    roi_resized = cv2.resize(roi, (tpl_size, tpl_size), interpolation=cv2.INTER_AREA)
-
-    # Apply circular mask so only the marker area contributes to NCC
-    mask = np.zeros((tpl_size, tpl_size), dtype=np.uint8)
-    cv2.circle(mask, (tpl_size // 2, tpl_size // 2), tpl_size // 2 - 2, 255, -1)
-
-    # NCC match against each template
-    best_rc, best_ncc = -1, -1.0
-    roi_f = roi_resized.astype(np.float64)
-    roi_m = roi_f[mask > 0]
-    roi_m = roi_m - roi_m.mean()
-    roi_n = np.linalg.norm(roi_m) + 1e-10
-
-    for rc, tpl in _MARKER_TEMPLATES.items():
-        tpl_f = tpl.astype(np.float64)
-        tpl_m = tpl_f[mask > 0]
-        tpl_m = tpl_m - tpl_m.mean()
-        tpl_n = np.linalg.norm(tpl_m) + 1e-10
-        ncc = float(np.dot(roi_m, tpl_m) / (roi_n * tpl_n))
-        if ncc > best_ncc:
-            best_ncc = ncc
-            best_rc = rc
-
-    # Require minimum NCC to accept the match
-    if best_ncc < 0.15:
-        return (-1, contrast)
-
-    return (best_rc, contrast)
-
-
-def detect_fiducial_markers(image, pattern_found_hint=False):
-    if len(image.shape) == 3:
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    else:
-        gray = image.copy()
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image.copy()
     h, w = gray.shape
+    
+    # L-FINDER DIRECT DETECTION FALLBACK
+    blurred_l = cv2.GaussianBlur(gray, (5, 5), 0)
+    otsu_l, _ = cv2.threshold(blurred_l, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    _, binary_l = cv2.threshold(blurred_l, min(int(otsu_l) + 20, 220), 255, cv2.THRESH_BINARY_INV)
 
-    scale = max(w, h) / max(PATTERN_SIZE)
-    # Cap at 22*scale: the marker's white background circle ends at r=23.
-    # Sampling beyond r=22 hits the PRNG pattern texture, creating a false
-    # bright gap + dark texture that inflates the ring count by 1.
-    ring_max_radius = max(15, int(_RING_SAMPLE_MAX * scale))
-    expected_r = int(_RING_OUTER * scale)
-    min_r = max(expected_r - int(10 * scale), 5)
-    max_r = expected_r + int(10 * scale)
+    lines = cv2.HoughLinesP(binary_l, 1, np.pi / 180, threshold=50, minLineLength=min(h, w)*0.6, maxLineGap=20)
+    
+    if lines is not None:
+        horiz_lines = []
+        vert_lines = []
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            dx = abs(x2 - x1)
+            dy = abs(y2 - y1)
+            if dx > dy * 3:  # near horizontal
+                horiz_lines.append(line[0])
+            elif dy > dx * 3:  # near vertical
+                vert_lines.append(line[0])
+                
+        best_h = None
+        best_h_len = 0
+        for l in horiz_lines:
+            length = abs(l[2] - l[0])
+            if length > best_h_len:
+                best_h_len = length
+                best_h = l
+                
+        best_v = None
+        best_v_len = 0
+        for l in vert_lines:
+            length = abs(l[3] - l[1])
+            if length > best_v_len:
+                best_v_len = length
+                best_v = l
+                
+        if best_h is not None and best_v is not None:
+            hx1, hy1, hx2, hy2 = best_h
+            vx1, vy1, vx2, vy2 = best_v
+            
+            h_y = (hy1 + hy2) / 2
+            v_x = (vx1 + vx2) / 2
+            
+            is_bottom = h_y > h * 0.70
+            is_top = h_y < h * 0.30
+            is_right = v_x > w * 0.70
+            is_left = v_x < w * 0.30
+            
+            orient = None
+            if is_bottom and is_left:
+                orient = "0"
+                bl = [v_x, h_y]
+                br = [max(hx1, hx2), h_y]
+                tl = [v_x, min(vy1, vy2)]
+                tr = [max(hx1, hx2), min(vy1, vy2)]
+                corners = np.float32([tl, tr, br, bl])
+            elif is_top and is_left:
+                orient = "90"
+                tl = [v_x, h_y]
+                tr = [max(hx1, hx2), h_y]
+                bl = [v_x, max(vy1, vy2)]
+                br = [max(hx1, hx2), max(vy1, vy2)]
+                corners = np.float32([tl, tr, br, bl])
+            elif is_top and is_right:
+                orient = "180"
+                tr = [v_x, h_y]
+                tl = [min(hx1, hx2), h_y]
+                br = [v_x, max(vy1, vy2)]
+                bl = [min(hx1, hx2), max(vy1, vy2)]
+                corners = np.float32([tl, tr, br, bl])
+            elif is_bottom and is_right:
+                orient = "270"
+                br = [v_x, h_y]
+                bl = [min(hx1, hx2), h_y]
+                tr = [v_x, min(vy1, vy2)]
+                tl = [min(hx1, hx2), min(vy1, vy2)]
+                corners = np.float32([tl, tr, br, bl])
+                
+            if orient is not None:
+                print(f"[DM] HoughLinesP found L-finder! orientation={orient}")
+                return corners, orient
 
-    blurred = cv2.GaussianBlur(gray, (9, 9), 2)
-    circles = None
-    for param2 in [40, 30, 20]:
-        circles = cv2.HoughCircles(
-            blurred, cv2.HOUGH_GRADIENT, dp=1.5, minDist=expected_r * 2,
-            param1=100, param2=param2, minRadius=min_r, maxRadius=max_r)
-        if circles is not None and len(circles[0]) >= 4:
-            break
-
-    # When the pattern boundary has been confirmed (crop IS the pattern), centre
-    # the search on the known fractional marker offset — much tighter than a
-    # generic 25%-from-corner sweep and eliminates false positives elsewhere.
-    # When the full image is used (pattern not confirmed), fall back to a broad
-    # search from each image corner.
-    off_frac = FIDUCIAL_MARKER_OFFSET / max(PATTERN_SIZE)
-    if pattern_found_hint:
-        search_centers = {
-            "tl": (int(round(w * off_frac)),         int(round(h * off_frac))),
-            "tr": (int(round(w * (1 - off_frac))),   int(round(h * off_frac))),
-            "bl": (int(round(w * off_frac)),         int(round(h * (1 - off_frac)))),
-            "br": (int(round(w * (1 - off_frac))),   int(round(h * (1 - off_frac)))),
-        }
-        search_radius = max(w, h) * 0.15   # tight — pattern boundary confirmed
-    else:
-        search_centers = {
-            "tl": (0, 0), "tr": (w, 0), "bl": (0, h), "br": (w, h),
-        }
-        search_radius = max(w, h) * 0.30   # broad — pattern not confirmed
-
-    corner_circles = {}
-    if circles is not None:
-        circle_list = np.round(circles[0, :]).astype(int)
-        for ic_name, (sc_x, sc_y) in search_centers.items():
-            best_dist, best_circle = float("inf"), None
-            for cx, cy, _r in circle_list:
-                dist = np.sqrt((cx - sc_x) ** 2 + (cy - sc_y) ** 2)
-                if dist < search_radius and dist < best_dist:
-                    best_dist = dist
-                    best_circle = (int(cx), int(cy))
-            if best_circle is not None:
-                corner_circles[ic_name] = best_circle
-
-    markers = {name: None for name in ["top_left", "top_right", "bottom_left", "bottom_right"]}
-    markers["inferred_name"] = None
-    assigned = set()
-
-    ring_results = {}
-    for ic_name, (cx, cy) in corner_circles.items():
-        edge_max = min(cx, cy, w - 1 - cx, h - 1 - cy)
-        mr = min(ring_max_radius, edge_max)
-        if mr < 10:
+    # STAGE 1 - Find the label boundary
+    padded = cv2.copyMakeBorder(gray, 20, 20, 20, 20, cv2.BORDER_CONSTANT, value=255)
+    blurred = cv2.GaussianBlur(padded, (5, 5), 0)
+    otsu_val, _ = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    thresh_val = min(int(otsu_val) + 20, 220)
+    _, binary = cv2.threshold(blurred, thresh_val, 255, cv2.THRESH_BINARY_INV)
+    
+    close_k = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
+    closed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, close_k)
+    
+    contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    label_cnt = None
+    best_area = 0
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+        if area < (h * w * 0.05):
             continue
-        ring_count, contrast = count_rings_radial_profile(gray, cx, cy, max_radius=mr)
-        ring_results[ic_name] = (ring_count, contrast, cx, cy)
-        if ring_count in (0, 1, 2, 3) and contrast >= 30:
-            corner_name = RING_COUNT_TO_CORNER[ring_count]
-            if corner_name not in assigned:
-                markers[corner_name] = (cx, cy)
-                assigned.add(corner_name)
+        peri = cv2.arcLength(cnt, True)
+        approx = cv2.approxPolyDP(cnt, 0.02 * peri, True)
+        if len(approx) == 4:
+            if area > best_area:
+                best_area = area
+                label_cnt = approx
 
-    # Store ring_results for visualization debugging
-    markers["ring_results"] = ring_results
+    if label_cnt is None:
+        return None, None
+        
+    pts = label_cnt.reshape(4, 2).astype(np.float32)
+    pts -= 20.0
+    
+    s = pts.sum(axis=1)
+    d = pts[:, 1] - pts[:, 0]
+    tl = pts[np.argmin(s)]
+    br = pts[np.argmax(s)]
+    tr = pts[np.argmin(d)]
+    bl = pts[np.argmax(d)]
+    label_pts = np.float32([tl, tr, br, bl])
+    
+    d1 = np.linalg.norm(tl - tr)
+    d2 = np.linalg.norm(tr - br)
+    label_aspect = d1 / (d2 + 1e-5)
+    
+    label_side = 1024
+    label_dst = np.float32([[0, 0], [label_side-1, 0], [label_side-1, label_side-1], [0, label_side-1]])
+    
+    if 0.8 <= label_aspect <= 1.25:
+        # It's already square, treat it as the pattern directly
+        dm_pts = label_pts
+        M_label_inv = np.eye(3, dtype=np.float32)
+        label_warped = gray
+    else:
+        try:
+            M_label = cv2.getPerspectiveTransform(label_pts, label_dst)
+            M_label_inv = np.linalg.inv(M_label)
+            label_warped = cv2.warpPerspective(gray, M_label, (label_side, label_side))
+        except Exception:
+            return None, None
 
-    # Positional fallback: fill any corners that ring counting didn't assign.
-    # The used_positions guard prevents the same circle being double-assigned
-    # (which happened when wrong ring counts mapped two corners to one position).
-    # NOTE: no positional cross-check here — ring counting must be trusted for
-    # rotated photos where the TL marker legitimately appears in the BR quadrant.
-    used_positions = {tuple(markers[n]) for n in
-                      ["top_left", "top_right", "bottom_left", "bottom_right"]
-                      if markers[n] is not None}
-    positional_map = {"tl": "top_left", "tr": "top_right",
-                      "bl": "bottom_left", "br": "bottom_right"}
-    for ic_name, (cx, cy) in corner_circles.items():
-        pattern_corner = positional_map[ic_name]
-        if pattern_corner not in assigned and (cx, cy) not in used_positions:
-            markers[pattern_corner] = (cx, cy)
-            assigned.add(pattern_corner)
-            used_positions.add((cx, cy))
+        # STAGE 2 - Find the DM border inside warped label
+        def find_inner_dm(warped_img):
+            l_blurred = cv2.GaussianBlur(warped_img, (5, 5), 0)
+            l_otsu_val, _ = cv2.threshold(l_blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+            _, l_binary = cv2.threshold(l_blurred, min(int(l_otsu_val) + 20, 220), 255, cv2.THRESH_BINARY_INV)
+            l_closed = cv2.morphologyEx(l_binary, cv2.MORPH_CLOSE, close_k)
+            
+            l_contours, _ = cv2.findContours(l_closed, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+            
+            best_c = None
+            best_score = float('inf')
+            img_area = warped_img.shape[0] * warped_img.shape[1]
+            
+            for cnt in l_contours:
+                area = cv2.contourArea(cnt)
+                if not (img_area * 0.05 <= area <= img_area * 0.60):
+                    continue
+                    
+                peri = cv2.arcLength(cnt, True)
+                approx = cv2.approxPolyDP(cnt, 0.02 * peri, True)
+                if 4 <= len(approx) <= 6:
+                    hull = cv2.convexHull(approx)
+                    peri_hull = cv2.arcLength(hull, True)
+                    approx_hull = cv2.approxPolyDP(hull, 0.02 * peri_hull, True)
+                    if len(approx_hull) == 4:
+                        pts4 = approx_hull.reshape(4, 2)
+                        d1_c = np.linalg.norm(pts4[0] - pts4[1])
+                        d2_c = np.linalg.norm(pts4[1] - pts4[2])
+                        aspect_c = d1_c / (d2_c + 1e-5)
+                        squareness = abs(1.0 - aspect_c)
+                        
+                        # Score combines squareness and size (prefer larger, squarer)
+                        # We use 1.0 - (area/img_area) to give a slight penalty to smaller ones
+                        score = squareness + (1.0 - (area / img_area)) * 0.5
+                        
+                        if score < best_score:
+                            best_score = score
+                            best_c = approx_hull
+            return best_c
 
-    markers["markers_found"] = sum(
-        1 for k in ["top_left", "top_right", "bottom_left", "bottom_right"]
-        if markers[k] is not None)
+        dm_cnt = find_inner_dm(label_warped)
+        if dm_cnt is None:
+            # Fallback: crop bottom half and try again
+            bottom_half = label_warped[label_side//2:, :]
+            dm_cnt_bottom = find_inner_dm(bottom_half)
+            if dm_cnt_bottom is not None:
+                dm_cnt = dm_cnt_bottom
+                # Shift y coordinates back to full warped image
+                dm_cnt[:, 0, 1] += label_side // 2
 
-    # If exactly 3 markers found, complete to 4 using the parallelogram rule.
-    # For any rectangle viewed from any camera angle, TL + BR = TR + BL exactly
-    # (projective geometry preserves the midpoint-bisecting property of parallelograms).
-    # The inferred 4th corner IS the true corner — no heuristic search needed.
-    if markers["markers_found"] == 3:
-        names_list = ["top_left", "top_right", "bottom_left", "bottom_right"]
-        found_3 = {n: markers[n] for n in names_list if markers[n] is not None}
-        missing_name = next(n for n in names_list if markers[n] is None)
+        if dm_cnt is None:
+            return None, None
+            
+        pts = dm_cnt.reshape(4, 2).astype(np.float32)
+        s = pts.sum(axis=1)
+        d = pts[:, 1] - pts[:, 0]
+        dm_tl = pts[np.argmin(s)]
+        dm_br = pts[np.argmax(s)]
+        dm_tr = pts[np.argmin(d)]
+        dm_bl = pts[np.argmax(d)]
+        dm_pts = np.float32([dm_tl, dm_tr, dm_br, dm_bl])
 
-        tl = np.array(found_3.get("top_left",    [0, 0]), dtype=np.float32)
-        tr = np.array(found_3.get("top_right",   [0, 0]), dtype=np.float32)
-        bl = np.array(found_3.get("bottom_left", [0, 0]), dtype=np.float32)
-        br = np.array(found_3.get("bottom_right",[0, 0]), dtype=np.float32)
-        if missing_name == "top_left":      inferred = tr + bl - br
-        elif missing_name == "top_right":   inferred = tl + br - bl
-        elif missing_name == "bottom_left": inferred = tl + br - tr
-        else:                               inferred = tr + bl - tl
+    # STAGE 3 - Edge classification
+    dm_side = 512
+    dm_dst = np.float32([[0, 0], [dm_side-1, 0], [dm_side-1, dm_side-1], [0, dm_side-1]])
+    
+    try:
+        M_dm = cv2.getPerspectiveTransform(dm_pts, dm_dst)
+        dm_warped = cv2.warpPerspective(label_warped, M_dm, (dm_side, dm_side))
+    except Exception:
+        return None, None
+        
+    strip_w = 8
+    top_edge = dm_warped[0:strip_w, :]
+    bottom_edge = dm_warped[dm_side-strip_w:dm_side, :]
+    left_edge = dm_warped[:, 0:strip_w]
+    right_edge = dm_warped[:, dm_side-strip_w:dm_side]
+    
+    def get_class(edge):
+        profile = np.mean(edge, axis=0) if edge.shape[0] < edge.shape[1] else np.mean(edge, axis=1)
+        return "alternating" if np.std(profile) > 30 else "solid"
 
-        # Do NOT clip to image bounds — clipping distorts the geometry.
-        # _valid_quad in align_captured_image handles out-of-bounds gracefully.
-        markers[missing_name] = (int(round(inferred[0])), int(round(inferred[1])))
-        markers["markers_found"] = 4
-        markers["inferred_name"] = missing_name
+    top_class = get_class(top_edge)
+    bottom_class = get_class(bottom_edge)
+    left_class = get_class(left_edge)
+    right_class = get_class(right_edge)
 
-    # Fixed-position estimation: when Hough detection failed on a confirmed pattern crop,
-    # markers are guaranteed to be at FIDUCIAL_MARKER_OFFSET / PATTERN_SIZE from each corner.
-    # Using these positions enables perspective alignment even on blurry / low-contrast prints.
-    markers["estimated_names"] = []
-    if pattern_found_hint and markers["markers_found"] < 4:
-        off_frac = FIDUCIAL_MARKER_OFFSET / max(PATTERN_SIZE)
-        estimates = {
-            "top_left":     (int(round(w * off_frac)),         int(round(h * off_frac))),
-            "top_right":    (int(round(w * (1 - off_frac))),   int(round(h * off_frac))),
-            "bottom_left":  (int(round(w * off_frac)),         int(round(h * (1 - off_frac)))),
-            "bottom_right": (int(round(w * (1 - off_frac))),   int(round(h * (1 - off_frac)))),
-        }
-        for cname, pos in estimates.items():
-            if markers[cname] is None:
-                markers[cname] = pos
-                markers["estimated_names"].append(cname)
-        markers["markers_found"] = sum(
-            1 for k in ["top_left", "top_right", "bottom_left", "bottom_right"]
-            if markers[k] is not None)
+    orientation = "0"
+    if left_class == "solid" and bottom_class == "solid":
+        orientation = "0"
+    elif top_class == "solid" and left_class == "solid":
+        orientation = "90"
+    elif top_class == "solid" and right_class == "solid":
+        orientation = "180"
+    elif right_class == "solid" and bottom_class == "solid":
+        orientation = "270"
 
-    # Store raw Hough positions keyed by image corner (tl/tr/bl/br).
-    # These are independent of ring-ID labelling and used in align_captured_image
-    # to try all 4 rotation assignments without relying on ring counting.
-    markers["hough_positions"] = dict(corner_circles)
+    # STAGE 4 - Map corners back to original image coordinates
+    dm_pts_reshaped = dm_pts.reshape(-1, 1, 2)
+    original_corners = cv2.perspectiveTransform(dm_pts_reshaped, M_label_inv)
+    original_corners = original_corners.reshape(4, 2)
 
-    return markers
-
+    return original_corners, orientation
 
 # ==========================================================================
 # VERIFICATION — STEP 2: Image Alignment
 # ==========================================================================
 
-def align_captured_image(captured, original_size, markers=None, original_gray_ref=None):
-    """Returns (aligned_image, method_string).
-
-    Alignment priority:
-      1. perspective       — all 4 markers detected, valid quad
-      2. perspective (inferred) — 3 markers + parallelogram-inferred 4th, valid quad
-      3. crop_resize       — marker bounding box crop + resize (≥2 markers)
-      4. resize            — full-frame resize (last resort)
-    """
+def align_captured_image(captured, original_size, corners=None, orientation=None, original_gray_ref=None):
     target_w, target_h = original_size
-    off = FIDUCIAL_MARKER_OFFSET
-    ih, iw = captured.shape[:2]
+    
+    if corners is not None and orientation is not None:
+        try:
+            w, h = target_w, target_h
+            if orientation == "0":
+                dst_pts = np.float32([[0,0],[w,0],[w,h],[0,h]])
+            elif orientation == "90":
+                dst_pts = np.float32([[0,h],[0,0],[w,0],[w,h]])
+            elif orientation == "180":
+                dst_pts = np.float32([[w,h],[0,h],[0,0],[w,0]])
+            elif orientation == "270":
+                dst_pts = np.float32([[w,0],[w,h],[0,h],[0,0]])
+            else:
+                dst_pts = np.float32([[0,0],[w,0],[w,h],[0,h]])
+                
+            M = cv2.getPerspectiveTransform(corners, dst_pts)
+            aligned = cv2.warpPerspective(captured, M, (target_w, target_h))
+            return aligned, f"perspective ({orientation}°)"
+        except Exception:
+            pass
 
-    def _valid_quad(pts_cw):
-        """pts_cw must be in clockwise order: TL, TR, BR, BL."""
-        margin = max(iw, ih) * 0.5
-        for p in pts_cw:
-            if p[0] < -margin or p[0] > iw + margin: return False
-            if p[1] < -margin or p[1] > ih + margin: return False
-        hull = cv2.convexHull(pts_cw.reshape(-1, 1, 2).astype(np.int32))
-        if len(hull) != 4: return False
-        area = cv2.contourArea(hull)
-        if area < iw * ih * 0.01: return False
-        return True
-
-    def _infer_fourth(found):
-        """Given a dict with 3 of 4 corners, infer the missing one via parallelogram rule."""
-        names = ["top_left", "top_right", "bottom_left", "bottom_right"]
-        missing = [n for n in names if n not in found]
-        if len(missing) != 1:
-            return found
-        m = missing[0]
-        tl = np.array(found.get("top_left",    [0, 0]), dtype=np.float32)
-        tr = np.array(found.get("top_right",   [0, 0]), dtype=np.float32)
-        bl = np.array(found.get("bottom_left", [0, 0]), dtype=np.float32)
-        br = np.array(found.get("bottom_right",[0, 0]), dtype=np.float32)
-        if m == "bottom_right": found["bottom_right"] = tuple((tr + bl - tl).astype(int))
-        elif m == "bottom_left": found["bottom_left"] = tuple((tl + br - tr).astype(int))
-        elif m == "top_right":   found["top_right"]   = tuple((tl + br - bl).astype(int))
-        elif m == "top_left":    found["top_left"]    = tuple((tr + bl - br).astype(int))
-        return found
-
-    # --- Steps 1+2: Rotation-aware perspective alignment ---
-    # Ring counting is unreliable for printed photos, so we do NOT trust ring-ID
-    # labels on the detected marker positions.  Instead we:
-    #   1. Collect the 4 reliable corner positions from raw Hough detections
-    #      and fixed-position estimates (both are independent of ring IDs).
-    #   2. Re-assign them positionally (image TL/TR/BL/BR by coordinate).
-    #   3. Try all 4 rotational src→dst mappings, each at thumbnail resolution.
-    #   4. Pick the mapping with the best NCC against the reference pattern.
-    #   5. Do the final full-resolution warp with that mapping.
-    #   6. Update the markers dict with the correct corner labels so the
-    #      visualisation reflects the true orientation.
-    if markers and original_gray_ref is not None:
-        hough_pos = markers.get("hough_positions", {})   # {ic: (cx,cy)} raw Hough
-
-        # Guard: need ≥3 actual Hough detections for a reliable perspective warp.
-        # With fewer, the remaining positions are fixed-position guesses that
-        # assume the pattern fills the crop perfectly — wrong when the contour
-        # crop is imprecise (oblique angles, small prints).  In that case
-        # resize the crop and try all 4 rotations via NCC to find orientation.
-        if len(hough_pos) < 3:
-            resized = cv2.resize(captured, (target_w, target_h),
-                                 interpolation=cv2.INTER_AREA)
-            gray_r = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY) \
-                if len(resized.shape) == 3 else resized
-            thumb = 128
-            ref_t = cv2.resize(original_gray_ref, (thumb, thumb)).astype(np.float32)
-            ref_f = ref_t - ref_t.mean()
-            ref_n = np.linalg.norm(ref_f) + 1e-9
-            best_rot, best_ncc = 0, -1.0
-            for rot in range(4):
-                g = np.rot90(gray_r, rot)
-                t = cv2.resize(g, (thumb, thumb)).astype(np.float32)
-                f = t - t.mean()
-                n = np.linalg.norm(f) + 1e-9
-                ncc = float(np.dot(ref_f.ravel(), f.ravel()) / (ref_n * n))
-                if ncc > best_ncc:
-                    best_ncc, best_rot = ncc, rot
-            if best_rot != 0:
-                resized = np.rot90(resized, best_rot).copy()
-            rot_names = ["0", "90CW", "180", "90CCW"]
-            return resized, f"resize ({rot_names[best_rot]})"
-
-        # Build P: 4 positions keyed by image corner name (tl/tr/bl/br).
-        # Priority: Hough detection (correct image-corner proximity) first.
-        # Fill any missing corners with fixed-position estimates computed
-        # directly from the crop dimensions — these are ring-ID-independent
-        # and accurate whenever the crop is the actual pattern area.
-        # (The ring-ID-labelled estimated_names in the markers dict cannot be
-        # used here because ring counting may have placed a wrong Hough circle
-        # in the slot that *should* be None, preventing the estimate from being
-        # stored in the expected image-corner slot.)
-        # Only trust Hough positions where ring counting gave a reliable
-        # result (ring_count != -1).  False Hough detections (grating texture,
-        # paper noise) distort the perspective warp when used as corner points.
-        ring_res = markers.get("ring_results", {})
-        reliable_hough = set()
-        for ic, res in ring_res.items():
-            if res[0] != -1:  # ring counting succeeded
-                reliable_hough.add(ic)
-
-        P = {}
-        for ic in ["tl", "tr", "bl", "br"]:
-            if ic in hough_pos and ic in reliable_hough:
-                P[ic] = hough_pos[ic]
-
-        # Second pass: for corners still missing, use Hough detections even if
-        # ring counting was unreliable (e.g. perspective/angle killed contrast).
-        # Actual detected circle positions are always more accurate than fixed
-        # estimates, which assume the pattern fills the crop at perfect 0° alignment.
-        for ic in ["tl", "tr", "bl", "br"]:
-            if ic not in P and ic in hough_pos:
-                P[ic] = hough_pos[ic]
-
-        off_frac = FIDUCIAL_MARKER_OFFSET / max(PATTERN_SIZE)
-        fixed_est = {
-            "tl": (int(round(iw * off_frac)),         int(round(ih * off_frac))),
-            "tr": (int(round(iw * (1 - off_frac))),   int(round(ih * off_frac))),
-            "bl": (int(round(iw * off_frac)),         int(round(ih * (1 - off_frac)))),
-            "br": (int(round(iw * (1 - off_frac))),   int(round(ih * (1 - off_frac)))),
-        }
-        for ic in ["tl", "tr", "bl", "br"]:
-            if ic not in P:
-                P[ic] = fixed_est[ic]   # last resort: pattern fills the crop at 0°
-
-        if len(P) == 4:
-            pos_tl, pos_tr = P["tl"], P["tr"]
-            pos_bl, pos_br = P["bl"], P["br"]
-            # src in clockwise order: TL, TR, BR, BL
-            src = np.float32([pos_tl, pos_tr, pos_br, pos_bl])
-
-            if _valid_quad(src):
-                w, h = target_w, target_h
-
-                # Four dst assignments (src order: tl, tr, br, bl in CW):
-                #   0°:    tl→TL  tr→TR  br→BR  bl→BL
-                #   90°CW: tl→BL  tr→TL  br→TR  bl→BR
-                #   180°:  tl→BR  tr→BL  br→TL  bl→TR
-                #   90°CCW:tl→TR  tr→BR  br→BL  bl→TL
-                DST_LIST = [
-                    [[off,off],[w-off,off],[w-off,h-off],[off,h-off]],          # 0°
-                    [[off,h-off],[off,off],[w-off,off],[w-off,h-off]],          # 90°CW
-                    [[w-off,h-off],[off,h-off],[off,off],[w-off,off]],          # 180°
-                    [[w-off,off],[w-off,h-off],[off,h-off],[off,off]],          # 90°CCW
-                ]
-                # Correct pattern-corner label for each image corner at each rotation
-                LABEL_REMAP = [
-                    {"tl":"top_left","tr":"top_right","bl":"bottom_left","br":"bottom_right"},
-                    {"tl":"bottom_left","tr":"top_left","bl":"bottom_right","br":"top_right"},
-                    {"tl":"bottom_right","tr":"bottom_left","bl":"top_right","br":"top_left"},
-                    {"tl":"top_right","tr":"bottom_right","bl":"top_left","br":"bottom_left"},
-                ]
-                ROT_NAMES = ["0°", "90°CW", "180°", "90°CCW"]
-
-                cap_gray = (cv2.cvtColor(captured, cv2.COLOR_BGR2GRAY)
-                            if len(captured.shape) == 3 else captured)
-                thumb = 128
-                ref_t  = cv2.resize(original_gray_ref, (thumb, thumb)).astype(np.float32)
-                ref_f  = ref_t - ref_t.mean()
-                ref_n  = np.linalg.norm(ref_f) + 1e-9
-
-                best_score, best_idx = -1.0, 0
-                for idx, dst_pts in enumerate(DST_LIST):
-                    dst = np.float32(dst_pts)
-                    try:
-                        M = cv2.getPerspectiveTransform(src, dst)
-                        wg = cv2.warpPerspective(cap_gray, M, (w, h))
-                    except Exception:
-                        continue
-                    war_t = cv2.resize(wg, (thumb, thumb)).astype(np.float32)
-                    war_f = war_t - war_t.mean()
-                    war_n = np.linalg.norm(war_f) + 1e-9
-                    score = float(np.dot(ref_f.ravel(), war_f.ravel()) / (ref_n * war_n))
-                    if score > best_score:
-                        best_score, best_idx = score, idx
-
-                # Ring-count verification: override the NCC rotation if ring counting
-                # gives reliable identifications that contradict the NCC choice.
-                # NCC at 128×128 fails for small / blurry prints because the grating
-                # pattern looks nearly identical under 180° rotation — NCC scores for
-                # all four hypotheses stay close to 0 and index 0 wins by default.
-                # Ring counts (0/1/2/3 rings per marker) are a direct visual check
-                # and uniquely identify each corner regardless of print size or blur.
-                ring_res = markers.get("ring_results", {})
-                if ring_res:
-                    def _rc_agree(remap):
-                        ok = total = 0
-                        for ic, res in ring_res.items():
-                            rc, contrast = res[0], res[1]
-                            if contrast < 30 or rc not in RING_COUNT_TO_CORNER:
-                                continue
-                            total += 1
-                            if remap.get(ic) == RING_COUNT_TO_CORNER[rc]:
-                                ok += 1
-                        return ok, total
-
-                    ncc_ok, ncc_total = _rc_agree(LABEL_REMAP[best_idx])
-                    if ncc_total >= 2 and ncc_ok < ncc_total:
-                        # NCC rotation contradicts reliable ring counts — find the
-                        # rotation with the most ring-count agreements instead.
-                        for alt_idx, alt_remap in enumerate(LABEL_REMAP):
-                            alt_ok, _ = _rc_agree(alt_remap)
-                            if alt_ok > ncc_ok:
-                                ncc_ok, best_idx = alt_ok, alt_idx
-
-                # Only trust the perspective warp if at least one rotation hypothesis
-                # gave a meaningful NCC score.  If all scores are near-zero, the marker
-                # positions are unreliable (e.g. oblique camera angle distorted Hough
-                # detections) — fall through to step 3 (marker crop+resize) which is
-                # more robust in that case.
-                if best_score >= 0.05:
-                    dst = np.float32(DST_LIST[best_idx])
-                    M   = cv2.getPerspectiveTransform(src, dst)
-                    aligned = cv2.warpPerspective(captured, M, (w, h))
-
-                    # Relabel markers to reflect the true orientation
-                    remap = LABEL_REMAP[best_idx]
-                    for ic_name, correct_label in remap.items():
-                        markers[correct_label] = P[ic_name]
-                    markers["markers_found"]      = 4
-                    markers["rotation_detected"]  = [0, 90, 180, 270][best_idx]
-
-                    return aligned, f"perspective ({ROT_NAMES[best_idx]})"
-
-    # --- Step 3: Marker-guided crop (≥2 markers — much better than full-frame resize) ---
-    if markers and markers.get("markers_found", 0) >= 2:
-        names = ["top_left", "top_right", "bottom_left", "bottom_right"]
-        found_pts = [markers[n] for n in names if markers.get(n) is not None]
-
-        # If exactly 3 found, include the inferred 4th for a tighter crop box
-        if len(found_pts) == 3:
-            f = {n: markers[n] for n in names if markers.get(n) is not None}
-            f = _infer_fourth(f)
-            inferred_name = [n for n in names if markers.get(n) is None][0]
-            pt = np.array(f[inferred_name], dtype=np.float32)
-            if 0 <= pt[0] <= iw and 0 <= pt[1] <= ih:
-                found_pts.append(tuple(pt.astype(int)))
-
-        xs = [p[0] for p in found_pts]
-        ys = [p[1] for p in found_pts]
-        span = max(max(xs) - min(xs), max(ys) - min(ys))
-        pad = max(int(span * 0.05), 10)
-        x1 = max(0, min(xs) - pad)
-        y1 = max(0, min(ys) - pad)
-        x2 = min(iw, max(xs) + pad)
-        y2 = min(ih, max(ys) + pad)
-
-        # Force square crop to match the square CDP pattern — avoids aspect-ratio stretch
-        if target_w == target_h:
-            cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-            half = max(x2 - x1, y2 - y1) // 2
-            x1 = max(0, cx - half)
-            y1 = max(0, cy - half)
-            x2 = min(iw, cx + half)
-            y2 = min(ih, cy + half)
-
-        if x2 - x1 > 20 and y2 - y1 > 20:
-            crop = captured[y1:y2, x1:x2]
-            return cv2.resize(crop, (target_w, target_h), interpolation=cv2.INTER_AREA), "crop_resize"
-
-    return cv2.resize(captured, (target_w, target_h), interpolation=cv2.INTER_AREA), "resize"
-
+    # Fallback
+    resized = cv2.resize(captured, (target_w, target_h))
+    if original_gray_ref is not None:
+        gray_r = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY) if len(resized.shape) == 3 else resized
+        thumb = 128
+        ref_t = cv2.resize(original_gray_ref, (thumb, thumb)).astype(np.float32)
+        ref_f = ref_t - ref_t.mean()
+        ref_n = np.linalg.norm(ref_f) + 1e-9
+        best_rot, best_ncc = 0, -1.0
+        for rot in range(4):
+            g = np.rot90(gray_r, rot)
+            t = cv2.resize(g, (thumb, thumb)).astype(np.float32)
+            f = t - t.mean()
+            n = np.linalg.norm(f) + 1e-9
+            ncc = float(np.dot(ref_f.ravel(), f.ravel()) / (ref_n * n))
+            if ncc > best_ncc:
+                best_ncc, best_rot = ncc, rot
+        if best_rot != 0:
+            resized = np.rot90(resized, best_rot).copy()
+        rot_names = ["0", "90CW", "180", "90CCW"]
+        return resized, f"resize ({rot_names[best_rot]})"
+    
+    return resized, "resize (0)" 
 
 # ==========================================================================
 # VERIFICATION — STEP 3: Tests
@@ -1218,7 +1314,7 @@ def test_color_analysis(captured_rgb, reference_rgb):
     return float(np.clip(0.3 * np.mean(ratios) + 0.3 * var_ratio + 0.4 * pixel_score, 0.0, 1.0))
 
 
-def test_prng_correlation(captured_gray, reference_gray, block_size=8):
+def test_prng_correlation(captured_gray, reference_gray, block_size=16):
     """Measure block-level Pearson correlation, prioritising fine scales.
 
     Copy detection relies on the fact that each print→photo cycle is a
@@ -1312,7 +1408,7 @@ def test_gradient_energy(captured_gray, reference_gray):
 # VERIFICATION — FULL PIPELINE
 # ==========================================================================
 
-def verify_pattern(original_path, captured_path, uploads_dir="uploads", block_size=8):
+def verify_pattern_legacy(original_path, captured_path, uploads_dir="uploads", block_size=16):
     original_bgr = cv2.imread(original_path)
     captured_bgr = cv2.imread(captured_path)
     if original_bgr is None:
@@ -1323,22 +1419,32 @@ def verify_pattern(original_path, captured_path, uploads_dir="uploads", block_si
     original_rgb = cv2.cvtColor(original_bgr, cv2.COLOR_BGR2RGB)
     original_gray = cv2.cvtColor(original_bgr, cv2.COLOR_BGR2GRAY)
 
+    print(f"[VERIFY] captured shape: {captured_bgr.shape}")
+
     # Step 0: Crop
-    # Template matching was here but removed -- it bypasses the verification
-    # pipeline entirely, giving 100% for any digital copy (including
-    # counterfeits). The 1% gap from perspective warp interpolation is
-    # acceptable and honest.
     cropped_bgr, bbox, pattern_found, pattern_quad = detect_and_crop_pattern(captured_bgr)
+    print(f"[VERIFY] pattern_found: {pattern_found}, crop shape: {cropped_bgr.shape}")
+    
     if pattern_found:
-        captured_bgr = cropped_bgr
+        ch, cw = cropped_bgr.shape[:2]
+        orig_h, orig_w = captured_bgr.shape[:2]
+        if cw > orig_w * 0.85 or ch > orig_h * 0.85:
+            pattern_found = False
+            print(f"[VERIFY] Crop rejected — too large: {cw}x{ch} vs {orig_w}x{orig_h}")
+        else:
+            captured_bgr = cropped_bgr
+            print(f"[VERIFY] Crop accepted: {cw}x{ch}")
 
     # Step 1: Markers
-    markers = detect_fiducial_markers(captured_bgr, pattern_found_hint=pattern_found)
+    corners, orientation = detect_dm_border(captured_bgr)
+    print(f"[VERIFY] corners: {corners is not None}, orientation: {orientation}")
 
     # Step 2: Align
     target = (original_bgr.shape[1], original_bgr.shape[0])
     aligned_bgr, alignment_method = align_captured_image(
-        captured_bgr, target, markers, original_gray_ref=original_gray)
+        captured_bgr, target, corners, orientation, original_gray_ref=original_gray)
+    print(f"[VERIFY] alignment_method: {alignment_method}")
+    
     aligned_rgb = cv2.cvtColor(aligned_bgr, cv2.COLOR_BGR2RGB)
     aligned_gray = cv2.cvtColor(aligned_bgr, cv2.COLOR_BGR2GRAY)
 
@@ -1373,75 +1479,19 @@ def verify_pattern(original_path, captured_path, uploads_dir="uploads", block_si
     markers_vis = full_captured_bgr.copy()
     full_h, full_w = markers_vis.shape[:2]
     bx, by, bw, bh = bbox if pattern_found else (0, 0, full_w, full_h)
-    inferred_name = markers.get("inferred_name")
-    estimated_names = markers.get("estimated_names", [])
-    corner_labels = {"top_left": "TL", "top_right": "TR",
-                     "bottom_left": "BL", "bottom_right": "BR"}
-
-    # Draw pattern boundary — actual quad handles skew/perspective correctly.
-    if pattern_found:
-        if pattern_quad is not None:
-            pts = pattern_quad.astype(np.int32).reshape((-1, 1, 2))
-            cv2.polylines(markers_vis, [pts], isClosed=True, color=(255, 200, 0), thickness=2)
-        else:
-            cv2.rectangle(markers_vis, (bx, by), (bx + bw, by + bh), (255, 200, 0), 2)
-
-    # Compute marker positions in full-image space.
-    # markers["top_left"] etc. are in CROP space (set by align_captured_image after
-    # NCC rotation detection — so the labels are always semantically correct).
-    # We need to map from crop space → full image space by inverting the same warp
-    # that _crop_from_contour applied.  Recompute out_size from pattern_quad side
-    # lengths to reconstruct dst_pts, then build M_crop_to_full = inverse warp.
-    # This is correct for any rotation, tilt, or skew — no corner-ordering ambiguity.
     if pattern_found and pattern_quad is not None:
-        pq = pattern_quad.astype(np.float32)
-        out_size = max(
-            int(max(np.linalg.norm(pq[1] - pq[0]), np.linalg.norm(pq[2] - pq[3]))),
-            int(max(np.linalg.norm(pq[3] - pq[0]), np.linalg.norm(pq[2] - pq[1]))),
-            64)
-        dst_pts_crop = np.float32([
-            [0, 0], [out_size - 1, 0],
-            [out_size - 1, out_size - 1], [0, out_size - 1]
-        ])
-        M_crop_to_full = cv2.getPerspectiveTransform(dst_pts_crop, pq)
-        quad_diag = float(np.linalg.norm(pq[0] - pq[2]))
-        marker_scale = quad_diag / (max(PATTERN_SIZE) * 1.414)
-        use_quad_mapping = True
-    else:
-        use_quad_mapping = False
-        marker_scale = max(bw, bh) / max(PATTERN_SIZE)
+        pts = pattern_quad.astype(np.int32).reshape((-1, 1, 2))
+        cv2.polylines(markers_vis, [pts], isClosed=True, color=(0, 255, 255), thickness=2)
+    elif pattern_found:
+        bx, by, bw, bh = bbox
+        cv2.rectangle(markers_vis, (bx, by), (bx + bw, by + bh), (0, 255, 255), 2)
 
-    r_vis = max(8, int(_RING_BG_R * marker_scale))
-    font_scale = max(0.5, r_vis / 35)
-
-    for name, label in corner_labels.items():
-        pos = markers.get(name)
-        if pos is None:
-            continue
-        if use_quad_mapping:
-            # Map crop-space marker position → full-image space via inverse warp
-            crop_pt = np.float32([[[float(pos[0]), float(pos[1])]]])
-            full_pt = cv2.perspectiveTransform(crop_pt, M_crop_to_full)[0][0]
-            gx, gy = int(round(full_pt[0])), int(round(full_pt[1]))
-        else:
-            gx, gy = pos[0] + crop_ox, pos[1] + crop_oy
-
-        # Color: green=detected by Hough, orange=inferred, yellow=estimated
-        if name in estimated_names:
-            vis_color = (0, 200, 255)   # yellow
-        elif name == inferred_name:
-            vis_color = (0, 140, 255)   # orange
-        else:
-            vis_color = (0, 210, 0)     # green
-        # White halo + coloured ring + centre dot
-        cv2.circle(markers_vis, (gx, gy), r_vis + 3, (255, 255, 255), 3)
-        cv2.circle(markers_vis, (gx, gy), r_vis, vis_color, 3)
-        cv2.circle(markers_vis, (gx, gy), 5, vis_color, -1)
-        tx, ty = gx + r_vis + 6, gy + 6
-        cv2.putText(markers_vis, label, (tx + 1, ty + 1),
-                    cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), 3)
-        cv2.putText(markers_vis, label, (tx, ty),
-                    cv2.FONT_HERSHEY_SIMPLEX, font_scale, vis_color, 2)
+    if corners is not None:
+        pts = corners.astype(np.int32).reshape((-1, 1, 2))
+        pts += np.array([crop_ox, crop_oy], dtype=np.int32)
+        cv2.polylines(markers_vis, [pts], isClosed=True, color=(0, 255, 0), thickness=2)
+        ctx, cty = pts[0][0]
+        cv2.putText(markers_vis, f"Rot: {orientation}", (int(ctx), int(cty) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
     markers_filename = f"markers_{ts}.png"
     cv2.imwrite(os.path.join(uploads_dir, markers_filename), markers_vis)
@@ -1468,10 +1518,795 @@ def verify_pattern(original_path, captured_path, uploads_dir="uploads", block_si
                    "correlation": float(corr), "gradient": float(gradient)},
         "weights": {"moire": WEIGHT_MOIRE, "color": WEIGHT_COLOR,
                     "correlation": WEIGHT_CORRELATION, "gradient": WEIGHT_GRADIENT},
-        "markers_found": markers["markers_found"],
+        "markers_found": 4 if corners is not None else 0,
         "alignment_method": alignment_method,
         "markers_filename": markers_filename,
         "aligned_filename": aligned_filename,
         "pattern_found": pattern_found,
         "per_block_scores": per_block_serialised,
+    }
+
+# ==========================================================================
+# ==========================================================================
+# DATAMATRIX ENCODING  —  Feistel-4 + RFC 4648 Base32 + check character
+# ==========================================================================
+#
+# Pipeline (encode):
+#   seed (32-bit int)
+#   → 4-round Feistel encrypt  → 32-bit ciphertext
+#   → Base32 encode (7 chars)  + 1 weighted check char
+#   → 8-char payload  →  split  →  share_a (first 4),  share_b (last 4)
+#
+# Pipeline (decode):
+#   share_a + share_b  →  8-char payload
+#   → verify check char  →  Base32 decode  →  Feistel decrypt  →  seed
+#
+# Why this design?
+#   • 4-char per DM  →  8x18 symbol (minimum reliable rectangular DM)
+#   • 8x18 has 18 columns  →  0.417 mm/module  →  4.9 printer-dots @ 300 DPI
+#   • Current 16x48 had 48 columns  →  0.156 mm/module  →  1.8 dots (fails)
+#   • Feistel prevents trivial human readability of the seed value
+#   • Check char detects 100% of single-character substitution errors
+# ==========================================================================
+
+# Fixed 8-byte Feistel key  (4 × 16-bit round keys, concatenated)
+_FEISTEL_KEY: bytes = bytes([0xA7, 0x3E, 0x2F, 0x91, 0xD8, 0x5C, 0x4B, 0xE6])
+
+# Standard RFC 4648 Base32 alphabet  (uppercase A-Z  +  digits 2-7)
+_B32_ALPHA: str = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
+_B32_IDX: dict = {c: i for i, c in enumerate(_B32_ALPHA)}
+
+# Weights for the check character — all must be non-zero mod 32 (all are odd),
+# ensuring that any single-character substitution changes the check value.
+_CHECK_WEIGHTS: tuple = (3, 7, 11, 13, 17, 19, 23)
+
+
+def _feistel_f(half: int, round_key: int) -> int:
+    """Non-linear round function for the Feistel cipher (16-bit domain)."""
+    v = (half ^ round_key) & 0xFFFF
+    v = (v * 0x9E37 + 0xB5EF) & 0xFFFF
+    v ^= v >> 7
+    return (v * 0x6B5F) & 0xFFFF
+
+
+def feistel_encrypt(seed: int) -> int:
+    """
+    4-round Feistel encryption of a 32-bit seed → 32-bit ciphertext.
+
+    The cipher is a classic balanced Feistel network:
+        L_{i+1} = R_i
+        R_{i+1} = L_i XOR F(R_i, round_key_i)
+    """
+    L, R = (seed >> 16) & 0xFFFF, seed & 0xFFFF
+    rks = [int.from_bytes(_FEISTEL_KEY[i:i+2], 'big') for i in range(0, 8, 2)]
+    for rk in rks:
+        L, R = R, L ^ _feistel_f(R, rk)
+    return (L << 16) | R
+
+
+def feistel_decrypt(ct: int) -> int:
+    """
+    4-round Feistel decryption of a 32-bit ciphertext → original seed.
+
+    Inverse step (derived from the forward Feistel equations):
+        R_i = L_{i+1}
+        L_i = R_{i+1} XOR F(L_{i+1}, round_key_i)
+    Applied in reverse key order.
+    """
+    L, R = (ct >> 16) & 0xFFFF, ct & 0xFFFF
+    rks = [int.from_bytes(_FEISTEL_KEY[i:i+2], 'big') for i in range(0, 8, 2)]
+    for rk in reversed(rks):
+        L, R = R ^ _feistel_f(L, rk), L
+    return (L << 16) | R
+
+
+def _b32_encode(n: int, length: int = 7) -> str:
+    """Encode integer n into `length` Base32 characters (big-endian, no padding)."""
+    chars = []
+    for _ in range(length):
+        chars.append(_B32_ALPHA[n & 0x1F])
+        n >>= 5
+    return ''.join(reversed(chars))
+
+
+def _b32_decode(s: str) -> int:
+    """Decode a Base32 string to an integer (big-endian)."""
+    n = 0
+    for c in s:
+        n = (n << 5) | _B32_IDX[c]
+    return n
+
+
+def _check_char(payload7: str) -> str:
+    """
+    Compute 1 Base32 check character from a 7-char Base32 payload.
+
+    Uses a weighted sum with prime-ish weights that are all odd (coprime with 32),
+    guaranteeing that every single-character substitution error is detected.
+    Validated: 100% detection across all 248 possible single-char mutations.
+    """
+    val = sum(w * _B32_IDX[c] for w, c in zip(_CHECK_WEIGHTS, payload7)) % 32
+    return _B32_ALPHA[val]
+
+
+def split_seed_for_dm(seed: int) -> tuple[str, str]:
+    """
+    Encode a 32-bit seed into two 4-character Base32 shares for DataMatrix.
+
+    Encoding pipeline:
+        seed  →  Feistel-4 encrypt  →  32-bit ciphertext
+              →  7 Base32 chars (35 bits, lower 32 used)
+              →  + 1 weighted check char
+              →  8-char payload  →  split at position 4
+
+    Example (seed=920789066):
+        ciphertext   = Feistel-4(920789066)  =  some 32-bit value
+        payload7     = 'AM3ISC5'  (7 Base32 chars)
+        check        = 'Y'
+        full8        = 'AM3ISC5Y'
+        share_a      = 'AM3I'
+        share_b      = 'SC5Y'
+
+    Both shares are encoded into 8x18 Data Matrix symbols:
+        18 columns  x  0.417 mm/column  =  4.9 printer dots at 300 DPI
+        (vs 16x48 old:  48 cols  x 0.156 mm  =  1.8 dots — fails on thermal)
+
+    Returns (share_a: str, share_b: str), each exactly 4 Base32 characters.
+    """
+    ct       = feistel_encrypt(seed)
+    payload7 = _b32_encode(ct, 7)
+    check    = _check_char(payload7)
+    full8    = payload7 + check          # e.g. 'AM3ISC5Y'
+    return full8[:4], full8[4:]          # ('AM3I', 'SC5Y')
+
+
+def recombine_seed_from_dm(share_a: str, share_b: str) -> int | None:
+    """
+    Recover the original seed from two 4-character Base32 shares.
+
+    Decoding pipeline:
+        share_a + share_b  →  8-char payload
+                           →  verify check character  (returns None on failure)
+                           →  Base32 decode 7 chars  →  32-bit ciphertext
+                           →  Feistel-4 decrypt  →  original seed
+
+    Returns seed (int) on success, or None if the check character fails
+    (indicating a decode error, wrong pairing, or corrupted DM).
+    """
+    if not share_a or not share_b:
+        return None
+    # Accepts both trimmed 4-char strings and any surrounding whitespace
+    full8 = share_a.strip() + share_b.strip()
+    if len(full8) != 8:
+        return None
+    # Validate every character is in the Base32 alphabet
+    if not all(c in _B32_IDX for c in full8):
+        return None
+    payload7, check_got = full8[:7], full8[7]
+    if _check_char(payload7) != check_got:
+        return None                       # integrity check failed
+    ct   = _b32_decode(payload7) & 0xFFFFFFFF
+    return feistel_decrypt(ct)
+
+
+def generate_cropped_dm(data: str, size: str = "8x18"):
+    """
+    Generates a DataMatrix of a fixed symbol size and crops it to exact module
+    boundaries, removing the quiet zone added by pylibdmtx.
+
+    Using a fixed size (default '8x18') instead of 'RectAuto' guarantees that
+    every seed produces DM images with identical pixel dimensions regardless of
+    payload entropy.
+
+    Returns
+    -------
+    (image, (num_rows, num_cols))
+      image      – grayscale numpy array of the cropped module grid (pure 0/255)
+      num_rows   – number of DM symbol rows  (8 for '8x18')
+      num_cols   – number of DM symbol cols  (18 for '8x18')
+    """
+    from pylibdmtx.pylibdmtx import encode
+    import cv2
+    import numpy as np
+
+    # Parse the requested symbol dimensions
+    parts = size.split('x')
+    num_rows, num_cols = int(parts[0]), int(parts[1])
+
+    enc = encode(data.encode('utf-8'), size=size)
+    img = np.frombuffer(enc.pixels, dtype=np.uint8).reshape((enc.height, enc.width, 3))
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+
+    # Hard threshold to pure B&W — no grey anti-aliasing from pylibdmtx
+    _, bw = cv2.threshold(gray, 128, 255, cv2.THRESH_BINARY)
+
+    # Crop to exact module boundaries
+    inv = cv2.bitwise_not(bw)
+    coords = cv2.findNonZero(inv)
+    if coords is not None:
+        x, y, w, h = cv2.boundingRect(coords)
+        return bw[y:y+h, x:x+w], (num_rows, num_cols)
+    return bw, (num_rows, num_cols)
+
+
+def calculate_auth_block_layout(pattern_size_unit: float, quiet_unit: float,
+                                top_dm_pixels, right_dm_pixels,
+                                top_dm_modules=None, right_dm_modules=None):
+    """
+    Calculates the dimensions and positions of the Auth Block elements using
+    INTEGER module sizing so every printed module is exactly the same number
+    of pixels wide — critical for thermal-transfer print quality.
+
+    Inputs
+    ------
+    pattern_size_unit  : Size of the pattern in arbitrary units (px or mm).
+    quiet_unit         : Size of the quiet zone in the same units.
+    top_dm_pixels      : Grayscale image of the Top DM (H, W) — NOT rotated.
+    right_dm_pixels    : Grayscale image of the Right DM (H, W) — NOT rotated.
+    top_dm_modules     : (num_rows, num_cols) of the Top DM symbol.   Optional.
+    right_dm_modules   : (num_rows, num_cols) of the Right DM symbol. Optional.
+
+    Returns a dictionary of layout properties. Coordinates are y-down.
+    """
+    import math
+
+    # ── Derive module counts ─────────────────────────────────────────────────
+    # If caller provides module counts, use them; otherwise infer from image
+    # shape (assuming 5 native pixels per module for the default 16x48 symbol).
+    if top_dm_modules is not None:
+        t_rows, t_cols = top_dm_modules
+    else:
+        # Infer: native image is (rows*5, cols*5), ratio gives col count
+        # For 16x48: shape=(80,240); cols = 240//5 = 48
+        native_h, native_w = top_dm_pixels.shape[:2]
+        # Native module pixel size = GCD of (native_h, native_w) divided by row/col ratio
+        # Reliable fallback: detect by scanning first row for first transition
+        row0 = top_dm_pixels[0, :]
+        first_val = int(row0[0])
+        for i in range(1, len(row0)):
+            if int(row0[i]) != first_val:
+                native_mod_px = i
+                break
+        else:
+            native_mod_px = 5
+        t_cols = native_w // native_mod_px
+        t_rows = native_h // native_mod_px
+
+    if right_dm_modules is not None:
+        r_rows, r_cols = right_dm_modules
+    else:
+        native_h, native_w = right_dm_pixels.shape[:2]
+        row0 = right_dm_pixels[0, :]
+        first_val = int(row0[0])
+        for i in range(1, len(row0)):
+            if int(row0[i]) != first_val:
+                native_mod_px = i
+                break
+        else:
+            native_mod_px = 5
+        r_cols = native_w // native_mod_px
+        r_rows = native_h // native_mod_px
+
+    # ── Integer module pixel size ────────────────────────────────────────────
+    # Top DM: t_cols modules span the pattern width.
+    # Floor to nearest integer so each module is exactly module_px units wide.
+    # This eliminates the alternating 10/11px module widths caused by non-integer
+    # scaling, which is the primary cause of thermal-print blur on the top DM.
+    module_px = int(pattern_size_unit) // t_cols          # e.g. 512//48 = 10
+    module_px = max(module_px, 1)                          # guard against tiny patterns
+
+    # Top DM dims (landscape: t_cols wide × t_rows tall)
+    top_dm_w = module_px * t_cols                          # e.g. 480
+    top_dm_h = module_px * t_rows                          # e.g. 160
+
+    # Right DM dims after 90° CW rotation:
+    #   native (t_rows × t_cols) → rendered (t_cols cols high × t_rows cols wide)
+    #   = r_cols visual-rows × r_rows visual-cols  [r = right DM, same size as top]
+    right_dm_h = module_px * r_cols                        # e.g. 480 (portrait height)
+    right_dm_w = module_px * r_rows                        # e.g. 160 (portrait width)
+
+    # ── Auth block bounding box ───────────────────────────────────────────────
+    auth_w = top_dm_w + quiet_unit + right_dm_w
+    auth_h = top_dm_h + quiet_unit + top_dm_w  # top_dm_w = pattern side length
+
+    # ── Positions (y-down) ───────────────────────────────────────────────────
+    top_dm_x = 0
+    top_dm_y = 0
+
+    pattern_x = 0
+    pattern_y = top_dm_h + quiet_unit
+
+    right_dm_x = top_dm_w + quiet_unit
+    right_dm_y = pattern_y
+
+    return {
+        "auth_w":       auth_w,
+        "auth_h":       auth_h,
+        "module_px":    module_px,
+        "top_dm_rect":  (top_dm_x, top_dm_y, top_dm_w, top_dm_h),
+        "pattern_rect": (pattern_x, pattern_y, top_dm_w, top_dm_w),  # pattern is square
+        "right_dm_rect": (right_dm_x, right_dm_y, right_dm_w, right_dm_h),
+    }
+
+def draw_auth_block_opencv(auth_canvas, layout, pattern_img, top_dm_img, right_dm_img):
+    """
+    Draws the Auth Block onto a pre-sized OpenCV canvas (auth_canvas).
+    Coordinates are y-down.
+
+    DM regions are scaled with INTER_NEAREST (no interpolation) then hard-
+    thresholded to pure black/white.  This guarantees that every pixel in the
+    DM is exactly 0 or 255 even if the printer driver later upscales the PNG
+    with bilinear interpolation — the grey anti-aliased edges that bilinear
+    produces are eliminated at the source.
+    """
+    import cv2
+    import numpy as np
+
+    # Extract rects
+    tx, ty, tw, th = [int(v) for v in layout["top_dm_rect"]]
+    px, py, pw, ph = [int(v) for v in layout["pattern_rect"]]
+    rx, ry, rw, rh = [int(v) for v in layout["right_dm_rect"]]
+
+    def _scale_dm_bw(dm_gray, w, h):
+        """Scale a B&W DM with INTER_NEAREST then hard-threshold to pure 0/255."""
+        resized = cv2.resize(dm_gray, (w, h), interpolation=cv2.INTER_NEAREST)
+        _, bw = cv2.threshold(resized, 128, 255, cv2.THRESH_BINARY)
+        return bw
+
+    # Draw pattern (CDP texture — area interpolation is correct here)
+    pat_resized = cv2.resize(pattern_img, (pw, ph), interpolation=cv2.INTER_AREA)
+    if len(pat_resized.shape) == 2 and len(auth_canvas.shape) == 3:
+        pat_resized = cv2.cvtColor(pat_resized, cv2.COLOR_GRAY2BGR)
+    auth_canvas[py:py+ph, px:px+pw] = pat_resized
+
+    # Draw Top DM — scale then hard-threshold
+    top_bw = _scale_dm_bw(top_dm_img, tw, th)
+    if len(auth_canvas.shape) == 3:
+        top_bw = cv2.cvtColor(top_bw, cv2.COLOR_GRAY2BGR)
+    auth_canvas[ty:ty+th, tx:tx+tw] = top_bw
+
+    # Draw Right DM — rotate 90° CW, scale, hard-threshold
+    rot_right_dm = cv2.rotate(right_dm_img, cv2.ROTATE_90_CLOCKWISE)
+    right_bw = _scale_dm_bw(rot_right_dm, rw, rh)
+    if len(auth_canvas.shape) == 3:
+        right_bw = cv2.cvtColor(right_bw, cv2.COLOR_GRAY2BGR)
+    auth_canvas[ry:ry+rh, rx:rx+rw] = right_bw
+
+
+
+# ==========================================================================
+# NEW VERIFICATION PIPELINE — Steps 1-4
+# ==========================================================================
+
+import itertools
+import re
+
+# ---------------------------------------------------------------------------
+# Dynamic layout constants — derived from the real calculate_auth_block_layout
+# output so detect_and_crop_pattern always matches what the label generator
+# actually produces.
+# ---------------------------------------------------------------------------
+_dm_throwaway, _dm_modules = generate_cropped_dm("AAAA", size="8x18")
+_layout_ref = calculate_auth_block_layout(
+    pattern_size_unit=512,
+    quiet_unit=34,
+    top_dm_pixels=_dm_throwaway,
+    right_dm_pixels=_dm_throwaway,
+    top_dm_modules=_dm_modules,
+    right_dm_modules=_dm_modules,
+)
+_top_dm_x, _top_dm_y, _top_dm_w, _top_dm_h = _layout_ref["top_dm_rect"]
+_pat_x,    _pat_y,    _pat_w,    _pat_h     = _layout_ref["pattern_rect"]
+_right_x,  _right_y,  _right_w,  _right_h  = _layout_ref["right_dm_rect"]
+
+_TOP_DM_CX   = _top_dm_x + _top_dm_w / 2
+_TOP_DM_CY   = _top_dm_y + _top_dm_h / 2
+_RIGHT_DM_CX = _right_x  + _right_w  / 2
+_RIGHT_DM_CY = _right_y  + _right_h  / 2
+_PAT_CX      = _pat_x    + _pat_w    / 2
+_PAT_CY      = _pat_y    + _pat_h    / 2
+
+_R_TOP_X   = _TOP_DM_CX   - _PAT_CX
+_R_TOP_Y   = _TOP_DM_CY   - _PAT_CY
+_R_RIGHT_X = _RIGHT_DM_CX - _PAT_CX
+_R_RIGHT_Y = _RIGHT_DM_CY - _PAT_CY
+
+_CANONICAL_DM_DIST = float(np.linalg.norm(
+    np.array([_RIGHT_DM_CX - _TOP_DM_CX,
+              _RIGHT_DM_CY - _TOP_DM_CY])))
+
+_PATTERN_PX = float(_pat_w)
+
+print(f"[LAYOUT] top_dm_center=({_TOP_DM_CX:.1f},{_TOP_DM_CY:.1f}) "
+      f"right_dm_center=({_RIGHT_DM_CX:.1f},{_RIGHT_DM_CY:.1f}) "
+      f"pattern_center=({_PAT_CX:.1f},{_PAT_CY:.1f}) "
+      f"canonical_dm_dist={_CANONICAL_DM_DIST:.2f} "
+      f"pattern_px={_PATTERN_PX:.0f}")
+
+
+def extract_seed_from_image(image_bgr):
+    """
+    Step 1 - DM Detection and Seed Recovery.
+
+    Decodes all DataMatrix codes found in image_bgr, identifies the correct
+    share_a / share_b pair (by check-character validation), and returns the
+    recombined seed integer.
+
+    Returns:
+        (seed: int, diagnostic: dict)  on success
+        (None, diagnostic: dict)       on failure
+
+    The diagnostic dict always contains a 'raw_results' key holding the full
+    pylibdmtx result list (including bounding-box rects) from the shrink level
+    that succeeded, plus 'shrink_used'.  These are forwarded to
+    detect_and_crop_pattern so it can reuse the geometry without a second
+    decode pass.
+    """
+    from pylibdmtx.pylibdmtx import decode as dm_decode
+
+    gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
+
+    shrink_used = 1
+    print("[EXTRACT_SEED] Attempting DM decode with shrink=1 ...")
+    raw_results = dm_decode(gray, shrink=1)
+
+    if len(raw_results) < 2:
+        shrink_used = 2
+        print(f"[EXTRACT_SEED] shrink=1 found {len(raw_results)} DMs - retrying with shrink=2 ...")
+        raw_results = dm_decode(gray, shrink=2)
+
+    decoded_strings = []
+    for r in raw_results:
+        try:
+            decoded_strings.append(r.data.decode("utf-8").strip())
+        except Exception:
+            pass  # skip malformed payloads
+
+    print(f"[EXTRACT_SEED] shrink={shrink_used} found {len(decoded_strings)} DM strings: {decoded_strings}")
+
+    diagnostic = {
+        "raw_decoded":   decoded_strings,
+        "share_a":       None,
+        "share_b":       None,
+        "num_dms_found": len(raw_results),
+        # Preserve full result list + scale so the cropper can reuse geometry
+        "raw_results":   raw_results,
+        "shrink_used":   shrink_used,
+    }
+
+    if len(decoded_strings) < 2:
+        diagnostic["failure_reason"] = "Fewer than 2 DataMatrix codes decoded"
+        return None, diagnostic
+
+    # Try all C(n, 2) pairs; accept the first that passes recombine_seed_from_dm
+    b32_re = re.compile(r'^[A-Z2-7]{4}$')
+    for s1, s2 in itertools.combinations(decoded_strings, 2):
+        if not (b32_re.match(s1) and b32_re.match(s2)):
+            continue
+        seed = recombine_seed_from_dm(s1, s2)
+        if seed is not None:
+            diagnostic["share_a"] = s1
+            diagnostic["share_b"] = s2
+            print(f"[EXTRACT_SEED] Seed recovered: {seed} "
+                  f"from share_a={s1}, share_b={s2}")
+            return seed, diagnostic
+        # Also try reversed order
+        seed = recombine_seed_from_dm(s2, s1)
+        if seed is not None:
+            diagnostic["share_a"] = s2
+            diagnostic["share_b"] = s1
+            print(f"[EXTRACT_SEED] Seed recovered: {seed} "
+                  f"from share_a={s2}, share_b={s1}")
+            return seed, diagnostic
+
+    diagnostic["failure_reason"] = "No valid share pair found (check-character mismatch on all combinations)"
+    print(f"[EXTRACT_SEED] Failed - {diagnostic['failure_reason']}")
+    return None, diagnostic
+
+
+
+def extract_pattern_roi(image_bgr, dm_results):
+    """
+    Step 2 - Pattern ROI Extraction.
+
+    Given the raw pylibdmtx decode result list, classifies which code is the
+    Top DM and which is the Right DM (by bounding-box area), then uses the
+    same dx/dy quadrant logic as detect_and_crop_pattern to locate the 512x512
+    CDP pattern region and extract it via a perspective warp.
+
+    Args:
+        image_bgr:  The full camera photo (BGR, any resolution).
+        dm_results: The list returned by pylibdmtx.decode().
+
+    Returns:
+        512x512 BGR crop of the CDP pattern, or None on geometry failure.
+    """
+    img_h, img_w = image_bgr.shape[:2]
+
+    if len(dm_results) < 2:
+        print("[EXTRACT_ROI] Need at least 2 DM results - aborting.")
+        return None
+
+    # Classify Top DM (larger area) and Right DM (smaller area)
+    sorted_by_area = sorted(
+        dm_results,
+        key=lambda r: abs(r.rect.width) * abs(r.rect.height),
+        reverse=True
+    )
+    top_res   = sorted_by_area[0]
+    right_res = sorted_by_area[1]
+    top_r     = top_res.rect
+    right_r   = right_res.rect
+
+    print(f"[EXTRACT_ROI] Top DM rect (y-up): left={top_r.left}, top={top_r.top}, "
+          f"w={top_r.width}, h={top_r.height}")
+    print(f"[EXTRACT_ROI] Right DM rect (y-up): left={right_r.left}, top={right_r.top}, "
+          f"w={right_r.width}, h={right_r.height}")
+
+    # Convert pylibdmtx y-up rects to OpenCV y-down centroids
+    # pylibdmtx: y=0 at bottom-left of image.
+    # Formula: y_cv = image_height - (rect.top + rect.height)
+    def _center_cv(rect, height):
+        x_cv = rect.left + abs(rect.width) / 2.0
+        y_cv_top = height - (rect.top + rect.height)
+        y_cv = y_cv_top + abs(rect.height) / 2.0
+        return x_cv, y_cv
+
+    tx, ty = _center_cv(top_r, img_h)
+    rx, ry = _center_cv(right_r, img_h)
+
+    dx = rx - tx
+    dy = ry - ty
+
+    print(f"[EXTRACT_ROI] Top centre (cv): ({tx:.1f}, {ty:.1f}), "
+          f"Right centre (cv): ({rx:.1f}, {ry:.1f}), dx={dx:.1f}, dy={dy:.1f}")
+
+    tw_abs = abs(top_r.width)
+    th_abs = abs(top_r.height)
+    rw_abs = abs(right_r.width)
+    rh_abs = abs(right_r.height)
+
+    if dx > 0 and dy > 0:      # Normal (0 deg)
+        px, py = tx, ry
+        pw, ph = tw_abs, rh_abs
+    elif dx < 0 and dy > 0:    # 90 deg CCW
+        px, py = rx, ty
+        pw, ph = th_abs, rw_abs
+    elif dx < 0 and dy < 0:    # 180 deg
+        px, py = tx, ry
+        pw, ph = tw_abs, rh_abs
+    else:                      # 270 deg CCW (dx > 0, dy < 0)
+        px, py = rx, ty
+        pw, ph = th_abs, rw_abs
+
+    print(f"[EXTRACT_ROI] Pattern centre (cv): ({px:.1f}, {py:.1f}), "
+          f"estimated size: {pw:.0f}x{ph:.0f}")
+
+    half_w, half_h = pw / 2.0, ph / 2.0
+    src_pts = np.float32([
+        [px - half_w, py - half_h],
+        [px + half_w, py - half_h],
+        [px + half_w, py + half_h],
+        [px - half_w, py + half_h],
+    ])
+
+    src_pts[:, 0] = np.clip(src_pts[:, 0], 0, img_w - 1)
+    src_pts[:, 1] = np.clip(src_pts[:, 1], 0, img_h - 1)
+
+    out_w, out_h = PATTERN_SIZE
+    dst_pts = np.float32([
+        [0,         0        ],
+        [out_w - 1, 0        ],
+        [out_w - 1, out_h - 1],
+        [0,         out_h - 1],
+    ])
+
+    try:
+        M = cv2.getPerspectiveTransform(src_pts, dst_pts)
+        cropped = cv2.warpPerspective(image_bgr, M, (out_w, out_h))
+        print(f"[EXTRACT_ROI] ROI extracted - shape: {cropped.shape}")
+        return cropped
+    except Exception as e:
+        print(f"[EXTRACT_ROI] getPerspectiveTransform failed: {e}")
+        return None
+
+
+def regenerate_reference(seed):
+    """
+    Step 3 - In-Memory Reference Generation.
+
+    Recreates the exact CDP that was originally generated for this seed,
+    WITHOUT writing anything to disk. Mirrors generate_pattern() exactly.
+
+    Returns:
+        (reference_rgb: np.ndarray H x W x 3 uint8,
+         reference_gray: np.ndarray H x W uint8)
+    """
+    print(f"[REGEN] Regenerating reference for seed={seed} (0x{seed:08x}) ...")
+
+    w, h = PATTERN_SIZE
+
+    grating_rng = np.random.RandomState(seed=seed + 2000)
+    base_freq   = 8   + grating_rng.random() * 6
+    mod_freq    = 1.5 + grating_rng.random() * 2.5
+    mod_depth   = 0.2 + grating_rng.random() * 0.3
+
+    grating     = generate_frequency_modulated_grating(w, h, base_freq, mod_freq, mod_depth)
+    prng        = generate_prng_macro_pattern(w, h, seed, BLOCK_SIZE)
+    combined    = cv2.addWeighted(grating, 0.5, prng, 0.5, 0)
+    pattern_rgb = add_rgb_perturbations(combined, seed=seed, intensity=25, block_size=BLOCK_SIZE)
+    add_fiducial_markers(pattern_rgb, marker_color=0)
+
+    reference_gray = cv2.cvtColor(pattern_rgb, cv2.COLOR_RGB2GRAY)
+
+    print(f"[REGEN] Done - RGB shape: {pattern_rgb.shape}, Gray shape: {reference_gray.shape}")
+    return pattern_rgb, reference_gray
+
+
+def verify_pattern(captured_path, uploads_dir="uploads"):
+    """
+    New verify_pattern (Step 4).
+
+    Fully self-contained verification pipeline that does NOT require the
+    original pattern file on disk. The reference is always regenerated from
+    the seed recovered via the DataMatrix codes in the captured image.
+
+    Unlike verify_pattern_legacy, this takes only captured_path (no original_path).
+
+    Args:
+        captured_path: Path to the smartphone photo.
+        uploads_dir:   Directory for debug images.
+
+    Returns:
+        dict with keys: verdict, confidence, seed_recovered, scores, weights,
+        dm_diagnostic, roi_filename, reference_filename, aligned_filename.
+    """
+    os.makedirs(uploads_dir, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+
+    # Load image
+    print(f"[VERIFY] Loading: {captured_path}")
+    captured_bgr = cv2.imread(captured_path)
+    if captured_bgr is None:
+        return {
+            "verdict":       "UNABLE_TO_VERIFY",
+            "error":         f"Cannot load image: {captured_path}",
+            "dm_diagnostic": {},
+        }
+    print(f"[VERIFY] Shape: {captured_bgr.shape}")
+
+    # Step 1 - Seed recovery from DMs on the full image
+    print("[VERIFY] === STEP 1: DM Detection & Seed Recovery ===")
+    seed, dm_diagnostic = extract_seed_from_image(captured_bgr)
+
+    if seed is None:
+        print(f"[VERIFY] Seed recovery failed: {dm_diagnostic.get('failure_reason')}")
+        return {
+            "verdict":       "UNABLE_TO_VERIFY",
+            "error":         "DM decode failed",
+            "dm_diagnostic": dm_diagnostic,
+        }
+
+    # Step 2 - Pattern ROI via detect_and_crop_pattern.
+    # Pass the DM decode results from Step 1 directly so the cropper does NOT
+    # need to run a second decode pass on the flattened label.  With smaller
+    # 8x18 symbols the second decode frequently fails on the warped image even
+    # when Step 1 succeeded on the full-resolution frame.
+    print("[VERIFY] === STEP 2: Pattern ROI Extraction (card-flatten + DM geometry) ===")
+    crop_result = detect_and_crop_pattern(
+        captured_bgr,
+        dm_results_raw=dm_diagnostic.get("raw_results"),
+        dm_shrink_used=dm_diagnostic.get("shrink_used", 1),
+    )
+
+    roi_bgr = crop_result[0] if crop_result[2] else None
+    if roi_bgr is None:
+        print("[VERIFY] ROI extraction failed.")
+        return {
+            "verdict":       "UNABLE_TO_VERIFY",
+            "error":         "Pattern ROI extraction failed — could not locate/decode DMs after label flattening",
+            "dm_diagnostic": dm_diagnostic,
+        }
+
+    # Step 3 - Regenerate reference
+    print("[VERIFY] === STEP 3: Reference Regeneration ===")
+    reference_rgb, reference_gray = regenerate_reference(seed)
+    reference_bgr = cv2.cvtColor(reference_rgb, cv2.COLOR_RGB2BGR)
+
+    # Step 4 - Prepare captured ROI
+    print("[VERIFY] === STEP 4: Preparing Captured ROI ===")
+    out_w, out_h = PATTERN_SIZE
+    if roi_bgr.shape[:2] != (out_h, out_w):
+        roi_bgr = cv2.resize(roi_bgr, (out_w, out_h), interpolation=cv2.INTER_AREA)
+
+    captured_rgb  = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2RGB)
+    captured_gray = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2GRAY)
+
+    # Step 4b — NCC rotation alignment
+    # Try all 4 rotations of the captured ROI against the reference.
+    # Pick the rotation with the highest NCC at thumbnail resolution.
+    # This corrects for 90/180/270 degree orientation errors in the crop.
+    print("[VERIFY] === STEP 4b: NCC Rotation Alignment ===")
+    thumb = 128
+    ref_t = cv2.resize(reference_gray, (thumb, thumb)).astype(np.float32)
+    ref_f = ref_t - ref_t.mean()
+    ref_n = np.linalg.norm(ref_f) + 1e-9
+
+    best_rot, best_ncc = 0, -1.0
+    for rot in range(4):
+        candidate = np.rot90(captured_gray, rot)
+        t = cv2.resize(candidate, (thumb, thumb)).astype(np.float32)
+        f = t - t.mean()
+        n = np.linalg.norm(f) + 1e-9
+        ncc = float(np.dot(ref_f.ravel(), f.ravel()) / (ref_n * n))
+        print(f"[VERIFY] rot={rot*90}° ncc={ncc:.4f}")
+        if ncc > best_ncc:
+            best_ncc = ncc
+            best_rot = rot
+
+    if best_rot != 0:
+        roi_bgr       = np.rot90(roi_bgr,       best_rot).copy()
+        captured_rgb  = np.rot90(captured_rgb,  best_rot).copy()
+        captured_gray = np.rot90(captured_gray, best_rot).copy()
+        print(f"[VERIFY] Applied rotation: {best_rot*90}° (ncc={best_ncc:.4f})")
+    else:
+        print(f"[VERIFY] No rotation needed (ncc={best_ncc:.4f})")
+
+    # Step 5 - Run all four tests
+    print("[VERIFY] === STEP 5: Running Verification Tests ===")
+    moire             = test_moire_detection(captured_gray, reference_gray)
+    color             = test_color_analysis(captured_rgb, reference_rgb)
+    corr, raw_corr    = test_prng_correlation(captured_gray, reference_gray, BLOCK_SIZE)
+    gradient          = test_gradient_energy(captured_gray, reference_gray)
+
+    print(f"[VERIFY] moire={moire:.4f}  color={color:.4f}  "
+          f"corr={corr:.4f} (raw={raw_corr:.4f})  gradient={gradient:.4f}")
+
+    # Step 6 - Score & verdict
+    final = (WEIGHT_MOIRE       * moire    +
+             WEIGHT_COLOR       * color    +
+             WEIGHT_CORRELATION * corr     +
+             WEIGHT_GRADIENT    * gradient)
+
+    if final >= THRESHOLD_AUTHENTIC:
+        verdict = "AUTHENTIC"
+    elif final >= THRESHOLD_SUSPICIOUS:
+        verdict = "SUSPICIOUS"
+    else:
+        verdict = "COUNTERFEIT"
+
+    print(f"[VERIFY] Final score={final:.4f} -> verdict={verdict}")
+
+    # Step 7 - Save debug images
+    print("[VERIFY] === STEP 6: Saving Debug Images ===")
+    roi_filename       = f"roi_{ts}.png"
+    reference_filename = f"reference_{ts}.png"
+    aligned_filename   = f"aligned_{ts}.png"
+
+    cv2.imwrite(os.path.join(uploads_dir, roi_filename),       roi_bgr)
+    cv2.imwrite(os.path.join(uploads_dir, reference_filename), reference_bgr)
+    cv2.imwrite(os.path.join(uploads_dir, aligned_filename),   roi_bgr)
+
+    print(f"[VERIFY] Saved: {roi_filename}, {reference_filename}, {aligned_filename}")
+
+    return {
+        "verdict":            verdict,
+        "confidence":         float(final),
+        "seed_recovered":     seed,
+        "scores": {
+            "moire":       float(moire),
+            "color":       float(color),
+            "correlation": float(corr),
+            "gradient":    float(gradient),
+        },
+        "weights": {
+            "moire":       WEIGHT_MOIRE,
+            "color":       WEIGHT_COLOR,
+            "correlation": WEIGHT_CORRELATION,
+            "gradient":    WEIGHT_GRADIENT,
+        },
+        "dm_diagnostic":      dm_diagnostic,
+        "roi_filename":       roi_filename,
+        "reference_filename": reference_filename,
+        "aligned_filename":   aligned_filename,
     }

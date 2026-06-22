@@ -1,0 +1,76 @@
+{
+  "run_ts": "2026-06-18 16:43:19",
+  "stats": {
+    "total": 1,
+    "authentic": 0,
+    "suspicious": 0,
+    "counterfeit": 1,
+    "unable": 0,
+    "avg_confidence": 0.052420553728719795,
+    "avg_moire": 0.0,
+    "avg_correlation": 0.26669325288529155,
+    "avg_gradient": 0.009601263923017736,
+    "avg_color": 0.24311038851737976
+  },
+  "results": [
+    {
+      "filename": "a1.jpeg",
+      "stem": "a1",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test\\a1.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\analytics",
+      "verdict": "COUNTERFEIT",
+      "confidence": 0.052420553728719795,
+      "seed_recovered": 61288996,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.0,
+        "color": 0.24311038851737976,
+        "correlation": 0.26669325288529155,
+        "gradient": 0.009601263923017736
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 6.91,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\reference_patterns\\a1_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\aligned_patterns\\a1_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\delta_maps\\a1_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "DNTR",
+          "HCRW"
+        ],
+        "share_a": "DNTR",
+        "share_b": "HCRW",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'DNTR'",
+            [
+              500,
+              570,
+              149,
+              70
+            ]
+          ],
+          [
+            "b'HCRW'",
+            [
+              663,
+              561,
+              74,
+              -157
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    }
+  ]
+}

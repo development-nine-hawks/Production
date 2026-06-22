@@ -1,0 +1,3 @@
+filename,verdict,confidence,seed_recovered,pattern_id,moire,correlation,gradient,color,alignment_method,processing_time,success,failure_reason
+t2a.jpeg,COUNTERFEIT,0.0698,830234020,,0.0394,0.0752,0.0280,0.3248,—,71.38,True,
+t2b.jpeg,COUNTERFEIT,0.0698,830234020,,0.0394,0.0752,0.0280,0.3248,—,70.84,True,

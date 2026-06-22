@@ -1,0 +1,28 @@
+2026-06-22 16:22:11  INFO      ============================================================
+2026-06-22 16:22:11  INFO      PhoneCDP Batch Verification Run
+2026-06-22 16:22:11  INFO      Run timestamp : 2026-06-22 16:22:11
+2026-06-22 16:22:11  INFO      Input folder  : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test
+2026-06-22 16:22:11  INFO      Output folder : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results
+2026-06-22 16:22:11  INFO      Images found  : 1
+2026-06-22 16:22:11  INFO      ============================================================
+2026-06-22 16:22:11  INFO      --- Image 1/1 ---
+2026-06-22 16:22:11  INFO      Processing: tc3.jpeg
+2026-06-22 16:22:28  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 16:22:28  INFO      [CROP] class=content top_dm=367x87 right_dm=82x364 dm_long=367
+2026-06-22 16:22:28  INFO      [CENTER] not_found candidates_checked=0 expected=(645,1820) expected_marker_px=24.4
+2026-06-22 16:22:28  INFO      [CROP] top_dm=(766,1562) right_dm=(904,1941) expected_center=(645,1820) actual_center=(645,1820) center_marker=fallback scale=0.718
+2026-06-22 16:22:28  INFO        tc3.jpeg: COUNTERFEIT  conf=0.050  moire=0.013  corr=0.086  grad=0.000  color=0.328
+2026-06-22 16:22:31  INFO      
+2026-06-22 16:22:31  INFO      ============================================================
+2026-06-22 16:22:31  INFO      BATCH SUMMARY
+2026-06-22 16:22:31  INFO        Total       : 1
+2026-06-22 16:22:31  INFO        Authentic   : 0
+2026-06-22 16:22:31  INFO        Suspicious  : 0
+2026-06-22 16:22:31  INFO        Counterfeit : 1
+2026-06-22 16:22:31  INFO        Unable/Error: 0
+2026-06-22 16:22:31  INFO        Avg Confidence: 5.0%
+2026-06-22 16:22:31  INFO      ============================================================
+2026-06-22 16:22:31  INFO      CSV saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_results_20260622_162211.csv
+2026-06-22 16:22:31  INFO      JSON saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_results_20260622_162211.json
+2026-06-22 16:22:31  INFO      Generating PDF report → C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_test_report.pdf
+2026-06-22 16:22:36  INFO      PDF report ready: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_test_report.pdf

@@ -1,0 +1,71 @@
+2026-06-22 14:06:01  INFO      ============================================================
+2026-06-22 14:06:01  INFO      PhoneCDP Batch Verification Run
+2026-06-22 14:06:01  INFO      Run timestamp : 2026-06-22 14:06:01
+2026-06-22 14:06:01  INFO      Input folder  : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test
+2026-06-22 14:06:01  INFO      Output folder : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results
+2026-06-22 14:06:01  INFO      Images found  : 10
+2026-06-22 14:06:01  INFO      ============================================================
+2026-06-22 14:06:01  INFO      --- Image 1/10 ---
+2026-06-22 14:06:01  INFO      Processing: tc-01.jpeg
+2026-06-22 14:06:48  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 14:06:48  INFO      [CROP] class=content top_dm=378x173 right_dm=170x374 dm_long=378 top_dm=(757,1666) right_dm=(1056,1963) expected_center=(758,1964) actual_center=(758,1964) center_marker='fallback' scale=0.841
+2026-06-22 14:06:48  INFO        tc-01.jpeg: AUTHENTIC  conf=0.723  moire=0.853  corr=0.947  grad=0.256  color=0.351
+2026-06-22 14:06:51  INFO      --- Image 2/10 ---
+2026-06-22 14:06:51  INFO      Processing: tc-02.jpeg
+2026-06-22 14:07:06  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 14:07:06  INFO      [CROP] class=content top_dm=98x364 right_dm=358x98 dm_long=364 top_dm=(890,1925) right_dm=(1269,1883) expected_center=(1100,2093) actual_center=(1100,2093) center_marker='fallback' scale=0.762
+2026-06-22 14:07:06  INFO        tc-02.jpeg: COUNTERFEIT  conf=0.073  moire=0.025  corr=0.190  grad=0.000  color=0.384
+2026-06-22 14:07:09  INFO      --- Image 3/10 ---
+2026-06-22 14:07:09  INFO      Processing: tc-03.jpeg
+2026-06-22 14:07:25  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 14:07:25  INFO      [CROP] class=content top_dm=139x311 right_dm=315x138 dm_long=315 top_dm=(988,2000) right_dm=(1098,1754) expected_center=(1166,1932) actual_center=(1166,1932) center_marker='fallback' scale=0.537
+2026-06-22 14:07:26  INFO        tc-03.jpeg: COUNTERFEIT  conf=0.050  moire=0.003  corr=0.039  grad=0.000  color=0.444
+2026-06-22 14:07:28  INFO      --- Image 4/10 ---
+2026-06-22 14:07:28  INFO      Processing: tc-04.jpeg
+2026-06-22 14:08:05  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 14:08:05  INFO      [CROP] class=content top_dm=350x165 right_dm=159x354 dm_long=354 top_dm=(1291,1644) right_dm=(820,1367) expected_center=(1194,1270) actual_center=(1194,1270) center_marker='fallback' scale=1.093
+2026-06-22 14:08:05  INFO        tc-04.jpeg: COUNTERFEIT  conf=0.042  moire=0.003  corr=0.023  grad=0.027  color=0.333
+2026-06-22 14:08:08  INFO      --- Image 5/10 ---
+2026-06-22 14:08:08  INFO      Processing: tc-05.jpeg
+2026-06-22 14:08:55  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 14:08:55  INFO      [CROP] class=content top_dm=337x159 right_dm=145x338 dm_long=338 top_dm=(830,1670) right_dm=(1096,1939) expected_center=(828,1937) actual_center=(828,1937) center_marker='fallback(shift=22px)' scale=0.755
+2026-06-22 14:08:56  INFO        tc-05.jpeg: COUNTERFEIT  conf=0.069  moire=0.000  corr=0.503  grad=0.000  color=0.183
+2026-06-22 14:09:11  INFO      --- Image 6/10 ---
+2026-06-22 14:09:11  INFO      Processing: tc-06.jpeg
+2026-06-22 14:11:30  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 14:11:30  INFO      [CROP] class=content top_dm=788x366 right_dm=366x768 dm_long=788 top_dm=(1274,-151) right_dm=(1907,458) expected_center=(1286,470) actual_center=(1286,470) center_marker='fallback' scale=1.755
+2026-06-22 14:11:30  INFO        tc-06.jpeg: COUNTERFEIT  conf=0.019  moire=0.000  corr=0.000  grad=0.023  color=0.160
+2026-06-22 14:11:32  INFO      --- Image 7/10 ---
+2026-06-22 14:11:32  INFO      Processing: tc-07.jpeg
+2026-06-22 14:14:54  INFO      [CROP] image shape: (8000, 6000, 3)
+2026-06-22 14:14:54  INFO      [CROP] class=content top_dm=358x150 right_dm=157x352 dm_long=358 top_dm=(2896,4840) right_dm=(3174,5120) expected_center=(2895,5119) actual_center=(2895,5119) center_marker='fallback' scale=0.787
+2026-06-22 14:14:54  INFO        tc-07.jpeg: AUTHENTIC  conf=0.746  moire=0.908  corr=1.000  grad=0.128  color=0.362
+2026-06-22 14:14:56  INFO      --- Image 8/10 ---
+2026-06-22 14:14:56  INFO      Processing: tc-08.jpeg
+2026-06-22 14:15:40  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 14:15:40  INFO      [CROP] class=content top_dm=430x185 right_dm=186x424 dm_long=430 top_dm=(887,2388) right_dm=(1216,2734) expected_center=(878,2725) actual_center=(878,2725) center_marker='fallback' scale=0.954
+2026-06-22 14:15:41  INFO        tc-08.jpeg: SUSPICIOUS  conf=0.507  moire=0.553  corr=0.805  grad=0.245  color=0.306
+2026-06-22 14:15:54  INFO      --- Image 9/10 ---
+2026-06-22 14:15:54  INFO      Processing: tc-09.jpeg
+2026-06-22 14:16:35  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 14:16:35  INFO      [CROP] class=content top_dm=273x118 right_dm=113x267 dm_long=273 top_dm=(728,2031) right_dm=(936,2242) expected_center=(727,2241) actual_center=(727,2241) center_marker='fallback' scale=0.593
+2026-06-22 14:16:36  INFO        tc-09.jpeg: SUSPICIOUS  conf=0.479  moire=0.546  corr=0.820  grad=0.022  color=0.391
+2026-06-22 14:16:48  INFO      --- Image 10/10 ---
+2026-06-22 14:16:48  INFO      Processing: tc-10.jpeg
+2026-06-22 14:17:14  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 14:17:14  INFO      [CROP] class=content top_dm=96x282 right_dm=280x103 dm_long=282 top_dm=(767,1982) right_dm=(1067,1978) expected_center=(919,2130) actual_center=(919,2130) center_marker='fallback' scale=0.599
+2026-06-22 14:17:15  INFO        tc-10.jpeg: COUNTERFEIT  conf=0.206  moire=0.196  corr=0.368  grad=0.000  color=0.415
+2026-06-22 14:17:28  INFO      
+2026-06-22 14:17:28  INFO      ============================================================
+2026-06-22 14:17:28  INFO      BATCH SUMMARY
+2026-06-22 14:17:28  INFO        Total       : 10
+2026-06-22 14:17:28  INFO        Authentic   : 2
+2026-06-22 14:17:28  INFO        Suspicious  : 2
+2026-06-22 14:17:28  INFO        Counterfeit : 6
+2026-06-22 14:17:28  INFO        Unable/Error: 0
+2026-06-22 14:17:28  INFO        Avg Confidence: 29.1%
+2026-06-22 14:17:28  INFO      ============================================================
+2026-06-22 14:17:28  INFO      CSV saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_results_20260622_140601.csv
+2026-06-22 14:17:28  INFO      JSON saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_results_20260622_140601.json
+2026-06-22 14:17:28  INFO      Generating PDF report → C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_test_report.pdf
+2026-06-22 14:20:23  INFO      PDF report ready: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_test_report.pdf

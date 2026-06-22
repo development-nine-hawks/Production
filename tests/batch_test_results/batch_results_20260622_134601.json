@@ -1,0 +1,607 @@
+{
+  "run_ts": "2026-06-22 13:46:01",
+  "stats": {
+    "total": 10,
+    "authentic": 2,
+    "suspicious": 2,
+    "counterfeit": 6,
+    "unable": 0,
+    "avg_confidence": 0.28751115480139744,
+    "avg_moire": 0.3086759402359573,
+    "avg_correlation": 0.42913211412717506,
+    "avg_gradient": 0.07013824098925586,
+    "avg_color": 0.3343784608691931
+  },
+  "results": [
+    {
+      "filename": "tc-01.jpeg",
+      "stem": "tc-01",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test\\tc-01.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\analytics",
+      "verdict": "AUTHENTIC",
+      "confidence": 0.7225257376900784,
+      "seed_recovered": 1669712356,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.8527492381946725,
+        "color": 0.35056187584996223,
+        "correlation": 0.947251408364351,
+        "gradient": 0.2563826962807333
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 129.19,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\reference_patterns\\tc-01_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\aligned_patterns\\tc-01_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\delta_maps\\tc-01_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "ZNEN",
+          "AEVG"
+        ],
+        "share_a": "AEVG",
+        "share_b": "ZNEN",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'ZNEN'",
+            [
+              971,
+              2224,
+              170,
+              -374
+            ]
+          ],
+          [
+            "b'AEVG'",
+            [
+              568,
+              2247,
+              378,
+              173
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    },
+    {
+      "filename": "tc-02.jpeg",
+      "stem": "tc-02",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test\\tc-02.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\analytics",
+      "verdict": "COUNTERFEIT",
+      "confidence": 0.07343962815670071,
+      "seed_recovered": 1669712356,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.024573879029284672,
+        "color": 0.384171387553215,
+        "correlation": 0.19049468032344172,
+        "gradient": 0.0
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 21.75,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\reference_patterns\\tc-02_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\aligned_patterns\\tc-02_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\delta_maps\\tc-02_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "ZNEN",
+          "AEVG"
+        ],
+        "share_a": "AEVG",
+        "share_b": "ZNEN",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'ZNEN'",
+            [
+              1090,
+              2166,
+              358,
+              -98
+            ]
+          ],
+          [
+            "b'AEVG'",
+            [
+              841,
+              1893,
+              98,
+              364
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    },
+    {
+      "filename": "tc-03.jpeg",
+      "stem": "tc-03",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test\\tc-03.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\analytics",
+      "verdict": "COUNTERFEIT",
+      "confidence": 0.05037197122790414,
+      "seed_recovered": 1669712356,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.003174494412780997,
+        "color": 0.4436088800430298,
+        "correlation": 0.03947661855293504,
+        "gradient": 0.0
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 16.56,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\reference_patterns\\tc-03_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\aligned_patterns\\tc-03_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\delta_maps\\tc-03_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "AEVG",
+          "ZNEN"
+        ],
+        "share_a": "AEVG",
+        "share_b": "ZNEN",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'AEVG'",
+            [
+              919,
+              1845,
+              -139,
+              311
+            ]
+          ],
+          [
+            "b'ZNEN'",
+            [
+              941,
+              2177,
+              315,
+              138
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    },
+    {
+      "filename": "tc-04.jpeg",
+      "stem": "tc-04",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test\\tc-04.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\analytics",
+      "verdict": "COUNTERFEIT",
+      "confidence": 0.04192722831297402,
+      "seed_recovered": 1669712356,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.003403423106458774,
+        "color": 0.33343440145254133,
+        "correlation": 0.02346135374187572,
+        "gradient": 0.026836185162227376
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 48.9,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\reference_patterns\\tc-04_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\aligned_patterns\\tc-04_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\delta_maps\\tc-04_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "AEVG",
+          "ZNEN"
+        ],
+        "share_a": "AEVG",
+        "share_b": "ZNEN",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'AEVG'",
+            [
+              1116,
+              2438,
+              -350,
+              -165
+            ]
+          ],
+          [
+            "b'ZNEN'",
+            [
+              740,
+              2456,
+              -159,
+              354
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    },
+    {
+      "filename": "tc-05.jpeg",
+      "stem": "tc-05",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test\\tc-05.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\analytics",
+      "verdict": "COUNTERFEIT",
+      "confidence": 0.029678344795372562,
+      "seed_recovered": 1669712356,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.0,
+        "color": 0.19885165989398956,
+        "correlation": 0.0973274443866744,
+        "gradient": 0.0004028957820410925
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 50.53,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\reference_patterns\\tc-05_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\aligned_patterns\\tc-05_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\delta_maps\\tc-05_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "ZNEN",
+          "AEVG"
+        ],
+        "share_a": "AEVG",
+        "share_b": "ZNEN",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'ZNEN'",
+            [
+              1023,
+              2230,
+              145,
+              -338
+            ]
+          ],
+          [
+            "b'AEVG'",
+            [
+              662,
+              2251,
+              337,
+              159
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    },
+    {
+      "filename": "tc-06.jpeg",
+      "stem": "tc-06",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test\\tc-06.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\analytics",
+      "verdict": "COUNTERFEIT",
+      "confidence": 0.019398648095445212,
+      "seed_recovered": 1669712356,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.0,
+        "color": 0.1600562036037445,
+        "correlation": 0.0,
+        "gradient": 0.02262018490047175
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 149.63,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\reference_patterns\\tc-06_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\aligned_patterns\\tc-06_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\delta_maps\\tc-06_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "AEVG",
+          "ZNEN"
+        ],
+        "share_a": "AEVG",
+        "share_b": "ZNEN",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'AEVG'",
+            [
+              440,
+              1984,
+              394,
+              183
+            ]
+          ],
+          [
+            "b'ZNEN'",
+            [
+              862,
+              1963,
+              183,
+              -384
+            ]
+          ]
+        ],
+        "shrink_used": 2
+      }
+    },
+    {
+      "filename": "tc-07.jpeg",
+      "stem": "tc-07",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test\\tc-07.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\analytics",
+      "verdict": "AUTHENTIC",
+      "confidence": 0.7456827095943185,
+      "seed_recovered": 1669712356,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.908200824836439,
+        "color": 0.3615173101425171,
+        "correlation": 1.0,
+        "gradient": 0.128002949575876
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 269.45,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\reference_patterns\\tc-07_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\aligned_patterns\\tc-07_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\delta_maps\\tc-07_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "AEVG",
+          "ZNEN"
+        ],
+        "share_a": "AEVG",
+        "share_b": "ZNEN",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'AEVG'",
+            [
+              2717,
+              3085,
+              358,
+              150
+            ]
+          ],
+          [
+            "b'ZNEN'",
+            [
+              3095,
+              3056,
+              157,
+              -352
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    },
+    {
+      "filename": "tc-08.jpeg",
+      "stem": "tc-08",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test\\tc-08.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\analytics",
+      "verdict": "SUSPICIOUS",
+      "confidence": 0.5074386127121148,
+      "seed_recovered": 1669712356,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.5533870343262963,
+        "color": 0.30551281571388245,
+        "correlation": 0.8045568931052384,
+        "gradient": 0.24486713012073377
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 24.54,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\reference_patterns\\tc-08_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\aligned_patterns\\tc-08_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\delta_maps\\tc-08_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "AEVG",
+          "ZNEN"
+        ],
+        "share_a": "AEVG",
+        "share_b": "ZNEN",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'AEVG'",
+            [
+              672,
+              1520,
+              430,
+              185
+            ]
+          ],
+          [
+            "b'ZNEN'",
+            [
+              1123,
+              1478,
+              186,
+              -424
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    },
+    {
+      "filename": "tc-09.jpeg",
+      "stem": "tc-09",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test\\tc-09.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\analytics",
+      "verdict": "SUSPICIOUS",
+      "confidence": 0.47911301465540945,
+      "seed_recovered": 1669712356,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.5456135637744528,
+        "color": 0.3908810019493103,
+        "correlation": 0.8203554279651278,
+        "gradient": 0.02227036807047533
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 29.59,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\reference_patterns\\tc-09_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\aligned_patterns\\tc-09_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\delta_maps\\tc-09_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "AEVG",
+          "ZNEN"
+        ],
+        "share_a": "AEVG",
+        "share_b": "ZNEN",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'AEVG'",
+            [
+              592,
+              1910,
+              273,
+              118
+            ]
+          ],
+          [
+            "b'ZNEN'",
+            [
+              880,
+              1891,
+              113,
+              -267
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    },
+    {
+      "filename": "tc-10.jpeg",
+      "stem": "tc-10",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test\\tc-10.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\analytics",
+      "verdict": "COUNTERFEIT",
+      "confidence": 0.20553565277365649,
+      "seed_recovered": 1669712356,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.1956569446791877,
+        "color": 0.41518907248973846,
+        "correlation": 0.3683973148321063,
+        "gradient": 0.0
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 30.71,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\reference_patterns\\tc-10_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\aligned_patterns\\tc-10_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\delta_maps\\tc-10_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "ZNEN",
+          "AEVG"
+        ],
+        "share_a": "AEVG",
+        "share_b": "ZNEN",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'ZNEN'",
+            [
+              927,
+              2074,
+              280,
+              -103
+            ]
+          ],
+          [
+            "b'AEVG'",
+            [
+              719,
+              1877,
+              96,
+              282
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    }
+  ]
+}

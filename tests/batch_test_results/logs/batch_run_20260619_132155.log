@@ -1,0 +1,42 @@
+2026-06-19 13:21:55  INFO      ============================================================
+2026-06-19 13:21:55  INFO      PhoneCDP Batch Verification Run
+2026-06-19 13:21:55  INFO      Run timestamp : 2026-06-19 13:21:55
+2026-06-19 13:21:55  INFO      Input folder  : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test
+2026-06-19 13:21:55  INFO      Output folder : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results
+2026-06-19 13:21:55  INFO      Images found  : 10
+2026-06-19 13:21:55  INFO      ============================================================
+2026-06-19 13:21:55  INFO      --- Image 1/10 ---
+2026-06-19 13:21:55  INFO      Processing: t09.jpeg
+2026-06-19 13:22:32  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-19 13:22:32  INFO      [CROP] Reusing 2 DM rects from Step 1 (shrink=2) — skipping redundant decode.
+2026-06-19 13:22:32  INFO      [CROP] DMs found: 2 total | 1 landscape (Top DM) | 1 portrait (Right DM)
+2026-06-19 13:22:32  INFO      [CROP] top_rect=(l=369,t=1319,w=420,h=-162) right_rect=(l=818,t=1132,w=188,h=-355) tx=578.8 ty=-638.0 rx=912.0 ry=-354.4 dx=333.1 dy=283.7 px_start=369 py_start=-531 px_end=788.6575622558594 py_end=-176.12985229492188
+2026-06-19 13:22:32  INFO        t09.jpeg: COUNTERFEIT  conf=0.039  moire=0.000  corr=0.000  grad=0.000  color=0.393
+2026-06-19 13:22:37  INFO      --- Image 2/10 ---
+2026-06-19 13:22:37  INFO      Processing: t1.jpeg
+2026-06-19 13:23:11  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-19 13:23:11  INFO      [CROP] Reusing 2 DM rects from Step 1 (shrink=1) — skipping redundant decode.
+2026-06-19 13:23:11  INFO      [CROP] DMs found: 2 total | 1 landscape (Top DM) | 1 portrait (Right DM)
+2026-06-19 13:23:11  INFO      [CROP] top_rect=(l=36,t=323,w=215,h=-85) right_rect=(l=262,t=228,w=100,h=-184) tx=143.3 ty=319.3 rx=312.2 ry=464.1 dx=168.9 dy=144.8 px_start=35 py_start=372 px_end=250.40737915039062 py_end=555.5919189453125
+2026-06-19 13:23:11  INFO        t1.jpeg: AUTHENTIC  conf=0.709  moire=0.870  corr=1.000  grad=0.011  color=0.420
+2026-06-19 13:23:15  INFO      --- Image 3/10 ---
+2026-06-19 13:23:15  INFO      Processing: t10.jpeg
+2026-06-19 13:23:26  WARNING     t10.jpeg: UNABLE_TO_VERIFY — DM decode failed
+2026-06-19 13:23:26  INFO      --- Image 4/10 ---
+2026-06-19 13:23:26  INFO      Processing: t2.jpeg
+2026-06-19 13:24:27  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-19 13:24:27  INFO      [CROP] Reusing 2 DM rects from Step 1 (shrink=1) — skipping redundant decode.
+2026-06-19 13:24:27  INFO      [CROP] DMs found: 2 total | 0 landscape (Top DM) | 2 portrait (Right DM)
+2026-06-19 13:24:27  INFO      [CROP] Aspect-ratio classification ambiguous — falling back to y-position sort.
+2026-06-19 13:24:27  INFO      [CROP] top_rect=(l=247,t=564,w=118,h=-193) right_rect=(l=176,t=376,w=74,h=-321) tx=306.3 ty=132.7 rx=212.6 ry=384.3 dx=-93.7 dy=251.6 px_start=115 py_start=95 px_end=308.4367370605469 py_end=168.8890838623047
+2026-06-19 13:24:27  INFO        t2.jpeg: COUNTERFEIT  conf=0.099  moire=0.093  corr=0.074  grad=0.026  color=0.271
+2026-06-19 13:24:32  INFO      --- Image 5/10 ---
+2026-06-19 13:24:32  INFO      Processing: t3.jpeg
+2026-06-19 13:25:17  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-19 13:25:17  INFO      [CROP] Reusing 2 DM rects from Step 1 (shrink=1) — skipping redundant decode.
+2026-06-19 13:25:17  INFO      [CROP] DMs found: 2 total | 0 landscape (Top DM) | 2 portrait (Right DM)
+2026-06-19 13:25:17  INFO      [CROP] Aspect-ratio classification ambiguous — falling back to y-position sort.
+2026-06-19 13:25:17  INFO      [CROP] top_rect=(l=247,t=540,w=124,h=-143) right_rect=(l=240,t=370,w=56,h=-319) tx=308.6 ty=131.5 rx=267.8 ry=388.9 dx=-40.9 dy=257.4 px_start=196 py_start=103 px_end=339.0534362792969 py_end=158.8898468017578
+2026-06-19 13:25:17  INFO        t3.jpeg: COUNTERFEIT  conf=0.129  moire=0.148  corr=0.000  grad=0.000  color=0.330
+2026-06-19 13:25:22  INFO      --- Image 6/10 ---
+2026-06-19 13:25:22  INFO      Processing: t4.jpeg

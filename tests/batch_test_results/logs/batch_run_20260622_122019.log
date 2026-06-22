@@ -1,0 +1,98 @@
+2026-06-22 12:20:19  INFO      ============================================================
+2026-06-22 12:20:19  INFO      PhoneCDP Batch Verification Run
+2026-06-22 12:20:19  INFO      Run timestamp : 2026-06-22 12:20:19
+2026-06-22 12:20:19  INFO      Input folder  : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test
+2026-06-22 12:20:19  INFO      Output folder : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results
+2026-06-22 12:20:19  INFO      Images found  : 10
+2026-06-22 12:20:19  INFO      ============================================================
+2026-06-22 12:20:19  INFO      --- Image 1/10 ---
+2026-06-22 12:20:19  INFO      Processing: tc-01.jpeg
+2026-06-22 12:22:49  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 12:22:49  INFO      [CROP] class=content top_dm=378x173 right_dm=170x374 dm_long=378
+2026-06-22 12:22:49  INFO      [CROP] corner_estimate_diff=26.8px > 20px — averaging
+2026-06-22 12:22:49  INFO      [CROP] top_dm_center=(757,1666) right_dm_center=(1056,1963) pattern_center=(768,1955) obs_dist=421.1 corner_estimate_diff=26.8px
+2026-06-22 12:22:49  INFO      [CROP] slice x=[579:957] y=[1766:2144]
+2026-06-22 12:22:50  INFO        tc-01.jpeg: COUNTERFEIT  conf=0.054  moire=0.000  corr=0.101  grad=0.094  color=0.297
+2026-06-22 12:23:05  INFO      --- Image 2/10 ---
+2026-06-22 12:23:05  INFO      Processing: tc-02.jpeg
+2026-06-22 12:23:30  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 12:23:30  INFO      [CROP] class=content top_dm=98x364 right_dm=358x98 dm_long=364
+2026-06-22 12:23:30  INFO      [CROP] top_dm_center=(890,1925) right_dm_center=(1269,1883) pattern_center=(1100,2093) obs_dist=381.3 corner_estimate_diff=1.7px
+2026-06-22 12:23:30  INFO      [CROP] slice x=[918:1282] y=[1911:2275]
+2026-06-22 12:23:30  INFO        tc-02.jpeg: COUNTERFEIT  conf=0.040  moire=0.000  corr=0.000  grad=0.000  color=0.403
+2026-06-22 12:23:32  INFO      --- Image 3/10 ---
+2026-06-22 12:23:32  INFO      Processing: tc-03.jpeg
+2026-06-22 12:23:49  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 12:23:49  INFO      [CROP] class=content top_dm=139x311 right_dm=315x138 dm_long=315
+2026-06-22 12:23:49  INFO      [CROP] corner_estimate_diff=59.5px > 20px — averaging
+2026-06-22 12:23:49  INFO      [CROP] top_dm_center=(988,2000) right_dm_center=(1098,1754) pattern_center=(1193,1944) obs_dist=269.0 corner_estimate_diff=59.5px
+2026-06-22 12:23:49  INFO      [CROP] slice x=[1036:1351] y=[1787:2102]
+2026-06-22 12:23:49  INFO        tc-03.jpeg: COUNTERFEIT  conf=0.046  moire=0.000  corr=0.000  grad=0.000  color=0.458
+2026-06-22 12:23:52  INFO      --- Image 4/10 ---
+2026-06-22 12:23:52  INFO      Processing: tc-04.jpeg
+2026-06-22 12:24:30  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 12:24:30  INFO      [CROP] class=content top_dm=350x165 right_dm=159x354 dm_long=354
+2026-06-22 12:24:30  INFO      [CROP] corner_estimate_diff=177.9px > 20px — averaging
+2026-06-22 12:24:30  INFO      [CROP] top_dm_center=(1291,1644) right_dm_center=(820,1367) pattern_center=(1149,1347) obs_dist=547.1 corner_estimate_diff=177.9px
+2026-06-22 12:24:30  INFO      [CROP] slice x=[972:1326] y=[1170:1524]
+2026-06-22 12:24:31  INFO        tc-04.jpeg: COUNTERFEIT  conf=0.037  moire=0.000  corr=0.000  grad=0.000  color=0.372
+2026-06-22 12:24:33  INFO      --- Image 5/10 ---
+2026-06-22 12:24:33  INFO      Processing: tc-05.jpeg
+2026-06-22 12:25:09  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 12:25:09  INFO      [CROP] class=content top_dm=337x159 right_dm=145x338 dm_long=338
+2026-06-22 12:25:09  INFO      [CROP] corner_estimate_diff=25.4px > 20px — averaging
+2026-06-22 12:25:09  INFO      [CROP] top_dm_center=(830,1670) right_dm_center=(1096,1939) pattern_center=(837,1928) obs_dist=378.0 corner_estimate_diff=25.4px
+2026-06-22 12:25:09  INFO      [CROP] slice x=[668:1006] y=[1759:2097]
+2026-06-22 12:25:09  INFO        tc-05.jpeg: COUNTERFEIT  conf=0.432  moire=0.564  corr=0.342  grad=0.081  color=0.189
+2026-06-22 12:25:12  INFO      --- Image 6/10 ---
+2026-06-22 12:25:12  INFO      Processing: tc-06.jpeg
+2026-06-22 12:25:52  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 12:25:52  INFO      [CROP] class=content top_dm=788x366 right_dm=366x768 dm_long=788
+2026-06-22 12:25:52  INFO      [CROP] corner_estimate_diff=56.5px > 20px — averaging
+2026-06-22 12:25:52  INFO      [CROP] top_dm_center=(1274,-151) right_dm_center=(1907,458) pattern_center=(1306,450) obs_dist=878.4 corner_estimate_diff=56.5px
+2026-06-22 12:25:52  INFO      [CROP] slice x=[912:1700] y=[56:844]
+2026-06-22 12:25:52  INFO        tc-06.jpeg: COUNTERFEIT  conf=0.039  moire=0.017  corr=0.000  grad=0.077  color=0.158
+2026-06-22 12:25:55  INFO      --- Image 7/10 ---
+2026-06-22 12:25:55  INFO      Processing: tc-07.jpeg
+2026-06-22 12:27:36  INFO      [CROP] image shape: (8000, 6000, 3)
+2026-06-22 12:27:36  INFO      [CROP] class=content top_dm=358x150 right_dm=157x352 dm_long=358
+2026-06-22 12:27:36  INFO      [CROP] corner_estimate_diff=20.8px > 20px — averaging
+2026-06-22 12:27:36  INFO      [CROP] top_dm_center=(2896,4840) right_dm_center=(3174,5120) pattern_center=(2902,5111) obs_dist=394.2 corner_estimate_diff=20.8px
+2026-06-22 12:27:36  INFO      [CROP] slice x=[2723:3081] y=[4932:5290]
+2026-06-22 12:27:36  INFO        tc-07.jpeg: COUNTERFEIT  conf=0.057  moire=0.000  corr=0.235  grad=0.004  color=0.331
+2026-06-22 12:27:39  INFO      --- Image 8/10 ---
+2026-06-22 12:27:39  INFO      Processing: tc-08.jpeg
+2026-06-22 12:27:53  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 12:27:53  INFO      [CROP] class=content top_dm=430x185 right_dm=186x424 dm_long=430
+2026-06-22 12:27:53  INFO      [CROP] corner_estimate_diff=29.3px > 20px — averaging
+2026-06-22 12:27:53  INFO      [CROP] top_dm_center=(887,2388) right_dm_center=(1216,2734) pattern_center=(889,2715) obs_dist=477.8 corner_estimate_diff=29.3px
+2026-06-22 12:27:53  INFO      [CROP] slice x=[674:1104] y=[2500:2930]
+2026-06-22 12:27:53  INFO        tc-08.jpeg: COUNTERFEIT  conf=0.055  moire=0.001  corr=0.164  grad=0.075  color=0.269
+2026-06-22 12:27:55  INFO      --- Image 9/10 ---
+2026-06-22 12:27:55  INFO      Processing: tc-09.jpeg
+2026-06-22 12:28:06  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 12:28:06  INFO      [CROP] class=content top_dm=273x118 right_dm=113x267 dm_long=273
+2026-06-22 12:28:06  INFO      [CROP] top_dm_center=(728,2031) right_dm_center=(936,2242) pattern_center=(731,2237) obs_dist=296.6 corner_estimate_diff=11.9px
+2026-06-22 12:28:06  INFO      [CROP] slice x=[595:868] y=[2101:2374]
+2026-06-22 12:28:06  INFO        tc-09.jpeg: COUNTERFEIT  conf=0.064  moire=0.002  corr=0.207  grad=0.000  color=0.417
+2026-06-22 12:28:09  INFO      --- Image 10/10 ---
+2026-06-22 12:28:09  INFO      Processing: tc-10.jpeg
+2026-06-22 12:28:18  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 12:28:18  INFO      [CROP] class=content top_dm=96x282 right_dm=280x103 dm_long=282
+2026-06-22 12:28:18  INFO      [CROP] top_dm_center=(767,1982) right_dm_center=(1067,1978) pattern_center=(919,2127) obs_dist=300.0 corner_estimate_diff=5.9px
+2026-06-22 12:28:18  INFO      [CROP] slice x=[778:1060] y=[1986:2268]
+2026-06-22 12:28:18  INFO        tc-10.jpeg: COUNTERFEIT  conf=0.051  moire=0.009  corr=0.000  grad=0.000  color=0.454
+2026-06-22 12:28:20  INFO      
+2026-06-22 12:28:20  INFO      ============================================================
+2026-06-22 12:28:20  INFO      BATCH SUMMARY
+2026-06-22 12:28:20  INFO        Total       : 10
+2026-06-22 12:28:20  INFO        Authentic   : 0
+2026-06-22 12:28:20  INFO        Suspicious  : 0
+2026-06-22 12:28:20  INFO        Counterfeit : 10
+2026-06-22 12:28:20  INFO        Unable/Error: 0
+2026-06-22 12:28:20  INFO        Avg Confidence: 8.7%
+2026-06-22 12:28:20  INFO      ============================================================
+2026-06-22 12:28:20  INFO      CSV saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_results_20260622_122019.csv
+2026-06-22 12:28:20  INFO      JSON saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_results_20260622_122019.json
+2026-06-22 12:28:20  INFO      Generating PDF report → C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_test_report.pdf
+2026-06-22 12:29:35  INFO      PDF report ready: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_test_report.pdf

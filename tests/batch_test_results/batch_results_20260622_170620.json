@@ -1,0 +1,135 @@
+{
+  "run_ts": "2026-06-22 17:06:20",
+  "stats": {
+    "total": 2,
+    "authentic": 0,
+    "suspicious": 0,
+    "counterfeit": 2,
+    "unable": 0,
+    "avg_confidence": 0.06979083228308544,
+    "avg_moire": 0.0393673078897304,
+    "avg_correlation": 0.07523607909380249,
+    "avg_gradient": 0.02800942856676761,
+    "avg_color": 0.32477059960365295
+  },
+  "results": [
+    {
+      "filename": "t2a.jpeg",
+      "stem": "t2a",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\tests\\batch_test\\t2a.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\tests\\batch_test_results\\analytics",
+      "verdict": "COUNTERFEIT",
+      "confidence": 0.06979083228308544,
+      "seed_recovered": 830234020,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.0393673078897304,
+        "color": 0.32477059960365295,
+        "correlation": 0.07523607909380249,
+        "gradient": 0.02800942856676761
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 71.38,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\tests\\batch_test_results\\reference_patterns\\t2a_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\tests\\batch_test_results\\aligned_patterns\\t2a_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\tests\\batch_test_results\\delta_maps\\t2a_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "CS77",
+          "PWPG"
+        ],
+        "share_a": "CS77",
+        "share_b": "PWPG",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'CS77'",
+            [
+              2619,
+              3417,
+              693,
+              -136
+            ]
+          ],
+          [
+            "b'PWPG'",
+            [
+              3144,
+              2985,
+              -130,
+              -734
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    },
+    {
+      "filename": "t2b.jpeg",
+      "stem": "t2b",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\tests\\batch_test\\t2b.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\tests\\batch_test_results\\analytics",
+      "verdict": "COUNTERFEIT",
+      "confidence": 0.06979083228308544,
+      "seed_recovered": 830234020,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.0393673078897304,
+        "color": 0.32477059960365295,
+        "correlation": 0.07523607909380249,
+        "gradient": 0.02800942856676761
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 70.84,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\tests\\batch_test_results\\reference_patterns\\t2b_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\tests\\batch_test_results\\aligned_patterns\\t2b_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\tests\\batch_test_results\\delta_maps\\t2b_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "CS77",
+          "PWPG"
+        ],
+        "share_a": "CS77",
+        "share_b": "PWPG",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'CS77'",
+            [
+              2619,
+              3417,
+              693,
+              -136
+            ]
+          ],
+          [
+            "b'PWPG'",
+            [
+              3144,
+              2985,
+              -130,
+              -734
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    }
+  ]
+}

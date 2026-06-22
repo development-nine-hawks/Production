@@ -1,0 +1,598 @@
+{
+  "run_ts": "2026-06-18 17:54:41",
+  "stats": {
+    "total": 10,
+    "authentic": 0,
+    "suspicious": 1,
+    "counterfeit": 8,
+    "unable": 1,
+    "avg_confidence": 0.1597740698559639,
+    "avg_moire": 0.16114133831571925,
+    "avg_correlation": 0.173407709255136,
+    "avg_gradient": 0.01761809991498791,
+    "avg_color": 0.3504871403798461
+  },
+  "results": [
+    {
+      "filename": "t09.jpeg",
+      "stem": "t09",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test\\t09.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\analytics",
+      "verdict": "COUNTERFEIT",
+      "confidence": 0.03966098968265919,
+      "seed_recovered": 1767709205,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.0,
+        "color": 0.3881985545158386,
+        "correlation": 0.0,
+        "gradient": 0.0056075615405021305
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 19.85,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\reference_patterns\\t09_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\aligned_patterns\\t09_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\delta_maps\\t09_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "ZOUY",
+          "DY4E"
+        ],
+        "share_a": "DY4E",
+        "share_b": "ZOUY",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'ZOUY'",
+            [
+              1058,
+              2038,
+              177,
+              -397
+            ]
+          ],
+          [
+            "b'DY4E'",
+            [
+              630,
+              2066,
+              400,
+              178
+            ]
+          ]
+        ],
+        "shrink_used": 2
+      }
+    },
+    {
+      "filename": "t1.jpeg",
+      "stem": "t1",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test\\t1.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\analytics",
+      "verdict": "COUNTERFEIT",
+      "confidence": 0.3365370775563969,
+      "seed_recovered": 1767709205,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.3724681806615701,
+        "color": 0.3720228970050812,
+        "correlation": 0.5172934627572822,
+        "gradient": 0.036674161000933035
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 19.01,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\reference_patterns\\t1_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\aligned_patterns\\t1_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\delta_maps\\t1_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "ZOUY",
+          "DY4E"
+        ],
+        "share_a": "DY4E",
+        "share_b": "ZOUY",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'ZOUY'",
+            [
+              1082,
+              2342,
+              279,
+              -613
+            ]
+          ],
+          [
+            "b'DY4E'",
+            [
+              433,
+              2377,
+              609,
+              276
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    },
+    {
+      "filename": "t10.jpeg",
+      "stem": "t10",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test\\t10.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\analytics",
+      "verdict": "UNABLE_TO_VERIFY",
+      "confidence": null,
+      "seed_recovered": null,
+      "pattern_id": null,
+      "scores": {},
+      "weights": {},
+      "alignment_method": "\u2014",
+      "processing_time": 6.08,
+      "success": false,
+      "failure_reason": "DM decode failed",
+      "reference_path": null,
+      "captured_path_saved": null,
+      "delta_path": null,
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "DY4E",
+          "XOM\u0019"
+        ],
+        "share_a": null,
+        "share_b": null,
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'DY4E'",
+            [
+              668,
+              2166,
+              376,
+              -159
+            ]
+          ],
+          [
+            "b'XOM\\x19'",
+            [
+              917,
+              1855,
+              -176,
+              -395
+            ]
+          ]
+        ],
+        "shrink_used": 1,
+        "failure_reason": "No valid share pair found (check-character mismatch on all combinations)"
+      }
+    },
+    {
+      "filename": "t2.jpeg",
+      "stem": "t2",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test\\t2.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\analytics",
+      "verdict": "COUNTERFEIT",
+      "confidence": 0.1052878839132021,
+      "seed_recovered": 1767709205,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.10613355016047,
+        "color": 0.2875964641571045,
+        "correlation": 0.07541429893186144,
+        "gradient": 0.0
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 31.51,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\reference_patterns\\t2_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\aligned_patterns\\t2_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\delta_maps\\t2_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "ZOUY",
+          "DY4E"
+        ],
+        "share_a": "DY4E",
+        "share_b": "ZOUY",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'ZOUY'",
+            [
+              1106,
+              2123,
+              470,
+              -40
+            ]
+          ],
+          [
+            "b'DY4E'",
+            [
+              854,
+              1726,
+              44,
+              482
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    },
+    {
+      "filename": "t3.jpeg",
+      "stem": "t3",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test\\t3.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\analytics",
+      "verdict": "COUNTERFEIT",
+      "confidence": 0.13517887982030566,
+      "seed_recovered": 1767709205,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.15249630704425415,
+        "color": 0.35552099347114563,
+        "correlation": 0.005041808944258803,
+        "gradient": 0.0
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 23.98,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\reference_patterns\\t3_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\aligned_patterns\\t3_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\delta_maps\\t3_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "DY4E",
+          "ZOUY"
+        ],
+        "share_a": "DY4E",
+        "share_b": "ZOUY",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'DY4E'",
+            [
+              1054,
+              1906,
+              -212,
+              463
+            ]
+          ],
+          [
+            "b'ZOUY'",
+            [
+              1078,
+              2408,
+              471,
+              204
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    },
+    {
+      "filename": "t4.jpeg",
+      "stem": "t4",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test\\t4.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\analytics",
+      "verdict": "COUNTERFEIT",
+      "confidence": 0.0998573671476428,
+      "seed_recovered": 1767709205,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.08585735107888509,
+        "color": 0.4192954897880554,
+        "correlation": 0.004965789530734209,
+        "gradient": 0.010826406763256783
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 18.29,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\reference_patterns\\t4_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\aligned_patterns\\t4_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\delta_maps\\t4_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "DY4E",
+          "ZOUY"
+        ],
+        "share_a": "DY4E",
+        "share_b": "ZOUY",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'DY4E'",
+            [
+              1304,
+              2467,
+              -553,
+              -249
+            ]
+          ],
+          [
+            "b'ZOUY'",
+            [
+              714,
+              2504,
+              -244,
+              560
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    },
+    {
+      "filename": "t5.jpeg",
+      "stem": "t5",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test\\t5.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\analytics",
+      "verdict": "COUNTERFEIT",
+      "confidence": 0.03451928459877509,
+      "seed_recovered": 1767709205,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.0,
+        "color": 0.29362428188323975,
+        "correlation": 0.05156856410451111,
+        "gradient": 0.0
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 19.68,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\reference_patterns\\t5_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\aligned_patterns\\t5_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\delta_maps\\t5_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "DY4E",
+          "ZOUY"
+        ],
+        "share_a": "DY4E",
+        "share_b": "ZOUY",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'DY4E'",
+            [
+              551,
+              1679,
+              545,
+              248
+            ]
+          ],
+          [
+            "b'ZOUY'",
+            [
+              1139,
+              1644,
+              248,
+              -557
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    },
+    {
+      "filename": "t6.jpeg",
+      "stem": "t6",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test\\t6.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\analytics",
+      "verdict": "SUSPICIOUS",
+      "confidence": 0.5321814659565822,
+      "seed_recovered": 1767709205,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.6413412365099657,
+        "color": 0.3061123788356781,
+        "correlation": 0.6999466678953027,
+        "gradient": 0.0980250503467097
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 21.36,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\reference_patterns\\t6_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\aligned_patterns\\t6_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\delta_maps\\t6_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "DY4E",
+          "ZOUY"
+        ],
+        "share_a": "DY4E",
+        "share_b": "ZOUY",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'DY4E'",
+            [
+              534,
+              1836,
+              461,
+              213
+            ]
+          ],
+          [
+            "b'ZOUY'",
+            [
+              1020,
+              1815,
+              204,
+              -448
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    },
+    {
+      "filename": "t7.jpeg",
+      "stem": "t7",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test\\t7.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\analytics",
+      "verdict": "COUNTERFEIT",
+      "confidence": 0.04408046016339929,
+      "seed_recovered": 1767709205,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.0,
+        "color": 0.42966002225875854,
+        "correlation": 0.0,
+        "gradient": 0.007429719583489549
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 1.58,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\reference_patterns\\t7_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\aligned_patterns\\t7_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\delta_maps\\t7_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "ZOUY",
+          "DY4E"
+        ],
+        "share_a": "DY4E",
+        "share_b": "ZOUY",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'ZOUY'",
+            [
+              285,
+              690,
+              24,
+              -53
+            ]
+          ],
+          [
+            "b'DY4E'",
+            [
+              228,
+              694,
+              53,
+              24
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    },
+    {
+      "filename": "t8.jpeg",
+      "stem": "t8",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test\\t8.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\analytics",
+      "verdict": "COUNTERFEIT",
+      "confidence": 0.110663219864712,
+      "seed_recovered": 1767709205,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.09197541938632822,
+        "color": 0.30235318150371315,
+        "correlation": 0.20643879113227348,
+        "gradient": 0.0
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 3.52,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\reference_patterns\\t8_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\aligned_patterns\\t8_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\batch_test_results\\delta_maps\\t8_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "ZOUY",
+          "DY4E"
+        ],
+        "share_a": "DY4E",
+        "share_b": "ZOUY",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'ZOUY'",
+            [
+              372,
+              689,
+              46,
+              -103
+            ]
+          ],
+          [
+            "b'DY4E'",
+            [
+              261,
+              696,
+              101,
+              45
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    }
+  ]
+}

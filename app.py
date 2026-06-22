@@ -17,21 +17,32 @@ from datetime import datetime
 
 import config
 from database import (
-    init_db, get_db, get_next_id,
+    init_db, get_db, get_next_id, is_db_available,
     upload_to_cloudinary, destroy_cloudinary, download_from_cloudinary,
 )
-from cdp_engine import generate_pattern, verify_pattern
+from cdp_engine import generate_pattern, verify_pattern, verify_pattern_legacy
 
 app = FastAPI(title="PhoneCDP", version="1.0.0")
 
 app.mount("/static", StaticFiles(directory=os.path.join(config.BASE_DIR, "static")), name="static")
+
+# Offline CDN — serves images stored locally when Cloudinary is unreachable
+_local_cdn_dir = os.path.join(config.DATA_DIR, "localcdn")
+os.makedirs(_local_cdn_dir, exist_ok=True)
+app.mount("/local-cdn", StaticFiles(directory=_local_cdn_dir), name="local-cdn")
 
 
 # ── HTML ─────────────────────────────────────────────────────────────────
 
 @app.get("/")
 async def index():
-    return FileResponse(os.path.join(config.BASE_DIR, "templates", "index.html"))
+    return FileResponse(
+        os.path.join(config.BASE_DIR, "templates", "index.html"),
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+            "Pragma": "no-cache",
+        },
+    )
 
 
 @app.get("/favicon.ico")
@@ -55,7 +66,7 @@ class PatternCreate(BaseModel):
     label: str = ""
     notes: str = ""
     pattern_size: int = 512
-    block_size: int = 8
+    block_size: int = 16
 
 
 @app.get("/api/patterns")
@@ -207,10 +218,9 @@ def download_pattern_label_pdf(
     if not p:
         raise HTTPException(404, "Pattern not found")
 
-    # Render the label PNG in-process via the shared pipeline, then embed
-    # it on an A4 page. Same renderer as the label-png endpoint, so PNG and
-    # PDF look identical -- with no fragile HTTP self-call.
-    tmp_label_name = _render_label_png_file(p, 512)
+    # Render the label PNG background in-process, without OpenCV Auth Block.
+    tmp_label_name, extra, tmp_img_name = _render_label_png_file(p, 512, pdf_mode=True)
+    qr_x1, qr_y1, qr_w_found, qr_h_found, layout_px = extra
 
     tmp_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False, dir=config.DATA_DIR)
     tmp_pdf.close()
@@ -222,10 +232,11 @@ def download_pattern_label_pdf(
         raise HTTPException(500, "Failed to read label image")
     label_h_px, label_w_px = label_img.shape[:2]
 
-    # Scale: the QR pattern is size_px (default 512) pixels in the label.
-    # We want it to print at size_mm. Calculate the overall scale factor.
-    pat_px = 512  # default pattern size in the label PNG
-    scale = (size_mm * mm) / pat_px  # points per pixel
+    # We want the pattern inside the Auth Block to be EXACTLY size_mm in the PDF.
+    # The pattern in layout_px has size layout_px["pattern_rect"][2] (which is pw).
+    # Since _render_label_png_file may have scaled the placeholder, we find pat_w_px:
+    pat_w_px = (qr_w_found / layout_px["auth_w"]) * layout_px["pattern_rect"][2]
+    scale = (size_mm * mm) / pat_w_px  # points per pixel
     label_w_pts = label_w_px * scale
     label_h_pts = label_h_px * scale
 
@@ -237,11 +248,66 @@ def download_pattern_label_pdf(
     c = canvas.Canvas(tmp_pdf.name, pagesize=A4)
     img = ImageReader(tmp_label_name)
     c.drawImage(img, ox, oy, width=label_w_pts, height=label_h_pts)
+    
+    # Calculate bottom-left coordinate of the hole in ReportLab coordinates
+    hole_x_pts = ox + qr_x1 * scale
+    qr_y2 = qr_y1 + qr_h_found
+    hole_y_pts = oy + (label_h_px - qr_y2) * scale
+    
+    from cdp_engine import generate_cropped_dm, split_seed_for_dm, calculate_auth_block_layout
+    share_a, share_b = split_seed_for_dm(p['seed'])
+    top_dm_img, top_dm_mods = generate_cropped_dm(share_a)
+    right_dm_img, right_dm_mods = generate_cropped_dm(share_b)
+
+    # Scale layout directly into the hole
+    sx = qr_w_found / layout_px["auth_w"]
+    pw_px = layout_px["pattern_rect"][2]
+    qx_px = layout_px["right_dm_rect"][0] - pw_px
+    scaled_layout = calculate_auth_block_layout(
+        pw_px * sx, qx_px * sx,
+        top_dm_img, right_dm_img,
+        top_dm_modules=top_dm_mods, right_dm_modules=right_dm_mods,
+    )
+    
+    # Draw pattern
+    px, py, pw, ph = scaled_layout["pattern_rect"]
+    auth_h_scaled = scaled_layout["auth_h"]
+    # ReportLab uses y-up coordinates; OpenCV uses y-down. Convert carefully.
+    c.drawImage(ImageReader(tmp_img_name), 
+                hole_x_pts + px * scale, 
+                hole_y_pts + (auth_h_scaled - py - ph) * scale, 
+                width=pw * scale, height=ph * scale)
+                
+    # Helper to draw DM
+    def draw_dm(dm_img, bx, by, bw, bh):
+        rows, cols = dm_img.shape
+        mod_w = bw / cols
+        mod_h = bh / rows
+        c.setFillColorRGB(0, 0, 0)
+        for r in range(rows):
+            for col in range(cols):
+                if dm_img[r, col] < 128:
+                    mx = bx + col * mod_w
+                    my = by + r * mod_h
+                    # ReportLab y = hole_y + (auth_h - my - mod_h)
+                    pdf_x = hole_x_pts + mx * scale
+                    pdf_y = hole_y_pts + (auth_h_scaled - my - mod_h) * scale
+                    c.rect(pdf_x, pdf_y, mod_w * scale, mod_h * scale, stroke=0, fill=1)
+
+    tx, ty, tw, th = scaled_layout["top_dm_rect"]
+    draw_dm(top_dm_img, tx, ty, tw, th)
+    
+    rot_right_dm = cv2.rotate(right_dm_img, cv2.ROTATE_90_CLOCKWISE)
+    rx, ry, rw, rh = scaled_layout["right_dm_rect"]
+    draw_dm(rot_right_dm, rx, ry, rw, rh)
+
     c.save()
+
 
     # Clean up
     try:
         os.remove(tmp_label_name)
+        os.remove(tmp_img_name)
     except OSError:
         pass
 
@@ -250,7 +316,7 @@ def download_pattern_label_pdf(
                         filename=pdf_filename)
 
 
-def _render_label_png_file(p: dict, size_px: int = 512) -> str:
+def _render_label_png_file(p: dict, size_px: int = 512, pdf_mode: bool = False):
     """Render the NINEHAWK branded label PNG for a pattern, in-process.
 
     Returns the path to a temp PNG file. Shared by the label-png and
@@ -263,6 +329,7 @@ def _render_label_png_file(p: dict, size_px: int = 512) -> str:
     import numpy as np
     import base64
     from playwright.sync_api import sync_playwright
+    from cdp_engine import calculate_auth_block_layout, generate_cropped_dm, split_seed_for_dm, draw_auth_block_opencv
 
     # Download pattern image from Cloudinary
     tmp_img = tempfile.NamedTemporaryFile(suffix=".png", delete=False, dir=config.DATA_DIR)
@@ -273,6 +340,7 @@ def _render_label_png_file(p: dict, size_px: int = 512) -> str:
     if pat_bgr is None:
         raise HTTPException(500, "Failed to load pattern image")
     pat_bgr = cv2.resize(pat_bgr, (size_px, size_px), interpolation=cv2.INTER_AREA)
+
 
     # Load banner as base64
     banner_b64_path = os.path.join(config.BASE_DIR, "static", "img", "ninehawk_banner_b64.txt")
@@ -285,27 +353,43 @@ def _render_label_png_file(p: dict, size_px: int = 512) -> str:
     with open(banner_b64_path) as f:
         banner_b64 = f.read()
 
+    # Calculate layout
+    pat = size_px
+    quiet_px = int(0.5 * pat / 7.5)
+    share_a, share_b = split_seed_for_dm(p['seed'])
+    top_dm_img, top_dm_mods = generate_cropped_dm(share_a)
+    right_dm_img, right_dm_mods = generate_cropped_dm(share_b)
+
+    layout = calculate_auth_block_layout(
+        pat, quiet_px,
+        top_dm_img, right_dm_img,
+        top_dm_modules=top_dm_mods, right_dm_modules=right_dm_mods,
+    )
+    auth_w = int(layout['auth_w'])
+    auth_h = int(layout['auth_h'])
+
     # Encode QR pattern as base64 PNG (use a magenta placeholder, overlay real pixels later)
-    placeholder = np.zeros((size_px, size_px, 3), dtype=np.uint8)
+    placeholder = np.zeros((auth_h, auth_w, 3), dtype=np.uint8)
     placeholder[:] = (255, 0, 255)  # magenta - easy to find
     _, buf = cv2.imencode('.png', placeholder)
     qr_b64 = base64.b64encode(buf).decode()
 
     # Build HTML label with layered absolute positioning
-    pat = size_px
-    card_w = int(pat * 1.70)
-    card_h = int(pat * 3.33)
-    frame_pad = int(pat * 0.14)
+    card_w = max(int(pat * 1.70), int(auth_w * 1.3))
+    card_h = max(int(pat * 3.33), int(auth_h * 2.2))
+    frame_pad = int(pat * 0.1446)
     border_gap = int(pat * 0.04)  # padding from card edge to the single border
     cr = int(pat * 0.08)
     ban_h = int(pat * 0.42)
     ban_top = int(pat * 0.16)
 
     # Calculate QR frame position (from reference: ~65% down the card)
-    frame_w = pat + 2 * frame_pad
-    frame_h = pat + 2 * frame_pad
+    frame_w = auth_w + 2 * frame_pad
+    frame_h = auth_h + 2 * frame_pad
     frame_left = (card_w - frame_w) // 2
     frame_top = int(card_h * 0.58)
+    if frame_top + frame_h > card_h - frame_pad:
+        frame_top = card_h - frame_h - frame_pad
 
     # Watermark repeat count to fill card height
     wm_item_h = int(pat * 0.24)
@@ -405,12 +489,12 @@ def _render_label_png_file(p: dict, size_px: int = 512) -> str:
 
   /* Layer 1: QR code */
   .qr-code {{
-    border: 3px solid #222;
+    border: none;
     line-height: 0;
   }}
   .qr-code img {{
-    width: {pat}px;
-    height: {pat}px;
+    width: {auth_w}px;
+    height: {auth_h}px;
     display: block;
   }}
 </style></head>
@@ -464,14 +548,40 @@ def _render_label_png_file(p: dict, size_px: int = 512) -> str:
         qr_y2, qr_x2 = ys.max() + 1, xs.max() + 1
         qr_h_found = qr_y2 - qr_y1
         qr_w_found = qr_x2 - qr_x1
-        # Resize pattern to fit the placeholder exactly
-        pat_resized = cv2.resize(pat_bgr, (qr_w_found, qr_h_found), interpolation=cv2.INTER_AREA)
-        label[qr_y1:qr_y2, qr_x1:qr_x2] = pat_resized
+        
+        if pdf_mode:
+            # Leave a white hole for ReportLab
+            label[qr_y1:qr_y2, qr_x1:qr_x2] = (255, 255, 255)
+            pdf_extra = (qr_x1, qr_y1, qr_w_found, qr_h_found, layout)
+        else:
+            # Resize layout to match the placeholder exactly
+            sx = qr_w_found / auth_w
+            scaled_layout = calculate_auth_block_layout(
+                pat * sx, quiet_px * sx,
+                top_dm_img, right_dm_img,
+                top_dm_modules=top_dm_mods, right_dm_modules=right_dm_mods,
+            )
+            auth_canvas = np.ones((qr_h_found, qr_w_found, 3), dtype=np.uint8) * 255
+            draw_auth_block_opencv(auth_canvas, scaled_layout, pat_bgr, top_dm_img, right_dm_img)
+            label[qr_y1:qr_y2, qr_x1:qr_x2] = auth_canvas
+            pdf_extra = None
 
-    # Save final label
+    # Save final label PNG with 300 DPI metadata so printer drivers do NOT
+    # rescale the image with bilinear interpolation (which would introduce grey
+    # anti-aliased edge pixels around every DM module).
     tmp_out = tempfile.NamedTemporaryFile(suffix=".png", delete=False, dir=config.DATA_DIR)
     tmp_out.close()
-    cv2.imwrite(tmp_out.name, label)
+    try:
+        from PIL import Image as PILImage
+        pil_label = PILImage.fromarray(cv2.cvtColor(label, cv2.COLOR_BGR2RGB))
+        pil_label.save(tmp_out.name, dpi=(300, 300))
+    except ImportError:
+        # Pillow not available — fall back to cv2 (no DPI metadata)
+        cv2.imwrite(tmp_out.name, label)
+
+
+    if pdf_mode:
+        return tmp_out.name, pdf_extra, tmp_img.name
 
     # Clean up pattern temp
     try:
@@ -546,37 +656,39 @@ def cleanup_old_uploads(max_age_seconds=86400):
 @app.post("/api/verify")
 async def run_verify(
     captured: UploadFile = File(...),
-    pattern_id: int = Form(...),
     print_size_mm: Optional[int] = Form(None),
     notes: str = Form(""),
 ):
     db = get_db()
-    p = db.patterns.find_one({"id": pattern_id})
-    if not p:
-        raise HTTPException(404, "Pattern not found")
 
-    # Download original pattern from Cloudinary to temp
-    original_tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False, dir=config.PATTERNS_DIR)
-    original_tmp.close()
-    download_from_cloudinary(p["image_url"], original_tmp.name)
-
-    # Save captured upload to temp
+    # Save captured upload
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     ext = os.path.splitext(captured.filename or "")[1] or ".jpg"
-    cap_name = f"capture_{ts}_{p['id']}{ext}"
+    cap_name = f"capture_{ts}{ext}"
     cap_path = os.path.join(config.UPLOADS_DIR, cap_name)
     with open(cap_path, "wb") as f:
         shutil.copyfileobj(captured.file, f)
 
     cleanup_old_uploads()
 
-    result = verify_pattern(original_tmp.name, cap_path,
-                            uploads_dir=config.UPLOADS_DIR,
-                            block_size=p["block_size"])
-    if result.get("verdict") == "ERROR":
-        raise HTTPException(400, result.get("error", "Verification failed"))
+    # DMs → seed → pattern-only ROI → regenerated reference
+    result = verify_pattern(cap_path, uploads_dir=config.UPLOADS_DIR)
 
-    # Upload captured + aligned to Cloudinary (aligned needed for analytics plots)
+    if result.get("verdict") == "UNABLE_TO_VERIFY":
+        try:
+            os.remove(cap_path)
+        except OSError:
+            pass
+        raise HTTPException(422, detail={
+            "error":         result.get("error", "Verification failed"),
+            "dm_diagnostic": result.get("dm_diagnostic", {}),
+        })
+
+    # Look up which registered pattern matches this seed
+    seed = result.get("seed_recovered")
+    p = db.patterns.find_one({"seed": seed}) if seed is not None else None
+
+    # Upload captured + aligned to Cloudinary / local store
     captured_cloud = upload_to_cloudinary(cap_path, folder="phonecdp/captures")
     aligned_path = os.path.join(config.UPLOADS_DIR, result["aligned_filename"])
     aligned_cloud = None
@@ -587,46 +699,52 @@ async def run_verify(
 
     vid = get_next_id("verifications")
     doc = {
-        "id": vid,
-        "pattern_id": p["id"],
-        "captured_url": captured_cloud["secure_url"],
-        "aligned_url": aligned_cloud["secure_url"] if aligned_cloud else None,
-        "markers_filename": result["markers_filename"],
+        "id":             vid,
+        "pattern_id":     p["id"] if p else None,
+        "seed_recovered": seed,
+        "captured_url":   captured_cloud["secure_url"],
+        "aligned_url":    aligned_cloud["secure_url"] if aligned_cloud else None,
+        "roi_filename":   result.get("roi_filename"),
         "aligned_filename": result["aligned_filename"],
+        "reference_filename": result.get("reference_filename"),
         "cloudinary_ids": {
             "captured": captured_cloud["public_id"],
-            "aligned": aligned_cloud["public_id"] if aligned_cloud else None,
+            "aligned":  aligned_cloud["public_id"] if aligned_cloud else None,
         },
-        "verdict": result["verdict"],
-        "confidence": result["confidence"],
-        "score_moire": result["scores"]["moire"],
-        "score_color": result["scores"]["color"],
+        "verdict":           result["verdict"],
+        "confidence":        result["confidence"],
+        "score_moire":       result["scores"]["moire"],
+        "score_color":       result["scores"]["color"],
         "score_correlation": result["scores"]["correlation"],
-        "score_gradient": result["scores"]["gradient"],
-        "per_block_scores": result.get("per_block_scores"),
-        "markers_found": result["markers_found"],
-        "alignment_method": result["alignment_method"],
-        "print_size_mm": print_size_mm,
-        "notes": notes,
-        "created_at": datetime.utcnow(),
+        "score_gradient":    result["scores"]["gradient"],
+        "dm_diagnostic":     result.get("dm_diagnostic"),
+        "print_size_mm":     print_size_mm,
+        "notes":             notes,
+        "created_at":        datetime.utcnow(),
     }
     db.verifications.insert_one(doc)
 
-    # Clean up temp files (keep markers/aligned for serving)
-    for fp in [original_tmp.name, cap_path]:
-        try:
-            os.remove(fp)
-        except OSError:
-            pass
+    try:
+        os.remove(cap_path)
+    except OSError:
+        pass
 
     return {
-        "id": vid, "pattern_id": p["id"], "verdict": doc["verdict"],
-        "confidence": doc["confidence"], "scores": result["scores"],
-        "weights": result["weights"], "markers_found": doc["markers_found"],
-        "alignment_method": doc["alignment_method"],
-        "pattern_found": result["pattern_found"],
-        "print_size_mm": doc["print_size_mm"], "notes": doc["notes"],
-        "created_at": doc["created_at"].isoformat(),
+        "id":             vid,
+        "pattern_id":     doc["pattern_id"],
+        "pattern_serial": p["serial_number"] if p else None,
+        "pattern_label":  p["label"] if p else None,
+        "verdict":        doc["verdict"],
+        "confidence":     doc["confidence"],
+        "scores":         result["scores"],
+        "weights":        result["weights"],
+        "seed_recovered": seed,
+        "dm_diagnostic":  doc["dm_diagnostic"],
+        "roi_filename":   doc["roi_filename"],
+        "aligned_filename": doc["aligned_filename"],
+        "print_size_mm":  doc["print_size_mm"],
+        "notes":          doc["notes"],
+        "created_at":     doc["created_at"].isoformat(),
     }
 
 
@@ -658,9 +776,9 @@ async def batch_verify(
         with open(cap_path, "wb") as f:
             shutil.copyfileobj(cap.file, f)
 
-        r = verify_pattern(original_tmp.name, cap_path,
-                           uploads_dir=config.UPLOADS_DIR,
-                           block_size=p["block_size"])
+        r = verify_pattern_legacy(original_tmp.name, cap_path,
+                                   uploads_dir=config.UPLOADS_DIR,
+                                   block_size=p["block_size"])
         if r.get("verdict") == "ERROR":
             results.append({"filename": cap.filename, "verdict": "ERROR",
                             "error": r.get("error")})
@@ -743,8 +861,21 @@ def get_verification(vid: int):
             "moire": v["score_moire"], "color": v["score_color"],
             "correlation": v["score_correlation"], "gradient": v["score_gradient"],
         },
-        "markers_found": v["markers_found"],
-        "alignment_method": v["alignment_method"],
+        "weights": {
+            "moire": v.get("weight_moire", 0.65),
+            "color": v.get("weight_color", 0.10),
+            "correlation": v.get("weight_correlation", 0.10),
+            "gradient": v.get("weight_gradient", 0.15),
+        },
+        # Legacy fields (may be None for new-pipeline records)
+        "markers_found": v.get("markers_found"),
+        "alignment_method": v.get("alignment_method"),
+        # New pipeline fields
+        "seed_recovered": v.get("seed_recovered"),
+        "dm_diagnostic":  v.get("dm_diagnostic", {}),
+        "roi_filename":   v.get("roi_filename"),
+        "reference_filename": v.get("reference_filename"),
+        "aligned_filename": v.get("aligned_filename"),
         "print_size_mm": v.get("print_size_mm"),
         "notes": v.get("notes", ""),
         "created_at": v["created_at"].isoformat() if hasattr(v["created_at"], "isoformat") else str(v["created_at"]),
@@ -768,8 +899,11 @@ def get_image(vid: int, image_type: str):
         if not url:
             raise HTTPException(404, "Captured image not available")
         return RedirectResponse(url=url)
-    elif image_type in ("markers", "aligned"):
-        filename = v.get(f"{image_type}_filename")
+    elif image_type in ("markers", "aligned", "roi", "reference"):
+        # 'roi' and 'reference' are new-pipeline filenames; 'markers' is legacy
+        key_map = {"markers": "markers_filename", "aligned": "aligned_filename",
+                   "roi": "roi_filename", "reference": "reference_filename"}
+        filename = v.get(key_map[image_type])
         if not filename:
             raise HTTPException(404, f"{image_type} image not available")
         filepath = os.path.join(config.UPLOADS_DIR, filename)
@@ -777,7 +911,7 @@ def get_image(vid: int, image_type: str):
             raise HTTPException(404, f"{image_type} image expired")
         return FileResponse(filepath, media_type="image/png")
     else:
-        raise HTTPException(400, "Use: original, captured, markers, aligned")
+        raise HTTPException(400, "Use: original, captured, markers, aligned, roi, reference")
 
 
 # ── Analytics / research-paper plots ───────────────────────────────────────
@@ -794,14 +928,27 @@ def _load_aligned_and_reference(v, db):
     p = db.patterns.find_one({"id": v["pattern_id"]})
     if not p:
         return None
-    ref_tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False, dir=config.DATA_DIR)
-    ref_tmp.close()
-    download_from_cloudinary(p["image_url"], ref_tmp.name)
-    ref_bgr = cv2.imread(ref_tmp.name)
-    try:
-        os.remove(ref_tmp.name)
-    except OSError:
-        pass
+
+    # Prefer local reference file (new pipeline saves it to uploads_dir)
+    ref_bgr = None
+    ref_fn = v.get("reference_filename")
+    if ref_fn:
+        local_ref = os.path.join(config.UPLOADS_DIR, ref_fn)
+        if os.path.isfile(local_ref):
+            ref_bgr = cv2.imread(local_ref)
+
+    # Fallback: download original from Cloudinary
+    if ref_bgr is None:
+        ref_tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False, dir=config.DATA_DIR)
+        ref_tmp.close()
+        try:
+            download_from_cloudinary(p["image_url"], ref_tmp.name)
+            ref_bgr = cv2.imread(ref_tmp.name)
+        finally:
+            try:
+                os.remove(ref_tmp.name)
+            except OSError:
+                pass
     if ref_bgr is None:
         return None
 
@@ -1097,7 +1244,27 @@ def update_notes(rid: int, body: dict):
 
 @app.on_event("startup")
 def startup():
-    init_db()
+    try:
+        init_db()
+    except Exception as exc:
+        # init_db() is already non-fatal internally, but guard here too.
+        import warnings
+        warnings.warn(f"[startup] DB init raised unexpectedly: {exc}", RuntimeWarning)
+
+
+# ── Health ────────────────────────────────────────────────────────────────
+
+@app.get("/health")
+def health():
+    """Lightweight health check — reports DB connectivity status."""
+    import database as _db_mod
+    db_ok = is_db_available()
+    return {
+        "status":   "ok" if db_ok else "degraded",
+        "db":       "mongodb" if db_ok else "offline-local",
+        "db_error": _db_mod._db_error,
+        "offline":  _db_mod._offline,
+    }
 
 
 if __name__ == "__main__":

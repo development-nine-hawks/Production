@@ -1,0 +1,84 @@
+2026-06-22 11:06:14  INFO      ============================================================
+2026-06-22 11:06:14  INFO      PhoneCDP Batch Verification Run
+2026-06-22 11:06:14  INFO      Run timestamp : 2026-06-22 11:06:14
+2026-06-22 11:06:14  INFO      Input folder  : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test
+2026-06-22 11:06:14  INFO      Output folder : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results
+2026-06-22 11:06:14  INFO      Images found  : 11
+2026-06-22 11:06:14  INFO      ============================================================
+2026-06-22 11:06:14  INFO      --- Image 1/11 ---
+2026-06-22 11:06:14  INFO      Processing: tc-01.jpeg
+2026-06-22 11:06:59  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 11:06:59  INFO      [CROP] corner_estimate_diff=322.3px > 20 — averaging
+2026-06-22 11:06:59  INFO      [CROP] class=content top_dm_center=(757,1666) right_dm_center=(1056,1963) pattern_center=(906,1604) scale=421.1 corner_estimate_diff=322.3px
+2026-06-22 11:06:59  INFO        tc-01.jpeg: COUNTERFEIT  conf=0.049  moire=0.014  corr=0.000  grad=0.000  color=0.392
+2026-06-22 11:07:02  INFO      --- Image 2/11 ---
+2026-06-22 11:07:02  INFO      Processing: tc-02.jpeg
+2026-06-22 11:07:17  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 11:07:17  INFO      [CROP] corner_estimate_diff=291.8px > 20 — averaging
+2026-06-22 11:07:17  INFO      [CROP] class=content top_dm_center=(890,1925) right_dm_center=(1269,1883) pattern_center=(931,1785) scale=381.3 corner_estimate_diff=291.8px
+2026-06-22 11:07:17  INFO        tc-02.jpeg: COUNTERFEIT  conf=0.054  moire=0.010  corr=0.000  grad=0.018  color=0.446
+2026-06-22 11:07:20  INFO      --- Image 3/11 ---
+2026-06-22 11:07:20  INFO      Processing: tc-02_dm_corners_dm_corners.jpg
+2026-06-22 11:07:24  WARNING     tc-02_dm_corners_dm_corners.jpg: UNABLE_TO_VERIFY — DM decode failed
+2026-06-22 11:07:24  INFO      --- Image 4/11 ---
+2026-06-22 11:07:24  INFO      Processing: tc-03.jpeg
+2026-06-22 11:07:40  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 11:07:40  INFO      [CROP] corner_estimate_diff=205.9px > 20 — averaging
+2026-06-22 11:07:40  INFO      [CROP] class=content top_dm_center=(988,2000) right_dm_center=(1098,1754) pattern_center=(918,1925) scale=269.0 corner_estimate_diff=205.9px
+2026-06-22 11:07:40  INFO        tc-03.jpeg: COUNTERFEIT  conf=0.052  moire=0.000  corr=0.000  grad=0.030  color=0.472
+2026-06-22 11:07:43  INFO      --- Image 5/11 ---
+2026-06-22 11:07:43  INFO      Processing: tc-04.jpeg
+2026-06-22 11:08:19  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 11:08:19  INFO      [CROP] corner_estimate_diff=418.7px > 20 — averaging
+2026-06-22 11:08:19  INFO      [CROP] class=content top_dm_center=(1291,1644) right_dm_center=(820,1367) pattern_center=(1124,1771) scale=547.1 corner_estimate_diff=418.7px
+2026-06-22 11:08:19  INFO        tc-04.jpeg: COUNTERFEIT  conf=0.080  moire=0.023  corr=0.053  grad=0.155  color=0.367
+2026-06-22 11:08:21  INFO      --- Image 6/11 ---
+2026-06-22 11:08:21  INFO      Processing: tc-05.jpeg
+2026-06-22 11:08:56  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 11:08:56  INFO      [CROP] corner_estimate_diff=289.3px > 20 — averaging
+2026-06-22 11:08:56  INFO      [CROP] class=content top_dm_center=(830,1670) right_dm_center=(1096,1939) pattern_center=(965,1615) scale=378.0 corner_estimate_diff=289.3px
+2026-06-22 11:08:56  INFO        tc-05.jpeg: COUNTERFEIT  conf=0.034  moire=0.008  corr=0.000  grad=0.000  color=0.284
+2026-06-22 11:08:59  INFO      --- Image 7/11 ---
+2026-06-22 11:08:59  INFO      Processing: tc-06.jpeg
+2026-06-22 11:09:40  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 11:09:40  INFO      [CROP] corner_estimate_diff=672.3px > 20 — averaging
+2026-06-22 11:09:40  INFO      [CROP] pattern corner TL=(987,-274) out of image bounds.
+2026-06-22 11:09:40  WARNING     tc-06.jpeg: UNABLE_TO_VERIFY — Pattern ROI extraction failed — could not locate/decode DMs after label flattening
+2026-06-22 11:09:40  INFO      --- Image 8/11 ---
+2026-06-22 11:09:40  INFO      Processing: tc-07.jpeg
+2026-06-22 11:11:21  INFO      [CROP] image shape: (8000, 6000, 3)
+2026-06-22 11:11:21  INFO      [CROP] corner_estimate_diff=301.7px > 20 — averaging
+2026-06-22 11:11:21  INFO      [CROP] class=content top_dm_center=(2896,4840) right_dm_center=(3174,5120) pattern_center=(3036,4783) scale=394.2 corner_estimate_diff=301.7px
+2026-06-22 11:11:21  INFO        tc-07.jpeg: COUNTERFEIT  conf=0.039  moire=0.001  corr=0.000  grad=0.015  color=0.364
+2026-06-22 11:11:23  INFO      --- Image 9/11 ---
+2026-06-22 11:11:23  INFO      Processing: tc-08.jpeg
+2026-06-22 11:11:37  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 11:11:37  INFO      [CROP] corner_estimate_diff=365.7px > 20 — averaging
+2026-06-22 11:11:37  INFO      [CROP] class=content top_dm_center=(887,2388) right_dm_center=(1216,2734) pattern_center=(1058,2322) scale=477.8 corner_estimate_diff=365.7px
+2026-06-22 11:11:38  INFO        tc-08.jpeg: COUNTERFEIT  conf=0.038  moire=0.009  corr=0.000  grad=0.000  color=0.315
+2026-06-22 11:11:40  INFO      --- Image 10/11 ---
+2026-06-22 11:11:40  INFO      Processing: tc-09.jpeg
+2026-06-22 11:11:50  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 11:11:50  INFO      [CROP] corner_estimate_diff=227.0px > 20 — averaging
+2026-06-22 11:11:50  INFO      [CROP] class=content top_dm_center=(728,2031) right_dm_center=(936,2242) pattern_center=(834,1988) scale=296.6 corner_estimate_diff=227.0px
+2026-06-22 11:11:50  INFO        tc-09.jpeg: COUNTERFEIT  conf=0.056  moire=0.014  corr=0.000  grad=0.012  color=0.445
+2026-06-22 11:11:53  INFO      --- Image 11/11 ---
+2026-06-22 11:11:53  INFO      Processing: tc-10.jpeg
+2026-06-22 11:12:02  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 11:12:02  INFO      [CROP] corner_estimate_diff=229.6px > 20 — averaging
+2026-06-22 11:12:02  INFO      [CROP] class=content top_dm_center=(767,1982) right_dm_center=(1067,1978) pattern_center=(809,1875) scale=300.0 corner_estimate_diff=229.6px
+2026-06-22 11:12:03  INFO        tc-10.jpeg: COUNTERFEIT  conf=0.070  moire=0.037  corr=0.000  grad=0.007  color=0.442
+2026-06-22 11:12:05  INFO      
+2026-06-22 11:12:05  INFO      ============================================================
+2026-06-22 11:12:05  INFO      BATCH SUMMARY
+2026-06-22 11:12:05  INFO        Total       : 11
+2026-06-22 11:12:05  INFO        Authentic   : 0
+2026-06-22 11:12:05  INFO        Suspicious  : 0
+2026-06-22 11:12:05  INFO        Counterfeit : 9
+2026-06-22 11:12:05  INFO        Unable/Error: 2
+2026-06-22 11:12:05  INFO        Avg Confidence: 5.2%
+2026-06-22 11:12:05  INFO      ============================================================
+2026-06-22 11:12:05  INFO      CSV saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_results_20260622_110614.csv
+2026-06-22 11:12:05  INFO      JSON saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_results_20260622_110614.json
+2026-06-22 11:12:05  INFO      Generating PDF report → C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_test_report.pdf
+2026-06-22 11:13:17  INFO      PDF report ready: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_test_report.pdf

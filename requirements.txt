@@ -11,3 +11,4 @@ reportlab
 requests
 playwright
 matplotlib
+pylibdmtx

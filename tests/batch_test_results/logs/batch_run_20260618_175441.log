@@ -1,0 +1,51 @@
+2026-06-18 17:54:41  INFO      ============================================================
+2026-06-18 17:54:41  INFO      PhoneCDP Batch Verification Run
+2026-06-18 17:54:41  INFO      Run timestamp : 2026-06-18 17:54:41
+2026-06-18 17:54:41  INFO      Input folder  : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test
+2026-06-18 17:54:41  INFO      Output folder : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results
+2026-06-18 17:54:41  INFO      Images found  : 10
+2026-06-18 17:54:41  INFO      ============================================================
+2026-06-18 17:54:41  INFO      --- Image 1/10 ---
+2026-06-18 17:54:41  INFO      Processing: t09.jpeg
+2026-06-18 17:55:01  INFO        t09.jpeg: COUNTERFEIT  conf=0.040  moire=0.000  corr=0.000  grad=0.006  color=0.388
+2026-06-18 17:55:03  INFO      --- Image 2/10 ---
+2026-06-18 17:55:03  INFO      Processing: t1.jpeg
+2026-06-18 17:55:22  INFO        t1.jpeg: COUNTERFEIT  conf=0.337  moire=0.372  corr=0.517  grad=0.037  color=0.372
+2026-06-18 17:55:25  INFO      --- Image 3/10 ---
+2026-06-18 17:55:25  INFO      Processing: t10.jpeg
+2026-06-18 17:55:31  WARNING     t10.jpeg: UNABLE_TO_VERIFY — DM decode failed
+2026-06-18 17:55:31  INFO      --- Image 4/10 ---
+2026-06-18 17:55:31  INFO      Processing: t2.jpeg
+2026-06-18 17:56:02  INFO        t2.jpeg: COUNTERFEIT  conf=0.105  moire=0.106  corr=0.075  grad=0.000  color=0.288
+2026-06-18 17:56:05  INFO      --- Image 5/10 ---
+2026-06-18 17:56:05  INFO      Processing: t3.jpeg
+2026-06-18 17:56:29  INFO        t3.jpeg: COUNTERFEIT  conf=0.135  moire=0.152  corr=0.005  grad=0.000  color=0.356
+2026-06-18 17:56:31  INFO      --- Image 6/10 ---
+2026-06-18 17:56:31  INFO      Processing: t4.jpeg
+2026-06-18 17:56:49  INFO        t4.jpeg: COUNTERFEIT  conf=0.100  moire=0.086  corr=0.005  grad=0.011  color=0.419
+2026-06-18 17:56:51  INFO      --- Image 7/10 ---
+2026-06-18 17:56:51  INFO      Processing: t5.jpeg
+2026-06-18 17:57:11  INFO        t5.jpeg: COUNTERFEIT  conf=0.035  moire=0.000  corr=0.052  grad=0.000  color=0.294
+2026-06-18 17:57:13  INFO      --- Image 8/10 ---
+2026-06-18 17:57:13  INFO      Processing: t6.jpeg
+2026-06-18 17:57:35  INFO        t6.jpeg: SUSPICIOUS  conf=0.532  moire=0.641  corr=0.700  grad=0.098  color=0.306
+2026-06-18 17:57:37  INFO      --- Image 9/10 ---
+2026-06-18 17:57:37  INFO      Processing: t7.jpeg
+2026-06-18 17:57:39  INFO        t7.jpeg: COUNTERFEIT  conf=0.044  moire=0.000  corr=0.000  grad=0.007  color=0.430
+2026-06-18 17:57:41  INFO      --- Image 10/10 ---
+2026-06-18 17:57:41  INFO      Processing: t8.jpeg
+2026-06-18 17:57:45  INFO        t8.jpeg: COUNTERFEIT  conf=0.111  moire=0.092  corr=0.206  grad=0.000  color=0.302
+2026-06-18 17:57:47  INFO      
+2026-06-18 17:57:47  INFO      ============================================================
+2026-06-18 17:57:47  INFO      BATCH SUMMARY
+2026-06-18 17:57:47  INFO        Total       : 10
+2026-06-18 17:57:47  INFO        Authentic   : 0
+2026-06-18 17:57:47  INFO        Suspicious  : 1
+2026-06-18 17:57:47  INFO        Counterfeit : 8
+2026-06-18 17:57:47  INFO        Unable/Error: 1
+2026-06-18 17:57:47  INFO        Avg Confidence: 16.0%
+2026-06-18 17:57:47  INFO      ============================================================
+2026-06-18 17:57:47  INFO      CSV saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_results_20260618_175441.csv
+2026-06-18 17:57:47  INFO      JSON saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_results_20260618_175441.json
+2026-06-18 17:57:47  INFO      Generating PDF report → C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_test_report.pdf
+2026-06-18 17:58:18  INFO      PDF report ready: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_test_report.pdf

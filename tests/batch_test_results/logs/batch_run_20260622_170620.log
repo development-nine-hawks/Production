@@ -1,0 +1,39 @@
+2026-06-22 17:06:20  INFO      ============================================================
+2026-06-22 17:06:20  INFO      PhoneCDP Batch Verification Run
+2026-06-22 17:06:20  INFO      Run timestamp : 2026-06-22 17:06:20
+2026-06-22 17:06:20  INFO      Input folder  : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test
+2026-06-22 17:06:20  INFO      Output folder : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results
+2026-06-22 17:06:20  INFO      Images found  : 2
+2026-06-22 17:06:20  INFO      ============================================================
+2026-06-22 17:06:20  INFO      --- Image 1/2 ---
+2026-06-22 17:06:20  INFO      Processing: t2a.jpeg
+2026-06-22 17:07:31  INFO      [CROP] image shape: (8000, 6000, 3)
+2026-06-22 17:07:31  INFO      [CROP] class=content top_dm=693x136 right_dm=130x734 dm_long=734
+2026-06-22 17:07:31  INFO      [CENTER] detected at (2724,5126) dist_from_expected=12.4 expected=(2721,5138) expected_marker_px=46.5
+2026-06-22 17:07:31  INFO      [CROP] triangle: scale_top=1.339 scale_right=1.378 scale_avg=1.358
+2026-06-22 17:07:31  INFO      [CROP] top_dm=(2966,4651) right_dm=(3209,5382) pattern_center=(2724,5126) center_marker=detected scale=1.358
+2026-06-22 17:07:31  INFO      [CROP] debug visualization saved: c:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\crop_debug_20260622_170731.png
+2026-06-22 17:07:32  INFO        t2a.jpeg: COUNTERFEIT  conf=0.070  moire=0.039  corr=0.075  grad=0.028  color=0.325
+2026-06-22 17:07:34  INFO      --- Image 2/2 ---
+2026-06-22 17:07:34  INFO      Processing: t2b.jpeg
+2026-06-22 17:08:45  INFO      [CROP] image shape: (8000, 6000, 3)
+2026-06-22 17:08:45  INFO      [CROP] class=content top_dm=693x136 right_dm=130x734 dm_long=734
+2026-06-22 17:08:45  INFO      [CENTER] detected at (2724,5126) dist_from_expected=12.4 expected=(2721,5138) expected_marker_px=46.5
+2026-06-22 17:08:45  INFO      [CROP] triangle: scale_top=1.339 scale_right=1.378 scale_avg=1.358
+2026-06-22 17:08:45  INFO      [CROP] top_dm=(2966,4651) right_dm=(3209,5382) pattern_center=(2724,5126) center_marker=detected scale=1.358
+2026-06-22 17:08:45  INFO      [CROP] debug visualization saved: c:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\crop_debug_20260622_170845.png
+2026-06-22 17:08:45  INFO        t2b.jpeg: COUNTERFEIT  conf=0.070  moire=0.039  corr=0.075  grad=0.028  color=0.325
+2026-06-22 17:08:48  INFO      
+2026-06-22 17:08:48  INFO      ============================================================
+2026-06-22 17:08:48  INFO      BATCH SUMMARY
+2026-06-22 17:08:48  INFO        Total       : 2
+2026-06-22 17:08:48  INFO        Authentic   : 0
+2026-06-22 17:08:48  INFO        Suspicious  : 0
+2026-06-22 17:08:48  INFO        Counterfeit : 2
+2026-06-22 17:08:48  INFO        Unable/Error: 0
+2026-06-22 17:08:48  INFO        Avg Confidence: 7.0%
+2026-06-22 17:08:48  INFO      ============================================================
+2026-06-22 17:08:48  INFO      CSV saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_results_20260622_170620.csv
+2026-06-22 17:08:48  INFO      JSON saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_results_20260622_170620.json
+2026-06-22 17:08:48  INFO      Generating PDF report → C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_test_report.pdf
+2026-06-22 17:09:32  INFO      PDF report ready: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_test_report.pdf

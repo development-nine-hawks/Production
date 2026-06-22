@@ -124,54 +124,407 @@ async function pgGen(el) {
 // Verify
 // ==========================================================================
 async function pgVerify(el) {
-    let patterns = []; try { patterns = await API.get('/api/patterns'); } catch(e) {}
-    if (!patterns.length) { el.innerHTML = `<div class="mb-8"><h1 class="text-2xl font-bold">Verify Pattern</h1></div><div class="bg-yellow-50 border border-yellow-200 rounded-xl p-8 text-center"><h3 class="text-lg font-semibold text-yellow-800 mb-2">No Patterns Found</h3><p class="text-yellow-700 mb-4">Generate a pattern first.</p><a href="#/generate" class="inline-block bg-brand-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-brand-700">Generate</a></div>`; return; }
     el.innerHTML = `
-    <div class="mb-8"><h1 class="text-2xl font-bold">Verify Pattern</h1><p class="text-gray-500 mt-1">Upload a phone photo to verify against the original</p></div>
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="space-y-5">
-            <div class="bg-white rounded-xl shadow-sm border p-5"><div class="flex items-center gap-2 mb-3"><span class="w-6 h-6 bg-brand-600 text-white rounded-full flex items-center justify-center text-xs font-bold">1</span><h3 class="font-semibold">Select Pattern</h3></div><select id="vp" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 outline-none">${patterns.map(p=>`<option value="${p.id}">${p.label||p.serial_number} (Seed: ${p.seed})</option>`).join('')}</select><div id="vt" class="mt-3"><img src="/api/patterns/${patterns[0].id}/preview" class="w-full rounded-lg border cursor-pointer" onclick="openImageModal(this.src)"/></div></div>
-            <div class="bg-white rounded-xl shadow-sm border p-5"><div class="flex items-center gap-2 mb-3"><span class="w-6 h-6 bg-brand-600 text-white rounded-full flex items-center justify-center text-xs font-bold">2</span><h3 class="font-semibold">Upload Photo</h3></div><div id="dz" class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-brand-400 hover:bg-brand-50/30 transition cursor-pointer"><svg class="w-10 h-10 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg><p class="text-sm text-gray-500 mb-1">Drag & drop photo</p><p class="text-xs text-gray-400">or click to browse</p><input type="file" id="vf" accept="image/*" multiple class="hidden"/></div><div id="fl" class="mt-3 hidden space-y-2"></div></div>
-            <div class="bg-white rounded-xl shadow-sm border p-5"><div class="flex items-center gap-2 mb-3"><span class="w-6 h-6 bg-brand-600 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span><h3 class="font-semibold">Options</h3></div><div class="space-y-3"><div><label class="block text-sm text-gray-600 mb-1">Print Size (mm)</label><input type="number" id="vs" placeholder="e.g. 65" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none"/></div><div><label class="block text-sm text-gray-600 mb-1">Notes</label><input type="text" id="vn" placeholder="Optional" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none"/></div></div></div>
-            <button id="vb" disabled class="w-full bg-brand-600 text-white py-3 rounded-lg font-medium hover:bg-brand-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Verify</button>
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold">Verify Pattern</h1>
+        <p class="text-gray-500 mt-1">Photograph the label — the seed is decoded automatically from the Data Matrix codes</p>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+
+        <!-- Left: upload panel -->
+        <div class="lg:col-span-2 flex flex-col gap-5">
+            <!-- Drop zone -->
+            <div class="bg-white rounded-2xl shadow-sm border p-6">
+                <div id="dz" class="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center
+                     hover:border-brand-400 hover:bg-brand-50/20 transition cursor-pointer
+                     flex flex-col items-center gap-3">
+                    <div class="w-16 h-16 rounded-2xl bg-brand-50 flex items-center justify-center">
+                        <svg class="w-8 h-8 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-700">Drop photo here</p>
+                        <p class="text-sm text-gray-400 mt-0.5">or click to browse &nbsp;·&nbsp; JPG / PNG</p>
+                    </div>
+                    <input type="file" id="vf" accept="image/*" multiple class="hidden"/>
+                </div>
+
+                <!-- Preview thumbnails -->
+                <div id="fl" class="mt-4 hidden space-y-2"></div>
+
+                <!-- Optional fields -->
+                <div id="opt-fields" class="mt-4 hidden space-y-3">
+                    <div class="flex gap-3">
+                        <div class="flex-1">
+                            <label class="block text-xs text-gray-500 mb-1">Print size (mm)</label>
+                            <input type="number" id="vs" placeholder="e.g. 65"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none"/>
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-xs text-gray-500 mb-1">Notes</label>
+                            <input type="text" id="vn" placeholder="Optional"
+                                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none"/>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Verify button -->
+            <button id="vb" disabled
+                class="w-full bg-brand-600 text-white py-3.5 rounded-xl font-semibold
+                       hover:bg-brand-700 transition disabled:bg-gray-200 disabled:text-gray-400
+                       disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Authenticate Label
+            </button>
+
+            <!-- How it works hint -->
+            <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-xs text-indigo-700 space-y-1.5">
+                <p class="font-semibold text-indigo-800">How it works</p>
+                <p>① DMs decoded → seed extracted</p>
+                <p>② Pattern region cropped using DM geometry</p>
+                <p>③ Reference regenerated from seed</p>
+                <p>④ Moire / correlation / color / gradient scored</p>
+            </div>
         </div>
-        <div class="lg:col-span-2"><div id="vr" class="bg-white rounded-xl shadow-sm border p-6"><h2 class="text-lg font-semibold mb-4">Results</h2><div class="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200"><p class="text-gray-400 text-sm">Upload a photo to see results</p></div></div></div>
+
+        <!-- Right: results -->
+        <div class="lg:col-span-3">
+            <div id="vr" class="bg-white rounded-2xl shadow-sm border p-6">
+                <div class="flex flex-col items-center justify-center h-72 text-center gap-3">
+                    <div class="w-16 h-16 rounded-2xl bg-gray-50 flex items-center justify-center">
+                        <svg class="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <p class="text-gray-400 text-sm font-medium">Upload a label photo to begin</p>
+                    <p class="text-gray-300 text-xs max-w-xs">No pattern selection needed — everything is read from the Data Matrix codes on the label</p>
+                </div>
+            </div>
+        </div>
     </div>`;
-    const ps = document.getElementById('vp'), dz = document.getElementById('dz'), fi = document.getElementById('vf'), vb = document.getElementById('vb');
+
+    const dz = document.getElementById('dz'), fi = document.getElementById('vf'), vb = document.getElementById('vb');
     let files = [];
-    ps.addEventListener('change', () => { document.getElementById('vt').innerHTML = `<img src="/api/patterns/${ps.value}/preview" class="w-full rounded-lg border cursor-pointer" onclick="openImageModal(this.src)"/>`; });
+
     dz.addEventListener('click', () => fi.click());
     dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('border-brand-500','bg-brand-50'); });
     dz.addEventListener('dragleave', () => dz.classList.remove('border-brand-500','bg-brand-50'));
     dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('border-brand-500','bg-brand-50'); setFiles(e.dataTransfer.files); });
     fi.addEventListener('change', () => setFiles(fi.files));
+
     function setFiles(f) {
-        files = Array.from(f); const fl = document.getElementById('fl');
-        if (files.length) { fl.classList.remove('hidden'); fl.innerHTML = files.map(f => `<div class="flex items-center gap-2 bg-gray-50 rounded-lg p-2"><svg class="w-5 h-5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><span class="text-sm truncate flex-1">${f.name}</span><span class="text-xs text-gray-400">${(f.size/1024).toFixed(0)}KB</span></div>`).join(''); vb.disabled = false; }
-        else { fl.classList.add('hidden'); vb.disabled = true; }
+        files = Array.from(f);
+        const fl = document.getElementById('fl'), opt = document.getElementById('opt-fields');
+        if (files.length) {
+            fl.classList.remove('hidden');
+            opt.classList.remove('hidden');
+            // Show image previews inline
+            fl.innerHTML = files.map(file => {
+                const url = URL.createObjectURL(file);
+                return `<div class="flex items-center gap-3 bg-gray-50 rounded-xl p-2">
+                    <img src="${url}" class="w-14 h-14 rounded-lg object-cover border"/>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium truncate">${file.name}</p>
+                        <p class="text-xs text-gray-400">${(file.size/1024).toFixed(0)} KB</p>
+                    </div>
+                </div>`;
+            }).join('');
+            vb.disabled = false;
+        } else {
+            fl.classList.add('hidden');
+            opt.classList.add('hidden');
+            vb.disabled = true;
+        }
     }
+
     vb.addEventListener('click', async () => {
         if (!files.length) return;
-        vb.disabled = true; vb.innerHTML = '<div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Verifying...';
-        const vr = document.getElementById('vr'); vr.innerHTML = spin('Running verification...');
+        vb.disabled = true;
+        vb.innerHTML = '<div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Analysing…';
+        const vr = document.getElementById('vr');
+        vr.innerHTML = spin('Decoding Data Matrix codes…');
+
         try {
-            const pid = ps.value, sz = document.getElementById('vs').value, nt = document.getElementById('vn').value;
+            const sz = document.getElementById('vs').value, nt = document.getElementById('vn').value;
+
             if (files.length === 1) {
-                const fd = new FormData(); fd.append('captured', files[0]); fd.append('pattern_id', pid);
-                if (sz) fd.append('print_size_mm', sz); if (nt) fd.append('notes', nt);
+                // ── Single file ────────────────────────────────────────────
+                const fd = new FormData();
+                fd.append('captured', files[0]);
+                if (sz) fd.append('print_size_mm', sz);
+                if (nt) fd.append('notes', nt);
+
                 const r = await API.postForm('/api/verify', fd);
                 window._lastVerifyResult = r;
-                vr.innerHTML = `<div class="flex justify-between items-start mb-6"><div><h2 class="text-lg font-semibold">Result</h2><p class="text-sm text-gray-500">${fmtDate(r.created_at)}</p></div><div class="flex items-center gap-3">${vBadge(r.verdict)}<button onclick="copyTestResult()" class="inline-flex items-center gap-1.5 bg-gray-800 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-900 transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Copy Results</button><a href="#/results/${r.id}" class="text-sm text-brand-600 hover:underline">Details</a></div></div><div class="mb-6">${confGauge(r.confidence)}</div><div class="mb-6 space-y-2.5"><h3 class="text-sm font-semibold text-gray-700 mb-2">Scores</h3>${sBar('Moire',r.scores.moire,r.weights.moire)}${sBar('Color',r.scores.color,r.weights.color)}${sBar('Correlation',r.scores.correlation,r.weights.correlation)}${sBar('Gradient',r.scores.gradient,r.weights.gradient)}</div><div class="grid grid-cols-2 gap-3 mb-6"><div class="bg-gray-50 rounded-lg p-3"><div class="text-xs text-gray-500">Markers</div><div class="font-bold text-lg">${r.markers_found}/4</div></div><div class="bg-gray-50 rounded-lg p-3"><div class="text-xs text-gray-500">Alignment</div><div class="font-bold text-lg capitalize">${r.alignment_method}</div></div></div><h3 class="text-sm font-semibold text-gray-700 mb-3">Images</h3><div class="grid grid-cols-4 gap-3"><div><p class="text-xs text-gray-500 mb-1 text-center">Original</p><img src="/api/verify/${r.id}/images/original" class="w-full rounded-lg border cursor-pointer aspect-square object-cover" onclick="openImageModal(this.src)"/></div><div><p class="text-xs text-gray-500 mb-1 text-center">Captured</p><img src="/api/verify/${r.id}/images/captured" class="w-full rounded-lg border cursor-pointer aspect-square object-cover" onclick="openImageModal(this.src)"/></div><div><p class="text-xs text-gray-500 mb-1 text-center">Markers <span class="text-green-600">●</span><span class="text-orange-400">●</span><span class="text-yellow-400">●</span></p><img src="/api/verify/${r.id}/images/markers" class="w-full rounded-lg border cursor-pointer aspect-square object-cover" onclick="openImageModal(this.src)" onerror="this.style.display='none';this.parentElement.insertAdjacentHTML('beforeend','<div class=\'w-full aspect-square rounded-lg border bg-gray-100 flex items-center justify-center text-xs text-gray-400\'>Expired</div>')"/></div><div><p class="text-xs text-gray-500 mb-1 text-center">Aligned</p><img src="/api/verify/${r.id}/images/aligned" class="w-full rounded-lg border cursor-pointer aspect-square object-cover" onclick="openImageModal(this.src)" onerror="this.style.display='none';this.parentElement.insertAdjacentHTML('beforeend','<div class=\'w-full aspect-square rounded-lg border bg-gray-100 flex items-center justify-center text-xs text-gray-400\'>Expired</div>')"/></div></div><div class="mt-6 pt-6 border-t"><div class="flex justify-between items-center mb-3"><h3 class="text-sm font-semibold text-gray-700">Per-block Analytics</h3><a href="/api/verify/${r.id}/report.pdf" target="_blank" class="inline-flex items-center gap-1.5 bg-brand-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-brand-700 transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Download Report PDF</a></div>${['moire','correlation','gradient','color'].map(t => `<div class="mb-5"><p class="text-xs font-medium text-gray-600 mb-2 uppercase tracking-wide">${t}</p><div class="grid grid-cols-1 md:grid-cols-3 gap-2"><img src="/api/verify/${r.id}/plot/${t}/heatmap.png" class="w-full rounded-lg border cursor-pointer" onclick="openImageModal(this.src)" title="Heatmap"/><img src="/api/verify/${r.id}/plot/${t}/histogram.png" class="w-full rounded-lg border cursor-pointer" onclick="openImageModal(this.src)" title="Histogram"/><img src="/api/verify/${r.id}/plot/${t}/scatter.png" class="w-full rounded-lg border cursor-pointer" onclick="openImageModal(this.src)" title="Scatter"/></div></div>`).join('')}<div><p class="text-xs font-medium text-gray-600 mb-2 uppercase tracking-wide">Δ Delta map</p><img src="/api/verify/${r.id}/plot/moire/delta.png" class="w-full rounded-lg border cursor-pointer" onclick="openImageModal(this.src)"/></div></div>`;
+
+                // ── Identified pattern chip ────────────────────────────────
+                const seedHex = r.seed_recovered != null
+                    ? '0x' + r.seed_recovered.toString(16).toUpperCase().padStart(8,'0') : null;
+
+                const patternChip = r.pattern_label || r.pattern_serial
+                    ? `<span class="text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-2.5 py-0.5 font-medium ml-2">${r.pattern_label || r.pattern_serial}</span>`
+                    : `<span class="text-xs bg-gray-100 text-gray-500 rounded-full px-2.5 py-0.5 ml-2">Unregistered seed</span>`;
+
+                const seedChip = r.seed_recovered != null
+                    ? `<div class="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 mt-3">
+                         <svg class="w-3.5 h-3.5 text-indigo-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                             d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                         </svg>
+                         <span class="text-xs text-indigo-600">Seed decoded from DMs:</span>
+                         <span class="text-xs font-mono font-bold text-indigo-900">${r.seed_recovered}</span>
+                         <span class="text-xs font-mono text-indigo-400">(${seedHex})</span>
+                       </div>`
+                    : `<div class="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mt-3 text-xs text-red-700">
+                         <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                             d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                         </svg>
+                         Seed could not be recovered from the Data Matrix codes
+                       </div>`;
+
+                // ── DM diagnostic ─────────────────────────────────────────
+                const dm = r.dm_diagnostic || {};
+                const dmRow = (label, val, mono=false) =>
+                    `<div class="flex justify-between text-xs py-1 border-b border-gray-50 last:border-0">
+                       <span class="text-gray-400">${label}</span>
+                       <span class="${mono?'font-mono':''} font-medium text-gray-800 max-w-[55%] truncate text-right">${val ?? '—'}</span>
+                     </div>`;
+
+                const dmPanel = `
+                <div class="bg-white rounded-xl border p-4 mb-3">
+                  <div class="flex items-center gap-2 mb-3">
+                    <div class="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-xs font-bold shrink-0">1</div>
+                    <span class="font-semibold text-sm">Data Matrix Decode</span>
+                    <span class="ml-auto text-xs px-2 py-0.5 rounded-full ${dm.num_dms_found>=2?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}">${dm.num_dms_found||0} / 2 DMs</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-3 mb-2">
+                    <div>
+                      <p class="text-xs text-gray-400 mb-1">Captured photo</p>
+                      <img src="/api/verify/${r.id}/images/captured"
+                           class="w-full rounded-lg border cursor-pointer object-cover aspect-[3/4]"
+                           onclick="openImageModal(this.src)"
+                           onerror="this.parentElement.innerHTML='<div class=\\'w-full rounded-lg bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Not available</div>'"/>
+                    </div>
+                    <div class="space-y-0.5 pt-1">
+                      ${dmRow('DMs found', dm.num_dms_found)}
+                      ${dmRow('Share A', dm.share_a, true)}
+                      ${dmRow('Share B', dm.share_b, true)}
+                      ${dm.failure_reason?`<p class="text-xs text-red-500 mt-1">${dm.failure_reason}</p>`:''}
+                    </div>
+                  </div>
+                  ${seedChip}
+                </div>`;
+
+                const roiPanel = `
+                <div class="bg-white rounded-xl border p-4 mb-3">
+                  <div class="flex items-center gap-2 mb-3">
+                    <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xs font-bold shrink-0">2</div>
+                    <span class="font-semibold text-sm">ROI Extraction</span>
+                    <span class="ml-auto text-xs text-gray-400">DM geometry → 512×512</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <p class="text-xs text-gray-400 mb-1">Cropped pattern</p>
+                      <img src="/api/verify/${r.id}/images/roi" class="w-full rounded-lg border cursor-pointer aspect-square object-cover" onclick="openImageModal(this.src)"
+                           onerror="this.parentElement.innerHTML='<div class=\\'w-full rounded-lg bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Expired</div>'"/>
+                    </div>
+                    <div>
+                      <p class="text-xs text-gray-400 mb-1">Aligned</p>
+                      <img src="/api/verify/${r.id}/images/aligned" class="w-full rounded-lg border cursor-pointer aspect-square object-cover" onclick="openImageModal(this.src)"
+                           onerror="this.parentElement.innerHTML='<div class=\\'w-full rounded-lg bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Expired</div>'"/>
+                    </div>
+                  </div>
+                </div>`;
+
+                const refPanel = `
+                <div class="bg-white rounded-xl border p-4 mb-3">
+                  <div class="flex items-center gap-2 mb-3">
+                    <div class="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 text-xs font-bold shrink-0">3</div>
+                    <span class="font-semibold text-sm">Reference Regeneration</span>
+                    <span class="ml-auto text-xs text-gray-400">seed → digital twin</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <p class="text-xs text-gray-400 mb-1">Regenerated</p>
+                      <img src="/api/verify/${r.id}/images/reference" class="w-full rounded-lg border cursor-pointer aspect-square object-cover" onclick="openImageModal(this.src)"
+                           onerror="this.parentElement.innerHTML='<div class=\\'w-full rounded-lg bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Expired</div>'"/>
+                    </div>
+                    <div>
+                      <p class="text-xs text-gray-400 mb-1">Original (DB)</p>
+                      <img src="/api/verify/${r.id}/images/original" class="w-full rounded-lg border cursor-pointer aspect-square object-cover" onclick="openImageModal(this.src)"
+                           onerror="this.parentElement.innerHTML='<div class=\\'w-full rounded-lg bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Not stored</div>'"/>
+                    </div>
+                  </div>
+                </div>`;
+
+                const wt = r.weights || {moire:0.65, color:0.10, correlation:0.10, gradient:0.15};
+                const scoresPanel = `
+                <div class="bg-white rounded-xl border p-4">
+                  <div class="flex items-center gap-2 mb-4">
+                    <div class="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 text-xs font-bold shrink-0">4</div>
+                    <span class="font-semibold text-sm">Authentication Scores</span>
+                  </div>
+                  <div class="space-y-2.5 mb-5">
+                    ${sBar('Moire',r.scores.moire,wt.moire)}
+                    ${sBar('Color',r.scores.color,wt.color)}
+                    ${sBar('Correlation',r.scores.correlation,wt.correlation)}
+                    ${sBar('Gradient',r.scores.gradient,wt.gradient)}
+                  </div>
+                  ${confGauge(r.confidence)}
+                </div>`;
+
+                vr.innerHTML = `
+                <!-- Header -->
+                <div class="flex items-start justify-between mb-5">
+                  <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <h2 class="text-lg font-bold">Result</h2>
+                      ${vBadge(r.verdict)}
+                      ${patternChip}
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">${fmtDate(r.created_at)}</p>
+                  </div>
+                  <div class="flex items-center gap-2 shrink-0 ml-3">
+                    <button onclick="copyTestResult()" title="Copy results"
+                      class="p-1.5 rounded-lg border hover:bg-gray-50 transition text-gray-500">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                      </svg>
+                    </button>
+                    <a href="#/results/${r.id}" class="text-xs text-brand-600 hover:underline">Full details →</a>
+                  </div>
+                </div>
+                <!-- Pipeline steps -->
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Detection Pipeline</p>
+                ${dmPanel}${roiPanel}${refPanel}${scoresPanel}
+
+                <!-- Per-block Analytics -->
+                <div class="mt-5">
+                  <div class="flex justify-between items-center mb-4">
+                    <div>
+                      <p class="font-semibold text-sm">Per-block Analytics</p>
+                      <p class="text-xs text-gray-400 mt-0.5">Each block scored independently across all 4 tests</p>
+                    </div>
+                    <a href="/api/verify/${r.id}/report.pdf" target="_blank"
+                       class="inline-flex items-center gap-1.5 bg-brand-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-brand-700 transition">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                      </svg>
+                      Download Report PDF
+                    </a>
+                  </div>
+
+                  ${['moire','correlation','gradient','color'].map(t => `
+                  <div class="mb-6">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">${t.toUpperCase()}</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <p class="text-[11px] text-gray-400 mb-1 text-center">Heatmap (per-block, overlaid)</p>
+                        <img src="/api/verify/${r.id}/plot/${t}/heatmap.png"
+                             class="w-full rounded-lg border cursor-pointer"
+                             onclick="openImageModal(this.src)"
+                             onerror="this.outerHTML='<div class=\\'w-full rounded-lg border bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Unavailable</div>'"/>
+                      </div>
+                      <div>
+                        <p class="text-[11px] text-gray-400 mb-1 text-center">Distribution</p>
+                        <img src="/api/verify/${r.id}/plot/${t}/histogram.png"
+                             class="w-full rounded-lg border cursor-pointer"
+                             onclick="openImageModal(this.src)"
+                             onerror="this.outerHTML='<div class=\\'w-full rounded-lg border bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Unavailable</div>'"/>
+                      </div>
+                      <div>
+                        <p class="text-[11px] text-gray-400 mb-1 text-center">Per-block scatter</p>
+                        <img src="/api/verify/${r.id}/plot/${t}/scatter.png"
+                             class="w-full rounded-lg border cursor-pointer"
+                             onclick="openImageModal(this.src)"
+                             onerror="this.outerHTML='<div class=\\'w-full rounded-lg border bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Unavailable</div>'"/>
+                      </div>
+                    </div>
+                  </div>`).join('')}
+
+                  <!-- Delta Map -->
+                  <div class="mb-2">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Δ DELTA MAP</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <p class="text-[11px] text-gray-400 mb-1 text-center">Reference (original)</p>
+                        <img src="/api/verify/${r.id}/images/original"
+                             class="w-full rounded-lg border cursor-pointer aspect-square object-cover"
+                             onclick="openImageModal(this.src)"
+                             onerror="this.outerHTML='<div class=\\'w-full rounded-lg border bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Unavailable</div>'"/>
+                      </div>
+                      <div>
+                        <p class="text-[11px] text-gray-400 mb-1 text-center">Captured (aligned)</p>
+                        <img src="/api/verify/${r.id}/images/aligned"
+                             class="w-full rounded-lg border cursor-pointer aspect-square object-cover"
+                             onclick="openImageModal(this.src)"
+                             onerror="this.outerHTML='<div class=\\'w-full rounded-lg border bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Expired</div>'"/>
+                      </div>
+                      <div>
+                        <p class="text-[11px] text-gray-400 mb-1 text-center">|δ| heatmap</p>
+                        <img src="/api/verify/${r.id}/plot/moire/delta.png"
+                             class="w-full rounded-lg border cursor-pointer aspect-square object-cover"
+                             onclick="openImageModal(this.src)"
+                             onerror="this.outerHTML='<div class=\\'w-full rounded-lg border bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Expired</div>'"/>
+                      </div>
+                    </div>
+                  </div>
+                </div>`;
+
             } else {
-                const fd = new FormData(); files.forEach(f => fd.append('captured_files', f)); fd.append('pattern_id', pid);
-                if (sz) fd.append('print_size_mm', sz); if (nt) fd.append('notes', nt);
+                // ── Batch ─────────────────────────────────────────────────
+                const fd = new FormData();
+                files.forEach(f => fd.append('captured_files', f));
+                if (sz) fd.append('print_size_mm', sz);
+                if (nt) fd.append('notes', nt);
                 const d = await API.postForm('/api/verify/batch', fd);
                 const ok = d.results.filter(r => r.verdict === 'AUTHENTIC').length;
-                vr.innerHTML = `<div class="flex justify-between items-start mb-6"><div><h2 class="text-lg font-semibold">Batch Results</h2><p class="text-sm text-gray-500">${d.results.length} photos</p></div><div class="text-right"><div class="text-2xl font-bold ${ok===d.results.length?'text-green-600':'text-yellow-600'}">${ok}/${d.results.length}</div><div class="text-xs text-gray-500">Passed</div></div></div><div class="space-y-3">${d.results.map(r=>`<div class="flex items-center gap-4 bg-gray-50 rounded-lg p-4 ${r.id?'cursor-pointer hover:bg-gray-100':''}" ${r.id?`onclick="location.hash='#/results/${r.id}'"`:''} ><div class="flex-1"><div class="font-medium text-sm">${r.filename}</div><div class="text-xs text-gray-500 mt-0.5">${r.verdict!=='ERROR'?`Confidence: ${(r.confidence*100).toFixed(1)}%`:r.error||'Error'}</div></div>${vBadge(r.verdict)}</div>`).join('')}</div>`;
+                vr.innerHTML = `
+                <div class="flex justify-between items-start mb-5">
+                  <div>
+                    <h2 class="text-lg font-bold">Batch Results</h2>
+                    <p class="text-xs text-gray-400">${d.results.length} photos submitted</p>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-2xl font-bold ${ok===d.results.length?'text-green-600':'text-yellow-600'}">${ok}/${d.results.length}</div>
+                    <div class="text-xs text-gray-400">passed</div>
+                  </div>
+                </div>
+                <div class="space-y-2">
+                ${d.results.map(r=>`
+                  <div class="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3 ${r.id?'cursor-pointer hover:bg-gray-100':''}"
+                       ${r.id?`onclick="location.hash='#/results/${r.id}'"`:''}>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-sm font-medium truncate">${r.filename}</p>
+                      <p class="text-xs text-gray-400">${r.verdict!=='ERROR'?`Confidence: ${(r.confidence*100).toFixed(1)}%`:r.error||'Error'}</p>
+                    </div>
+                    ${vBadge(r.verdict)}
+                  </div>`).join('')}
+                </div>`;
             }
             showToast('Verification complete!', 'success');
-        } catch(err) { vr.innerHTML = `<h2 class="text-lg font-semibold mb-4">Results</h2><div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">${err.message}</div>`; showToast(err.message,'error'); }
-        finally { vb.disabled = false; vb.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Verify'; }
+        } catch(err) {
+            vr.innerHTML = `<h2 class="text-lg font-semibold mb-4">Results</h2>
+            <div class="bg-red-50 border border-red-200 rounded-xl p-4 text-red-800 text-sm">${err.message}</div>`;
+            showToast(err.message, 'error');
+        } finally {
+            vb.disabled = false;
+            vb.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg> Authenticate Label`;
+        }
     });
 }
 

@@ -1,0 +1,17 @@
+[
+  {
+    "id": 1,
+    "seed": 65041604,
+    "serial_number": "SN-2026-00001",
+    "label": "",
+    "filename": "phone_cdp_20260622_151422_65041604.png",
+    "image_url": "/local-cdn/phonecdp/patterns/phone_cdp_20260622_151422_65041604.png",
+    "cloudinary_public_id": "phonecdp/patterns/phone_cdp_20260622_151422_65041604.png",
+    "pattern_size": 512,
+    "block_size": 16,
+    "notes": "",
+    "created_at": {
+      "__datetime__": "2026-06-22T09:44:22.875320"
+    }
+  }
+]

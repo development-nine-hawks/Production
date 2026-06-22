@@ -1,0 +1,82 @@
+2026-06-19 11:55:35  INFO      ============================================================
+2026-06-19 11:55:35  INFO      PhoneCDP Batch Verification Run
+2026-06-19 11:55:35  INFO      Run timestamp : 2026-06-19 11:55:35
+2026-06-19 11:55:35  INFO      Input folder  : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test
+2026-06-19 11:55:35  INFO      Output folder : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results
+2026-06-19 11:55:35  INFO      Images found  : 10
+2026-06-19 11:55:35  INFO      ============================================================
+2026-06-19 11:55:35  INFO      --- Image 1/10 ---
+2026-06-19 11:55:35  INFO      Processing: t09.jpeg
+2026-06-19 11:55:56  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-19 11:55:56  INFO      [CROP] Reusing 2 DM rects from Step 1 (shrink=2) — skipping redundant decode.
+2026-06-19 11:55:56  INFO      [CROP] DMs found: 2 total | 1 landscape (Top DM) | 1 portrait (Right DM)
+2026-06-19 11:55:57  INFO        t09.jpeg: COUNTERFEIT  conf=0.039  moire=0.000  corr=0.000  grad=0.000  color=0.389
+2026-06-19 11:55:59  INFO      --- Image 2/10 ---
+2026-06-19 11:55:59  INFO      Processing: t1.jpeg
+2026-06-19 11:56:19  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-19 11:56:20  INFO      [CROP] Reusing 2 DM rects from Step 1 (shrink=1) — skipping redundant decode.
+2026-06-19 11:56:20  INFO      [CROP] DMs found: 2 total | 1 landscape (Top DM) | 1 portrait (Right DM)
+2026-06-19 11:56:20  INFO        t1.jpeg: AUTHENTIC  conf=0.677  moire=0.826  corr=0.941  grad=0.004  color=0.446
+2026-06-19 11:56:23  INFO      --- Image 3/10 ---
+2026-06-19 11:56:23  INFO      Processing: t10.jpeg
+2026-06-19 11:56:29  WARNING     t10.jpeg: UNABLE_TO_VERIFY — DM decode failed
+2026-06-19 11:56:29  INFO      --- Image 4/10 ---
+2026-06-19 11:56:29  INFO      Processing: t2.jpeg
+2026-06-19 11:57:02  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-19 11:57:02  INFO      [CROP] Reusing 2 DM rects from Step 1 (shrink=1) — skipping redundant decode.
+2026-06-19 11:57:02  INFO      [CROP] DMs found: 2 total | 0 landscape (Top DM) | 2 portrait (Right DM)
+2026-06-19 11:57:02  INFO      [CROP] Aspect-ratio classification ambiguous — falling back to y-position sort.
+2026-06-19 11:57:02  INFO        t2.jpeg: COUNTERFEIT  conf=0.102  moire=0.109  corr=0.000  grad=0.017  color=0.290
+2026-06-19 11:57:04  INFO      --- Image 5/10 ---
+2026-06-19 11:57:04  INFO      Processing: t3.jpeg
+2026-06-19 11:57:29  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-19 11:57:29  INFO      [CROP] Reusing 2 DM rects from Step 1 (shrink=1) — skipping redundant decode.
+2026-06-19 11:57:29  INFO      [CROP] DMs found: 2 total | 0 landscape (Top DM) | 2 portrait (Right DM)
+2026-06-19 11:57:29  INFO      [CROP] Aspect-ratio classification ambiguous — falling back to y-position sort.
+2026-06-19 11:57:30  INFO        t3.jpeg: COUNTERFEIT  conf=0.164  moire=0.197  corr=0.000  grad=0.000  color=0.358
+2026-06-19 11:57:32  INFO      --- Image 6/10 ---
+2026-06-19 11:57:32  INFO      Processing: t4.jpeg
+2026-06-19 11:57:52  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-19 11:57:52  INFO      [CROP] Reusing 2 DM rects from Step 1 (shrink=1) — skipping redundant decode.
+2026-06-19 11:57:52  INFO      [CROP] DMs found: 2 total | 1 landscape (Top DM) | 1 portrait (Right DM)
+2026-06-19 11:57:52  INFO        t4.jpeg: COUNTERFEIT  conf=0.092  moire=0.077  corr=0.000  grad=0.000  color=0.420
+2026-06-19 11:57:55  INFO      --- Image 7/10 ---
+2026-06-19 11:57:55  INFO      Processing: t5.jpeg
+2026-06-19 11:58:15  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-19 11:58:15  INFO      [CROP] Reusing 2 DM rects from Step 1 (shrink=1) — skipping redundant decode.
+2026-06-19 11:58:15  INFO      [CROP] DMs found: 2 total | 1 landscape (Top DM) | 1 portrait (Right DM)
+2026-06-19 11:58:15  INFO        t5.jpeg: COUNTERFEIT  conf=0.056  moire=0.000  corr=0.261  grad=0.000  color=0.296
+2026-06-19 11:58:18  INFO      --- Image 8/10 ---
+2026-06-19 11:58:18  INFO      Processing: t6.jpeg
+2026-06-19 11:58:41  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-19 11:58:41  INFO      [CROP] Reusing 2 DM rects from Step 1 (shrink=1) — skipping redundant decode.
+2026-06-19 11:58:41  INFO      [CROP] DMs found: 2 total | 1 landscape (Top DM) | 1 portrait (Right DM)
+2026-06-19 11:58:41  INFO        t6.jpeg: AUTHENTIC  conf=0.816  moire=1.000  corr=1.000  grad=0.189  color=0.377
+2026-06-19 11:58:44  INFO      --- Image 9/10 ---
+2026-06-19 11:58:44  INFO      Processing: t7.jpeg
+2026-06-19 11:58:45  INFO      [CROP] image shape: (1280, 576, 3)
+2026-06-19 11:58:45  INFO      [CROP] Reusing 2 DM rects from Step 1 (shrink=1) — skipping redundant decode.
+2026-06-19 11:58:45  INFO      [CROP] DMs found: 2 total | 0 landscape (Top DM) | 2 portrait (Right DM)
+2026-06-19 11:58:45  INFO      [CROP] Aspect-ratio classification ambiguous — falling back to y-position sort.
+2026-06-19 11:58:45  INFO        t7.jpeg: COUNTERFEIT  conf=0.052  moire=0.000  corr=0.000  grad=0.060  color=0.433
+2026-06-19 11:58:48  INFO      --- Image 10/10 ---
+2026-06-19 11:58:48  INFO      Processing: t8.jpeg
+2026-06-19 11:58:51  INFO      [CROP] image shape: (1280, 576, 3)
+2026-06-19 11:58:51  INFO      [CROP] Fallback: Card bounding box not found, using full image.
+2026-06-19 11:58:51  INFO      [CROP] Reusing 2 DM rects from Step 1 (shrink=1) — skipping redundant decode.
+2026-06-19 11:58:51  INFO      [CROP] DMs found: 2 total | 1 landscape (Top DM) | 1 portrait (Right DM)
+2026-06-19 11:58:52  INFO        t8.jpeg: COUNTERFEIT  conf=0.314  moire=0.328  corr=0.667  grad=0.000  color=0.338
+2026-06-19 11:58:54  INFO      
+2026-06-19 11:58:54  INFO      ============================================================
+2026-06-19 11:58:54  INFO      BATCH SUMMARY
+2026-06-19 11:58:54  INFO        Total       : 10
+2026-06-19 11:58:54  INFO        Authentic   : 2
+2026-06-19 11:58:54  INFO        Suspicious  : 0
+2026-06-19 11:58:54  INFO        Counterfeit : 7
+2026-06-19 11:58:54  INFO        Unable/Error: 1
+2026-06-19 11:58:54  INFO        Avg Confidence: 25.7%
+2026-06-19 11:58:54  INFO      ============================================================
+2026-06-19 11:58:54  INFO      CSV saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_results_20260619_115535.csv
+2026-06-19 11:58:54  INFO      JSON saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_results_20260619_115535.json
+2026-06-19 11:58:54  INFO      Generating PDF report → C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_test_report.pdf
+2026-06-19 11:59:25  INFO      PDF report ready: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_test_report.pdf

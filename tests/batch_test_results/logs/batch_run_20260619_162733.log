@@ -1,0 +1,71 @@
+2026-06-19 16:27:33  INFO      ============================================================
+2026-06-19 16:27:33  INFO      PhoneCDP Batch Verification Run
+2026-06-19 16:27:33  INFO      Run timestamp : 2026-06-19 16:27:33
+2026-06-19 16:27:33  INFO      Input folder  : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test
+2026-06-19 16:27:33  INFO      Output folder : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results
+2026-06-19 16:27:33  INFO      Images found  : 10
+2026-06-19 16:27:33  INFO      ============================================================
+2026-06-19 16:27:33  INFO      --- Image 1/10 ---
+2026-06-19 16:27:33  INFO      Processing: tc-01.jpeg
+2026-06-19 16:30:09  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-19 16:30:09  INFO      [CROP] class=content tx=757.0 ty=1666.5 rx=1056.0 ry=1963.0 dx=299.0 dy=296.5 px_start=568 py_start=1776 px_end=946 py_end=2150
+2026-06-19 16:30:10  INFO        tc-01.jpeg: SUSPICIOUS  conf=0.518  moire=0.547  corr=0.809  grad=0.319  color=0.339
+2026-06-19 16:30:21  INFO      --- Image 2/10 ---
+2026-06-19 16:30:21  INFO      Processing: tc-02.jpeg
+2026-06-19 16:31:14  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-19 16:31:14  INFO      [CROP] class=content tx=890.0 ty=1925.0 rx=1269.0 ry=1883.0 dx=379.0 dy=-42.0 px_start=1087 py_start=1746 px_end=1451 py_end=2104
+2026-06-19 16:31:15  INFO        tc-02.jpeg: COUNTERFEIT  conf=0.047  moire=0.000  corr=0.000  grad=0.000  color=0.470
+2026-06-19 16:31:26  INFO      --- Image 3/10 ---
+2026-06-19 16:31:26  INFO      Processing: tc-03.jpeg
+2026-06-19 16:32:25  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-19 16:32:25  INFO      [CROP] class=content tx=988.5 ty=1999.5 rx=1098.5 ry=1754.0 dx=110.0 dy=-245.5 px_start=943 py_start=1842 px_end=1254 py_end=2157
+2026-06-19 16:32:26  INFO        tc-03.jpeg: COUNTERFEIT  conf=0.093  moire=0.062  corr=0.120  grad=0.000  color=0.410
+2026-06-19 16:32:38  INFO      --- Image 4/10 ---
+2026-06-19 16:32:38  INFO      Processing: tc-04.jpeg
+2026-06-19 16:35:00  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-19 16:35:00  INFO      [CROP] class=content tx=1291.0 ty=1644.5 rx=819.5 ry=1367.0 dx=-471.5 dy=-277.5 px_start=1116 py_start=1190 px_end=1466 py_end=1544
+2026-06-19 16:35:01  INFO        tc-04.jpeg: COUNTERFEIT  conf=0.070  moire=0.021  corr=0.000  grad=0.198  color=0.266
+2026-06-19 16:35:13  INFO      --- Image 5/10 ---
+2026-06-19 16:35:13  INFO      Processing: tc-05.jpeg
+2026-06-19 16:37:31  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-19 16:37:31  INFO      [CROP] class=content tx=830.5 ty=1669.5 rx=1095.5 ry=1939.0 dx=265.0 dy=269.5 px_start=662 py_start=1770 px_end=999 py_end=2108
+2026-06-19 16:37:32  INFO        tc-05.jpeg: SUSPICIOUS  conf=0.577  moire=0.704  corr=0.968  grad=0.024  color=0.182
+2026-06-19 16:37:44  INFO      --- Image 6/10 ---
+2026-06-19 16:37:44  INFO      Processing: tc-06.jpeg
+2026-06-19 16:39:03  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-19 16:39:03  INFO      [CROP] class=content tx=1274.0 ty=-151.0 rx=1907.0 ry=458.0 dx=633.0 dy=609.0 px_start=880 py_start=74 px_end=1668 py_end=842
+2026-06-19 16:39:03  INFO        tc-06.jpeg: COUNTERFEIT  conf=0.070  moire=0.079  corr=0.000  grad=0.017  color=0.158
+2026-06-19 16:39:06  INFO      --- Image 7/10 ---
+2026-06-19 16:39:06  INFO      Processing: tc-07.jpeg
+2026-06-19 16:40:46  INFO      [CROP] image shape: (8000, 6000, 3)
+2026-06-19 16:40:46  INFO      [CROP] class=content tx=2896.0 ty=4840.0 rx=3173.5 ry=5120.0 dx=277.5 dy=280.0 px_start=2717 py_start=4944 px_end=3075 py_end=5296
+2026-06-19 16:40:46  INFO        tc-07.jpeg: AUTHENTIC  conf=0.808  moire=1.000  corr=1.000  grad=0.136  color=0.380
+2026-06-19 16:40:49  INFO      --- Image 8/10 ---
+2026-06-19 16:40:49  INFO      Processing: tc-08.jpeg
+2026-06-19 16:41:35  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-19 16:41:35  INFO      [CROP] class=content tx=887.0 ty=2387.5 rx=1216.0 ry=2734.0 dx=329.0 dy=346.5 px_start=672 py_start=2522 px_end=1102 py_end=2946
+2026-06-19 16:41:35  INFO        tc-08.jpeg: COUNTERFEIT  conf=0.267  moire=0.233  corr=0.634  grad=0.157  color=0.291
+2026-06-19 16:41:39  INFO      --- Image 9/10 ---
+2026-06-19 16:41:39  INFO      Processing: tc-09.jpeg
+2026-06-19 16:42:07  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-19 16:42:07  INFO      [CROP] class=content tx=728.5 ty=2031.0 rx=936.5 ry=2242.5 dx=208.0 dy=211.5 px_start=592 py_start=2109 px_end=865 py_end=2376
+2026-06-19 16:42:08  INFO        tc-09.jpeg: SUSPICIOUS  conf=0.499  moire=0.563  corr=0.923  grad=0.008  color=0.394
+2026-06-19 16:42:20  INFO      --- Image 10/10 ---
+2026-06-19 16:42:20  INFO      Processing: tc-10.jpeg
+2026-06-19 16:42:51  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-19 16:42:51  INFO      [CROP] class=content tx=767.0 ty=1982.0 rx=1067.0 ry=1977.5 dx=300.0 dy=-4.5 px_start=926 py_start=1842 px_end=1208 py_end=2122
+2026-06-19 16:42:52  INFO        tc-10.jpeg: COUNTERFEIT  conf=0.050  moire=0.000  corr=0.000  grad=0.009  color=0.484
+2026-06-19 16:42:55  INFO      
+2026-06-19 16:42:55  INFO      ============================================================
+2026-06-19 16:42:55  INFO      BATCH SUMMARY
+2026-06-19 16:42:55  INFO        Total       : 10
+2026-06-19 16:42:55  INFO        Authentic   : 1
+2026-06-19 16:42:55  INFO        Suspicious  : 3
+2026-06-19 16:42:55  INFO        Counterfeit : 6
+2026-06-19 16:42:55  INFO        Unable/Error: 0
+2026-06-19 16:42:55  INFO        Avg Confidence: 30.0%
+2026-06-19 16:42:55  INFO      ============================================================
+2026-06-19 16:42:55  INFO      CSV saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_results_20260619_162733.csv
+2026-06-19 16:42:55  INFO      JSON saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_results_20260619_162733.json
+2026-06-19 16:42:55  INFO      Generating PDF report → C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_test_report.pdf
+2026-06-19 16:44:50  INFO      PDF report ready: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results\batch_test_report.pdf

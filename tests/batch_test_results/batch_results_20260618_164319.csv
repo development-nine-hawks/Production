@@ -1,0 +1,2 @@
+filename,verdict,confidence,seed_recovered,pattern_id,moire,correlation,gradient,color,alignment_method,processing_time,success,failure_reason
+a1.jpeg,COUNTERFEIT,0.0524,61288996,,0.0000,0.2667,0.0096,0.2431,—,6.91,True,

@@ -1,0 +1,2 @@
+filename,verdict,confidence,seed_recovered,pattern_id,moire,correlation,gradient,color,alignment_method,processing_time,success,failure_reason
+tc3.jpeg,COUNTERFEIT,0.0497,1687641579,,0.0128,0.0859,0.0000,0.3282,—,17.37,True,

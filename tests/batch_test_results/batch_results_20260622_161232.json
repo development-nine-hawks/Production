@@ -1,0 +1,76 @@
+{
+  "run_ts": "2026-06-22 16:12:32",
+  "stats": {
+    "total": 1,
+    "authentic": 0,
+    "suspicious": 0,
+    "counterfeit": 1,
+    "unable": 0,
+    "avg_confidence": 0.049724869597134284,
+    "avg_moire": 0.012799212743906276,
+    "avg_correlation": 0.08586527458462145,
+    "avg_gradient": 0.0,
+    "avg_color": 0.32818853855133057
+  },
+  "results": [
+    {
+      "filename": "tc3.jpeg",
+      "stem": "tc3",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\tests\\batch_test\\tc3.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\tests\\batch_test_results\\analytics",
+      "verdict": "COUNTERFEIT",
+      "confidence": 0.049724869597134284,
+      "seed_recovered": 1687641579,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.012799212743906276,
+        "color": 0.32818853855133057,
+        "correlation": 0.08586527458462145,
+        "gradient": 0.0
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 17.21,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\tests\\batch_test_results\\reference_patterns\\tc3_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\tests\\batch_test_results\\aligned_patterns\\tc3_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\tests\\batch_test_results\\delta_maps\\tc3_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "MPGT",
+          "CZXG"
+        ],
+        "share_a": "CZXG",
+        "share_b": "MPGT",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'MPGT'",
+            [
+              863,
+              2241,
+              -82,
+              -364
+            ]
+          ],
+          [
+            "b'CZXG'",
+            [
+              582,
+              2482,
+              367,
+              -87
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    }
+  ]
+}

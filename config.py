@@ -5,6 +5,7 @@ PATTERNS_DIR = os.path.join(BASE_DIR, "patterns")
 UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
 DATA_DIR = os.path.join(BASE_DIR, "data")
 PORT = int(os.environ.get("PORT", 8000))
+BORDER_CELL_SIZE = 61
 
 # MongoDB
 MONGODB_URI = os.environ.get(

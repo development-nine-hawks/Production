@@ -1,0 +1,26 @@
+2026-06-22 16:12:32  INFO      ============================================================
+2026-06-22 16:12:32  INFO      PhoneCDP Batch Verification Run
+2026-06-22 16:12:32  INFO      Run timestamp : 2026-06-22 16:12:32
+2026-06-22 16:12:32  INFO      Input folder  : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test
+2026-06-22 16:12:32  INFO      Output folder : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results
+2026-06-22 16:12:32  INFO      Images found  : 1
+2026-06-22 16:12:32  INFO      ============================================================
+2026-06-22 16:12:32  INFO      --- Image 1/1 ---
+2026-06-22 16:12:32  INFO      Processing: tc3.jpeg
+2026-06-22 16:12:49  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 16:12:49  INFO      [CROP] class=content top_dm=367x87 right_dm=82x364 dm_long=367
+2026-06-22 16:12:49  INFO        tc3.jpeg: COUNTERFEIT  conf=0.050  moire=0.013  corr=0.086  grad=0.000  color=0.328
+2026-06-22 16:12:52  INFO      
+2026-06-22 16:12:52  INFO      ============================================================
+2026-06-22 16:12:52  INFO      BATCH SUMMARY
+2026-06-22 16:12:52  INFO        Total       : 1
+2026-06-22 16:12:52  INFO        Authentic   : 0
+2026-06-22 16:12:52  INFO        Suspicious  : 0
+2026-06-22 16:12:52  INFO        Counterfeit : 1
+2026-06-22 16:12:52  INFO        Unable/Error: 0
+2026-06-22 16:12:52  INFO        Avg Confidence: 5.0%
+2026-06-22 16:12:52  INFO      ============================================================
+2026-06-22 16:12:52  INFO      CSV saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_results_20260622_161232.csv
+2026-06-22 16:12:52  INFO      JSON saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_results_20260622_161232.json
+2026-06-22 16:12:52  INFO      Generating PDF report → C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_test_report.pdf
+2026-06-22 16:12:57  INFO      PDF report ready: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_test_report.pdf

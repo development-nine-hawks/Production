@@ -1,0 +1,48 @@
+2026-06-22 11:33:58  INFO      ============================================================
+2026-06-22 11:33:58  INFO      PhoneCDP Batch Verification Run
+2026-06-22 11:33:58  INFO      Run timestamp : 2026-06-22 11:33:58
+2026-06-22 11:33:58  INFO      Input folder  : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test
+2026-06-22 11:33:58  INFO      Output folder : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\batch_test_results
+2026-06-22 11:33:58  INFO      Images found  : 11
+2026-06-22 11:33:58  INFO      ============================================================
+2026-06-22 11:33:58  INFO      --- Image 1/11 ---
+2026-06-22 11:33:58  INFO      Processing: tc-01.jpeg
+2026-06-22 11:35:08  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 11:35:08  INFO      [CROP] class=content top_dm_center=(757,1666) right_dm_center=(1056,1963) pattern_center=(758,1964) obs_dist=421.1 corner_estimate_diff=0.0px
+2026-06-22 11:35:08  INFO      [CROP] out_size=403 src_TL=(556,1763) src_TR=(959,1762) src_BR=(961,2165) src_BL=(557,2167) image_shape=(4000, 1800, 3)
+2026-06-22 11:35:08  INFO        tc-01.jpeg: COUNTERFEIT  conf=0.062  moire=0.000  corr=0.135  grad=0.113  color=0.314
+2026-06-22 11:35:13  INFO      --- Image 2/11 ---
+2026-06-22 11:35:13  INFO      Processing: tc-02.jpeg
+2026-06-22 11:35:44  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 11:35:44  INFO      [CROP] class=content top_dm_center=(890,1925) right_dm_center=(1269,1883) pattern_center=(1100,2094) obs_dist=381.3 corner_estimate_diff=0.0px
+2026-06-22 11:35:44  INFO      [CROP] out_size=365 src_TL=(844,2122) src_TR=(1072,1837) src_BR=(1357,2065) src_BL=(1129,2350) image_shape=(4000, 1800, 3)
+2026-06-22 11:35:45  INFO        tc-02.jpeg: COUNTERFEIT  conf=0.055  moire=0.001  corr=0.151  grad=0.000  color=0.391
+2026-06-22 11:35:50  INFO      --- Image 3/11 ---
+2026-06-22 11:35:50  INFO      Processing: tc-02_dm_corners_dm_corners.jpg
+2026-06-22 11:35:57  WARNING     tc-02_dm_corners_dm_corners.jpg: UNABLE_TO_VERIFY — DM decode failed
+2026-06-22 11:35:57  INFO      --- Image 4/11 ---
+2026-06-22 11:35:57  INFO      Processing: tc-03.jpeg
+2026-06-22 11:36:28  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 11:36:28  INFO      [CROP] class=content top_dm_center=(988,2000) right_dm_center=(1098,1754) pattern_center=(1166,1932) obs_dist=269.0 corner_estimate_diff=0.0px
+2026-06-22 11:36:28  INFO      [CROP] out_size=257 src_TL=(1092,2098) src_TR=(1000,1857) src_BR=(1241,1765) src_BL=(1333,2006) image_shape=(4000, 1800, 3)
+2026-06-22 11:36:28  INFO        tc-03.jpeg: COUNTERFEIT  conf=0.056  moire=0.005  corr=0.086  grad=0.000  color=0.441
+2026-06-22 11:36:33  INFO      --- Image 5/11 ---
+2026-06-22 11:36:33  INFO      Processing: tc-04.jpeg
+2026-06-22 11:37:39  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 11:37:39  INFO      [CROP] class=content top_dm_center=(1291,1644) right_dm_center=(820,1367) pattern_center=(1194,1270) obs_dist=547.1 corner_estimate_diff=0.0px
+2026-06-22 11:37:39  INFO      [CROP] out_size=524 src_TL=(1514,1458) src_TR=(1006,1590) src_BR=(874,1082) src_BL=(1382,950) image_shape=(4000, 1800, 3)
+2026-06-22 11:37:40  INFO        tc-04.jpeg: COUNTERFEIT  conf=0.051  moire=0.000  corr=0.107  grad=0.043  color=0.338
+2026-06-22 11:37:44  INFO      --- Image 6/11 ---
+2026-06-22 11:37:44  INFO      Processing: tc-05.jpeg
+2026-06-22 11:38:49  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 11:38:49  INFO      [CROP] class=content top_dm_center=(830,1670) right_dm_center=(1096,1939) pattern_center=(828,1937) obs_dist=378.0 corner_estimate_diff=0.0px
+2026-06-22 11:38:49  INFO      [CROP] out_size=362 src_TL=(649,1754) src_TR=(1011,1757) src_BR=(1008,2119) src_BL=(646,2116) image_shape=(4000, 1800, 3)
+2026-06-22 11:38:49  INFO        tc-05.jpeg: COUNTERFEIT  conf=0.226  moire=0.288  corr=0.168  grad=0.010  color=0.208
+2026-06-22 11:38:54  INFO      --- Image 7/11 ---
+2026-06-22 11:38:54  INFO      Processing: tc-06.jpeg
+2026-06-22 11:40:09  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-22 11:40:09  INFO      [CROP] class=content top_dm_center=(1274,-151) right_dm_center=(1907,458) pattern_center=(1286,470) obs_dist=878.4 corner_estimate_diff=0.0px
+2026-06-22 11:40:09  INFO      [CROP] out_size=842 src_TL=(857,57) src_TR=(1699,41) src_BR=(1715,883) src_BL=(873,899) image_shape=(4000, 1800, 3)
+2026-06-22 11:40:09  INFO        tc-06.jpeg: COUNTERFEIT  conf=0.095  moire=0.118  corr=0.000  grad=0.012  color=0.159
+2026-06-22 11:40:14  INFO      --- Image 8/11 ---
+2026-06-22 11:40:14  INFO      Processing: tc-07.jpeg
