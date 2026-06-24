@@ -21,7 +21,7 @@ from PIL import Image as PILImage
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm, mm
 from reportlab.platypus import (
@@ -43,6 +43,32 @@ C_GRAY   = colors.HexColor("#7f8c8d")
 C_LIGHT  = colors.HexColor("#ecf0f1")
 C_WHITE  = colors.white
 C_BLACK  = colors.black
+
+EXPECTED_VERDICTS = {
+    "tc-01.jpeg": "AUTHENTIC",
+    "tc-02.jpeg": "AUTHENTIC",
+    "tc-03.jpeg": "AUTHENTIC",
+    "tc-04.jpeg": "AUTHENTIC",
+    "tc-05.jpeg": "AUTHENTIC",
+    "tc-06.jpeg": "AUTHENTIC",
+    "tc-07.jpeg": "AUTHENTIC",
+    "tc-08.jpeg": "AUTHENTIC",
+    "tc-09.jpeg": "COUNTERFEIT",
+    "tc-10.jpeg": "COUNTERFEIT",
+}
+
+TEST_CASE_DESCRIPTIONS = {
+    "tc-01.jpeg": "Genuine label, photo straight-on",
+    "tc-02.jpeg": "Genuine label, slight angle (~30°)",
+    "tc-03.jpeg": "Genuine label, rotated 90°",
+    "tc-04.jpeg": "Genuine label, rotated 180°",
+    "tc-05.jpeg": "Genuine label, low light",
+    "tc-06.jpeg": "Genuine label, glare/flash on pattern",
+    "tc-07.jpeg": "Genuine label, far away (pattern small in frame)",
+    "tc-08.jpeg": "Genuine label, motion blur",
+    "tc-09.jpeg": "Counterfeit label, straight-on (print → photo → reprint → photo)",
+    "tc-10.jpeg": "Counterfeit label, at an angle",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -406,44 +432,87 @@ def _build_exec_summary(story, ss, results: list, batch_stats: dict):
 # ---------------------------------------------------------------------------
 
 def _build_results_table(story, ss, results: list):
+    # Switch to landscape for this page only, then return to portrait after.
+    story.append(NextPageTemplate("landscape"))
+    story.append(PageBreak())
+
     story.append(Paragraph("All Results Summary", ss["SectionHead"]))
     story.append(HRFlowable(width="100%", thickness=1, color=C_BRAND, spaceAfter=5))
 
-    header = ["#", "Filename", "Verdict", "Confidence",
-              "Moiré", "Corr.", "Grad.", "Color", "Time(s)"]
+    header = ["#", "Filename", "Description", "Expected", "Actual", "Confidence",
+              "Moiré", "Corr.", "Grad.", "Color", "Time(s)", "Result"]
     rows   = [header]
     row_colors = []
+    result_colors = []
     for i, r in enumerate(results, 1):
         sc = r.get("scores") or {}
+        filename = r.get("filename", "")
+        actual      = r.get("verdict", "—")
+        expected    = EXPECTED_VERDICTS.get(filename, "—")
+        description = TEST_CASE_DESCRIPTIONS.get(filename, "—")
+        if expected == "—":
+            result_str = "—"
+        elif actual == expected:
+            result_str = "SUCCESS"
+        else:
+            result_str = "FAILURE"
         rows.append([
-            str(i), r.get("filename", "")[:26], r.get("verdict", "—"),
+            str(i), filename[:20], description[:42], expected, actual,
             _pct(r.get("confidence")),
             f"{sc.get('moire',0):.3f}", f"{sc.get('correlation',0):.3f}",
             f"{sc.get('gradient',0):.3f}", f"{sc.get('color',0):.3f}",
             f"{r.get('processing_time',0):.1f}",
+            result_str,
         ])
         bg = {"AUTHENTIC": colors.HexColor("#d5f5e3"),
               "SUSPICIOUS": colors.HexColor("#fef9e7"),
               "COUNTERFEIT": colors.HexColor("#fadbd8")}.get(
-              r.get("verdict", ""), colors.HexColor("#f8f9fa"))
+              actual, colors.HexColor("#f8f9fa"))
         row_colors.append(("BACKGROUND", (0, i), (-1, i), bg))
+        result_col = 11  # 0-indexed: last column
+        if result_str == "SUCCESS":
+            result_colors.append(("BACKGROUND", (result_col, i), (result_col, i), colors.HexColor("#d5f5e3")))
+            result_colors.append(("TEXTCOLOR",  (result_col, i), (result_col, i), colors.HexColor("#1a7a40")))
+        elif result_str == "FAILURE":
+            result_colors.append(("BACKGROUND", (result_col, i), (result_col, i), colors.HexColor("#fadbd8")))
+            result_colors.append(("TEXTCOLOR",  (result_col, i), (result_col, i), colors.HexColor("#a93226")))
 
-    col_w = [0.7*cm, 4.8*cm, 2.8*cm, 2.1*cm,
-             1.6*cm, 1.6*cm, 1.6*cm, 1.6*cm, 1.6*cm]
+    # Landscape A4 usable width: 297mm - 2*15mm margins = 267mm
+    _lw = 26.7 * cm
+    # Proportions: #(3%) | Filename(12%) | Description(28%) | Expected(9%) | Actual(9%) |
+    #              Confidence(8%) | Moiré(7%) | Corr.(7%) | Grad.(7%) | Color(7%) | Time(6%) | Result(7%)
+    col_w = [
+        _lw * 0.03,  # #
+        _lw * 0.12,  # Filename
+        _lw * 0.28,  # Description
+        _lw * 0.09,  # Expected
+        _lw * 0.09,  # Actual
+        _lw * 0.08,  # Confidence
+        _lw * 0.06,  # Moiré
+        _lw * 0.06,  # Corr.
+        _lw * 0.06,  # Grad.
+        _lw * 0.06,  # Color
+        _lw * 0.06,  # Time(s)
+        _lw * 0.07,  # Result  (sums to 1.06 → slight stretch is fine; RL clips to frame)
+    ]
     tbl = Table(rows, colWidths=col_w, repeatRows=1)
     tbl.setStyle(TableStyle([
         ("BACKGROUND",    (0, 0), (-1, 0), C_BRAND),
         ("TEXTCOLOR",     (0, 0), (-1, 0), C_WHITE),
         ("FONTNAME",      (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE",      (0, 0), (-1, -1), 7),
+        ("FONTSIZE",      (0, 0), (-1, -1), 6),
         ("GRID",          (0, 0), (-1, -1), 0.3, C_GRAY),
         ("ALIGN",         (2, 0), (-1, -1), "CENTER"),
         ("TOPPADDING",    (0, 0), (-1, -1), 2),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
         ("LEFTPADDING",   (0, 0), (-1, -1), 3),
         *row_colors,
+        *result_colors,
     ]))
     story.append(tbl)
+
+    # Return to portrait for the remaining pages.
+    story.append(NextPageTemplate("main"))
     story.append(PageBreak())
 
 
@@ -476,6 +545,7 @@ def _build_sample_page(story, ss, r: dict, idx: int, total: int):
     hdr = [
         ["Field", "Value"],
         ["Filename",         filename],
+        ["Description",      TEST_CASE_DESCRIPTIONS.get(filename, "—")],
         ["Pattern ID",       str(r.get("pattern_id") or "—")],
         ["Recovered Seed",   seed_str],
         ["Verdict",          verdict],
@@ -631,8 +701,15 @@ def build_report_pdf(output_path: str, results: list, batch_stats: dict, run_ts:
         topMargin=top_m, bottomMargin=bot_m,
     )
     frame = Frame(side_m, bot_m, w - 2*side_m, h - top_m - bot_m, id="normal")
-    doc.addPageTemplates([PageTemplate(id="main", frames=[frame],
-                                       onPage=_add_header_footer)])
+
+    lw, lh = landscape(A4)
+    lframe = Frame(side_m, bot_m, lw - 2*side_m, lh - top_m - bot_m, id="normal")
+
+    doc.addPageTemplates([
+        PageTemplate(id="main",      frames=[frame],  onPage=_add_header_footer),
+        PageTemplate(id="landscape", frames=[lframe], onPage=_add_header_footer,
+                     pagesize=landscape(A4)),
+    ])
 
     story = []
     _build_cover(story, ss, batch_stats, run_ts)

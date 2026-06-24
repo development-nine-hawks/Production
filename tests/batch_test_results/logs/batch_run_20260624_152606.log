@@ -1,0 +1,29 @@
+2026-06-24 15:26:06  INFO      ============================================================
+2026-06-24 15:26:06  INFO      PhoneCDP Batch Verification Run
+2026-06-24 15:26:06  INFO      Run timestamp : 2026-06-24 15:26:06
+2026-06-24 15:26:06  INFO      Input folder  : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test
+2026-06-24 15:26:06  INFO      Output folder : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results
+2026-06-24 15:26:06  INFO      Images found  : 1
+2026-06-24 15:26:06  INFO      ============================================================
+2026-06-24 15:26:06  INFO      --- Image 1/1 ---
+2026-06-24 15:26:06  INFO      Processing: tc-09.jpeg
+2026-06-24 15:27:19  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-24 15:27:19  INFO      [CROP] class=content top_dm=918x412 right_dm=470x968 dm_long=968
+2026-06-24 15:27:20  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-06-24 15:27:20  INFO      [CROP] Layer 3 computed corners: TL=[2565.4722 -644.4623], TR=[1595.4623 -649.5276], BR=[ 1600.5277 -1619.5376], BL=[ 2570.5376 -1614.4724] | image_bounds=(1800, 4000) | l3_scale=1.925 | observed_dm_dist=1083.3 canonical_dm_dist=562.9
+2026-06-24 15:27:20  INFO      [CROP] Layer 3 corners out of bounds
+2026-06-24 15:27:20  WARNING     tc-09.jpeg: UNABLE_TO_VERIFY — Pattern ROI extraction failed — could not locate/decode DMs after label flattening
+2026-06-24 15:27:20  INFO      
+2026-06-24 15:27:20  INFO      ============================================================
+2026-06-24 15:27:20  INFO      BATCH SUMMARY
+2026-06-24 15:27:20  INFO        Total       : 1
+2026-06-24 15:27:20  INFO        Authentic   : 0
+2026-06-24 15:27:20  INFO        Suspicious  : 0
+2026-06-24 15:27:20  INFO        Counterfeit : 0
+2026-06-24 15:27:20  INFO        Unable/Error: 1
+2026-06-24 15:27:20  INFO        Avg Confidence: 0.0%
+2026-06-24 15:27:20  INFO      ============================================================
+2026-06-24 15:27:20  INFO      CSV saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_results_20260624_152606.csv
+2026-06-24 15:27:20  INFO      JSON saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_results_20260624_152606.json
+2026-06-24 15:27:20  INFO      Generating PDF report → C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_test_report.pdf
+2026-06-24 15:27:23  INFO      PDF report ready: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_test_report.pdf

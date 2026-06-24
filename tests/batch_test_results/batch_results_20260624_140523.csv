@@ -1,0 +1,11 @@
+filename,verdict,confidence,seed_recovered,pattern_id,moire,correlation,gradient,color,alignment_method,processing_time,success,failure_reason
+tc-01.jpeg,AUTHENTIC,0.7816,1079726699,,0.9406,1.0000,0.1544,0.4703,—,25.76,True,
+tc-02.jpeg,SUSPICIOUS,0.5372,1079726699,,0.6167,1.0000,0.0000,0.3637,—,20.6,True,
+tc-03.jpeg,COUNTERFEIT,0.3636,1079726699,,0.3679,0.8916,0.0000,0.3534,—,31.45,True,
+tc-04.jpeg,SUSPICIOUS,0.5789,1079726699,,0.6762,1.0000,0.0000,0.3936,—,27.35,True,
+tc-05.jpeg,AUTHENTIC,0.6922,1079726699,,0.8330,1.0000,0.0833,0.3832,—,37.47,True,
+tc-06.jpeg,AUTHENTIC,0.8139,1079726699,,1.0000,1.0000,0.2024,0.3353,—,32.62,True,
+tc-07.jpeg,SUSPICIOUS,0.5754,1079726699,,0.6381,1.0000,0.0787,0.4884,—,40.24,True,
+tc-08.jpeg,AUTHENTIC,0.6928,1079726699,,0.8027,1.0000,0.2391,0.3522,—,36.57,True,
+tc-09.jpeg,UNABLE_TO_VERIFY,,,,0.0000,0.0000,0.0000,0.0000,—,71.39,False,Pattern ROI extraction failed — could not locate/decode DMs after label flattening
+tc-10.jpeg,COUNTERFEIT,0.0495,1079726699,,0.0049,0.0464,0.0000,0.4164,—,62.94,True,

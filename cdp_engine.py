@@ -161,14 +161,14 @@ def add_fiducial_markers(pattern, marker_color=0):
     # cv2.circle(pattern, centers[2], _RING_INNER, color, _RING_THICK)
     # cv2.circle(pattern, centers[3], _RING_OUTER, color, -1)           # BR: solid
 
-    # Center bullseye marker: white bg → black ring → white gap → black dot
-    center_x = w // 2
-    center_y = h // 2
-    marker_r = int(FIDUCIAL_MARKER_OFFSET * 1.5)  # radius = 51px in 512x512 space
-    cv2.circle(pattern, (center_x, center_y), marker_r + 4, bg, -1)
-    cv2.circle(pattern, (center_x, center_y), marker_r, color, _RING_THICK)
-    cv2.circle(pattern, (center_x, center_y), marker_r - _RING_THICK, bg, -1)
-    cv2.circle(pattern, (center_x, center_y), max(4, marker_r // 4), color, -1)
+    # # Center bullseye marker: white bg → black ring → white gap → black dot
+    # center_x = w // 2
+    # center_y = h // 2
+    # marker_r = int(FIDUCIAL_MARKER_OFFSET * 1.5)  # radius = 51px in 512x512 space
+    # cv2.circle(pattern, (center_x, center_y), marker_r + 4, bg, -1)
+    # cv2.circle(pattern, (center_x, center_y), marker_r, color, _RING_THICK)
+    # cv2.circle(pattern, (center_x, center_y), marker_r - _RING_THICK, bg, -1)
+    # cv2.circle(pattern, (center_x, center_y), max(4, marker_r // 4), color, -1)
 
     return pattern
 
@@ -577,7 +577,29 @@ def detect_center_marker(gray, expected_center, search_radius, expected_marker_p
     return best
 
 
-def detect_and_crop_pattern(image, dm_results_raw=None, dm_shrink_used=1):
+def _ncc_thumbnail(crop_bgr, reference_gray, thumb=128):
+    """
+    Quick NCC check at thumbnail resolution.
+    Returns float in [-1, 1]. Higher = better match to reference.
+    Returns -1.0 on any failure.
+    """
+    try:
+        if crop_bgr is None or crop_bgr.size == 0:
+            return -1.0
+        gray = (cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2GRAY)
+                if len(crop_bgr.shape) == 3 else crop_bgr)
+        cap_t = cv2.resize(gray, (thumb, thumb)).astype(np.float32)
+        ref_t = cv2.resize(reference_gray, (thumb, thumb)).astype(np.float32)
+        cf = cap_t.flatten() - cap_t.mean()
+        rf = ref_t.flatten() - ref_t.mean()
+        ncc = float(np.dot(cf, rf) /
+                    (np.linalg.norm(cf) * np.linalg.norm(rf) + 1e-10))
+        return ncc
+    except Exception:
+        return -1.0
+
+
+def detect_and_crop_pattern(image, dm_results_raw=None, dm_shrink_used=1, seed=None, debug_image_name: str = None):
     """
     Detect and crop the CDP pattern directly from DM geometry in the original image.
 
@@ -611,16 +633,32 @@ def detect_and_crop_pattern(image, dm_results_raw=None, dm_shrink_used=1):
     dm_data = []  # list of (corners_cv: np.float32 (4,2), text: str)
     for res in dm_results_raw:
         r = res.rect
-        left_full   = r.left   * scale
-        top_full    = r.top    * scale
-        height_full = r.height * scale   # signed: negative for rotated DMs
-        w_full      = abs(r.width) * scale
+        w_full = abs(r.width)
+        h_full = abs(r.height)
 
-        y_top_cv    = img_h - (top_full + max(0, height_full))
-        y_bottom_cv = img_h - (top_full + min(0, height_full))
+        # When width is negative, left is the right edge — correct it
+        left_full = r.left
+        if r.width < 0:
+            left_full = left_full - w_full
+
+        # When height is negative, top is the bottom edge — correct it
+        top_full = r.top
+        if r.height < 0:
+            top_full = top_full - h_full
+
+        y_top_cv    = img_h - top_full - h_full
+        y_bottom_cv = img_h - top_full
+        _crop_logger.info(
+            f"[CROP] DM raw rect: left={r.left}, top={r.top}, width={r.width}, height={r.height} | "
+            f"corrected: left_full={left_full:.2f}, top_full={top_full:.2f}, "
+            f"w_full={w_full:.2f}, h_full={h_full:.2f} | "
+            f"y_top_cv={y_top_cv:.2f}, y_bottom_cv={y_bottom_cv:.2f} | "
+            f"img_h={img_h}, scale={scale}"
+        )
+
         corners = np.float32([
-            [left_full,          y_top_cv],
-            [left_full + w_full, y_top_cv],
+            [left_full,          y_top_cv   ],
+            [left_full + w_full, y_top_cv   ],
             [left_full + w_full, y_bottom_cv],
             [left_full,          y_bottom_cv],
         ])
@@ -699,230 +737,142 @@ def detect_and_crop_pattern(image, dm_results_raw=None, dm_shrink_used=1):
     CANONICAL_DM_DIST = _CANONICAL_DM_DIST
     PATTERN_PX        = _PATTERN_PX
 
-    # Step 1 — orientation and scale
-    vec_dm = right_dm_center - top_dm_center
-    observed_dm_dist = float(np.linalg.norm(vec_dm))
-    if observed_dm_dist < 10:
-        _crop_logger.info("[CROP] DM centers too close — cannot estimate orientation")
-        return None, (0, 0, 0, 0), False, None
+    # Get reference for NCC scoring if seed available
+    ref_gray = None
+    if seed is not None:
+        try:
+            _, ref_gray = regenerate_reference(seed)
+        except Exception:
+            ref_gray = None
 
-    scale = observed_dm_dist / CANONICAL_DM_DIST
-
-    # Derive layout→image rotation from the canonical and observed DM vectors.
-    # vec_dm_layout is the Top→Right DM vector in layout space (fixed geometry).
-    # vec_dm_image is the observed Top→Right DM vector in image space.
-    # The 2D rotation R that maps layout_norm → image_norm also maps
-    # layout axes (1,0) and (0,1) to the true image right and down directions.
-    vec_dm_layout = np.array([R_RIGHT_X - R_TOP_X,
-                               R_RIGHT_Y - R_TOP_Y], dtype=np.float64)
-    vec_dm_layout_norm = vec_dm_layout / np.linalg.norm(vec_dm_layout)
-
-    vec_dm_image = (right_dm_center - top_dm_center).astype(np.float64)
-    vec_dm_image_norm = vec_dm_image / np.linalg.norm(vec_dm_image)
-
-    # cos and sin of the rotation angle between layout and image DM vectors
-    cos_t = float(np.dot(vec_dm_layout_norm, vec_dm_image_norm))
-    sin_t = float(vec_dm_layout_norm[0] * vec_dm_image_norm[1]
-                  - vec_dm_layout_norm[1] * vec_dm_image_norm[0])
-
-    image_right_dir = np.array([cos_t * 1.0 - sin_t * 0.0,
-                                 sin_t * 1.0 + cos_t * 0.0], dtype=np.float32)
-    image_down_dir  = np.array([cos_t * 0.0 - sin_t * 1.0,
-                                 sin_t * 0.0 + cos_t * 1.0], dtype=np.float32)
-
-    unit_right = image_right_dir / (np.linalg.norm(image_right_dir) + 1e-10)
-    unit_down  = image_down_dir  / (np.linalg.norm(image_down_dir)  + 1e-10)
-
-    # Step 2 — expected pattern center from DM centers
-    expected_center = (
-        top_dm_center
-        - R_TOP_X * scale * unit_right
-        - R_TOP_Y * scale * unit_down
-    )
-
-    # Step 3 — detect actual square center marker
     ih, iw = image.shape[:2]
     gray = (cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            if len(image.shape) == 3 else image)
-    search_radius      = int(PATTERN_PX * scale * 0.35)
-    expected_marker_px = FIDUCIAL_MARKER_OFFSET * scale
+            if len(image.shape) == 3 else image.copy())
 
-    actual_center = detect_center_marker(
-        gray, expected_center, search_radius, expected_marker_px)
+    NCC_MIN = 0.05
 
-    if actual_center is not None:
-        # === TRIANGLE GEOMETRY PATH ===
-        # Three centers known: top_dm_center, right_dm_center, pattern_center
-        # vec_to_top   → layout direction (0, -1) scaled by |R_TOP_Y| = 398
-        # vec_to_right → layout direction (1,  0) scaled by |R_RIGHT_X| = 398
-        pattern_center = np.array(actual_center, dtype=np.float32)
-        center_source  = 'detected'
-
-        vec_to_top   = top_dm_center   - pattern_center  # points "up" in layout
-        vec_to_right = right_dm_center - pattern_center  # points "right" in layout
-
-        top_dist   = float(np.linalg.norm(vec_to_top))
-        right_dist = float(np.linalg.norm(vec_to_right))
-
-        if top_dist < 5 or right_dist < 5:
-            _crop_logger.info("[CROP] triangle degenerate — centers too close")
-            return None, (0, 0, 0, 0), False, None
-
-        unit_down  = -(vec_to_top   / top_dist).astype(np.float32)
-        unit_right =  (vec_to_right / right_dist).astype(np.float32)
-
-        layout_top_dist   = abs(R_TOP_Y)    # 398
-        layout_right_dist = abs(R_RIGHT_X)  # 398
-        scale_from_top   = top_dist   / layout_top_dist
-        scale_from_right = right_dist / layout_right_dist
-        scale = (scale_from_top + scale_from_right) / 2.0
-
-        _crop_logger.info(
-            f"[CROP] triangle: scale_top={scale_from_top:.3f} "
-            f"scale_right={scale_from_right:.3f} scale_avg={scale:.3f}")
-
-    else:
-        # === FALLBACK: CONTOUR-BASED CROP ===
-        center_source = 'contour_fallback'
-        _crop_logger.info("[CROP] circle not detected — falling back to contour crop")
-
-        gray_full = (cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-                     if len(image.shape) == 3 else image)
-
-        contour = _find_pattern_contour(gray_full)
-        if contour is None:
-            _crop_logger.info("[CROP] contour fallback also failed — aborting")
-            return None, (0, 0, 0, 0), False, None
-
-        cropped, bbox, src_pts = _crop_from_contour(image, contour)
-        _crop_logger.info(
-            f"[CROP] contour fallback succeeded bbox={bbox} "
-            f"center_marker={center_source}")
-        try:
-            vis = image.copy()
-            bx_v, by_v, bw_v, bh_v = bbox
-            cv2.rectangle(vis,
-                          (bx_v, by_v),
-                          (bx_v + bw_v, by_v + bh_v),
-                          (0, 255, 255), 3)
-            cv2.putText(vis, "CONTOUR FALLBACK",
-                        (bx_v, by_v - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 255), 2)
-            h_vis, w_vis = vis.shape[:2]
-            scale_vis = min(1.0, 1200.0 / max(h_vis, w_vis))
-            vis_small = cv2.resize(vis,
-                                   (int(w_vis * scale_vis),
-                                    int(h_vis * scale_vis)))
-            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-            vis_path = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                f"crop_debug_{ts}.png")
-            cv2.imwrite(vis_path, vis_small)
-            _crop_logger.info(f"[CROP] debug visualization saved: {vis_path}")
-        except Exception as e:
-            _crop_logger.info(f"[CROP] debug visualization failed: {e}")
-        return cropped, bbox, True, src_pts
-
-    # === PATTERN CORNERS FROM TRIANGLE GEOMETRY ===
-    half = float(PATTERN_PX * scale) / 2.0
-    TL = pattern_center - half * unit_right - half * unit_down
-    TR = pattern_center + half * unit_right - half * unit_down
-    BR = pattern_center + half * unit_right + half * unit_down
-    BL = pattern_center - half * unit_right + half * unit_down
-
-    corners = np.array([TL, TR, BR, BL])
-    if (np.any(corners[:, 0] < -iw * 0.1) or
-            np.any(corners[:, 0] > iw * 1.1) or
-            np.any(corners[:, 1] < -ih * 0.1) or
-            np.any(corners[:, 1] > ih * 1.1)):
-        _crop_logger.info("[CROP] pattern corners out of image bounds — aborting")
-        return None, (0, 0, 0, 0), False, None
-
-    src_pts  = np.float32([TL, TR, BR, BL])
-    out_size = max(int(PATTERN_PX * scale), 64)
-    dst_pts  = np.float32([
-        [0,            0],
-        [out_size - 1, 0],
-        [out_size - 1, out_size - 1],
-        [0,            out_size - 1]
-    ])
-    M = cv2.getPerspectiveTransform(src_pts, dst_pts)
-    cropped = cv2.warpPerspective(image, M, (out_size, out_size))
-
-    xs = corners[:, 0]; ys = corners[:, 1]
-    bx = int(np.min(xs)); by = int(np.min(ys))
-    bw = int(np.max(xs)) - bx; bh = int(np.max(ys)) - by
-    bbox = (bx, by, bw, bh)
-
-    _crop_logger.info(
-        f"[CROP] top_dm=({top_dm_center[0]:.0f},{top_dm_center[1]:.0f}) "
-        f"right_dm=({right_dm_center[0]:.0f},{right_dm_center[1]:.0f}) "
-        f"pattern_center=({pattern_center[0]:.0f},{pattern_center[1]:.0f}) "
-        f"center_marker={center_source} scale={scale:.3f}")
-
+    # ── LAYER 3: DM geometry (last resort) ─────────────────────────────────
+    _crop_logger.info("[CROP] Layer 3 — DM geometry fallback")
     try:
-        vis = image.copy()
+        # The canonical Top→Right vector in layout space
+        vec_dm_layout = np.array([_RIGHT_DM_CX - _TOP_DM_CX,
+                                   _RIGHT_DM_CY - _TOP_DM_CY], dtype=np.float64)
 
-        cv2.circle(vis,
-                   (int(top_dm_center[0]), int(top_dm_center[1])),
-                   12, (255, 0, 0), -1)
-        cv2.putText(vis, "TOP_DM",
-                    (int(top_dm_center[0]) + 15, int(top_dm_center[1])),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 0, 0), 2)
+        # The observed Top→Right vector in image space
+        vec_dm_image = (right_dm_center - top_dm_center).astype(np.float64)
+        observed_dm_dist = float(np.linalg.norm(vec_dm_image))
+        canonical_dm_dist = float(np.linalg.norm(vec_dm_layout))
 
-        cv2.circle(vis,
-                   (int(right_dm_center[0]), int(right_dm_center[1])),
-                   12, (0, 255, 0), -1)
-        cv2.putText(vis, "RIGHT_DM",
-                    (int(right_dm_center[0]) + 15, int(right_dm_center[1])),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2)
+        if observed_dm_dist < 10:
+            _crop_logger.info("[CROP] Layer 3 failed — DM centers too close")
+            return None, (0, 0, 0, 0), False, None
 
-        cv2.circle(vis,
-                   (int(pattern_center[0]), int(pattern_center[1])),
-                   12, (0, 0, 255), -1)
-        cv2.putText(vis, f"PATTERN ({center_source})",
-                    (int(pattern_center[0]) + 15, int(pattern_center[1])),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2)
+        l3_scale = observed_dm_dist / canonical_dm_dist
 
-        pts = src_pts.astype(np.int32).reshape((-1, 1, 2))
-        cv2.polylines(vis, [pts], isClosed=True, color=(0, 255, 255), thickness=3)
-        corner_labels = ["TL", "TR", "BR", "BL"]
-        for i, label in enumerate(corner_labels):
-            cx = int(src_pts[i][0])
-            cy = int(src_pts[i][1])
-            cv2.circle(vis, (cx, cy), 8, (0, 255, 255), -1)
-            cv2.putText(vis, label, (cx + 10, cy),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 255), 2)
+        # Build rotation matrix from canonical→image space
+        vec_dm_layout_norm = vec_dm_layout / canonical_dm_dist
+        vec_dm_image_norm  = vec_dm_image  / observed_dm_dist
 
-        cv2.line(vis,
-                 (int(top_dm_center[0]), int(top_dm_center[1])),
-                 (int(pattern_center[0]), int(pattern_center[1])),
-                 (255, 0, 0), 2)
-        cv2.line(vis,
-                 (int(right_dm_center[0]), int(right_dm_center[1])),
-                 (int(pattern_center[0]), int(pattern_center[1])),
-                 (0, 255, 0), 2)
+        cos_t = float(np.dot(vec_dm_layout_norm, vec_dm_image_norm))
+        sin_t = float(vec_dm_layout_norm[0] * vec_dm_image_norm[1]
+                      - vec_dm_layout_norm[1] * vec_dm_image_norm[0])
 
-        h_vis, w_vis = vis.shape[:2]
-        scale_vis = min(1.0, 1200.0 / max(h_vis, w_vis))
-        if scale_vis < 1.0:
-            vis_small = cv2.resize(vis,
-                                   (int(w_vis * scale_vis),
-                                    int(h_vis * scale_vis)))
-        else:
-            vis_small = vis
+        unit_right = np.array([cos_t,  sin_t], dtype=np.float32)
+        unit_down  = np.array([-sin_t, cos_t], dtype=np.float32)
+        _crop_logger.info(
+            f"[CROP] Layer 3 rotation debug: cos_t={cos_t:.4f}, sin_t={sin_t:.4f}, "
+            f"unit_right={unit_right}, unit_down={unit_down} | "
+            f"top_dm_center={top_dm_center}, right_dm_center={right_dm_center} | "
+            f"_TOP_DM_CX={_TOP_DM_CX:.2f}, _TOP_DM_CY={_TOP_DM_CY:.2f} | "
+            f"_pat_x={_pat_x:.2f}, _pat_y={_pat_y:.2f}, _pat_w={_pat_w:.2f}, _pat_h={_pat_h:.2f}"
+        )
 
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        vis_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            f"crop_debug_{ts}.png")
-        cv2.imwrite(vis_path, vis_small)
-        _crop_logger.info(f"[CROP] debug visualization saved: {vis_path}")
+        # Compute all 4 pattern corners by transforming canonical offsets
+        # from top_dm_center through the rotation+scale
+        def _tx(rx, ry):
+            return (top_dm_center
+                    + (rx * l3_scale) * unit_right
+                    + (ry * l3_scale) * unit_down).astype(np.float32)
+
+        TL = _tx(_pat_x           - _TOP_DM_CX, _pat_y           - _TOP_DM_CY)
+        TR = _tx(_pat_x + _pat_w  - _TOP_DM_CX, _pat_y           - _TOP_DM_CY)
+        BR = _tx(_pat_x + _pat_w  - _TOP_DM_CX, _pat_y + _pat_h  - _TOP_DM_CY)
+        BL = _tx(_pat_x           - _TOP_DM_CX, _pat_y + _pat_h  - _TOP_DM_CY)
+
+        pattern_center = ((TL + BR) / 2).astype(np.float32)
+
+        corners3 = np.array([TL, TR, BR, BL])
+        _crop_logger.info(
+            f"[CROP] Layer 3 computed corners: TL={TL}, TR={TR}, BR={BR}, BL={BL} "
+            f"| image_bounds=({iw}, {ih}) | l3_scale={l3_scale:.3f} | "
+            f"observed_dm_dist={observed_dm_dist:.1f} canonical_dm_dist={canonical_dm_dist:.1f}"
+        )
+        if (np.any(corners3[:, 0] < -iw * 0.1) or
+                np.any(corners3[:, 0] >  iw * 1.1) or
+                np.any(corners3[:, 1] < -ih * 0.1) or
+                np.any(corners3[:, 1] >  ih * 1.1)):
+            _crop_logger.info("[CROP] Layer 3 corners out of bounds")
+            return None, (0, 0, 0, 0), False, None
+
+        src_pts3 = np.float32([TL, TR, BR, BL])
+        out_size  = max(int(PATTERN_PX * l3_scale), 64)
+        dst_pts3  = np.float32([
+            [0, 0], [out_size - 1, 0],
+            [out_size - 1, out_size - 1], [0, out_size - 1]
+        ])
+        M3 = cv2.getPerspectiveTransform(src_pts3, dst_pts3)
+        crop3 = cv2.warpPerspective(image, M3, (out_size, out_size))
+
+        corner_sets = [
+            np.float32([TL, TR, BR, BL]),  # 0°
+            np.float32([BL, TL, TR, BR]),  # 90° CW
+            np.float32([BR, BL, TL, TR]),  # 180°
+            np.float32([TR, BR, BL, TL]),  # 270° CW
+        ]
+
+        best_crop = None
+        best_ncc = -1.0
+        best_label = ""
+        for i, corners in enumerate(corner_sets):
+            xs = corners[:, 0]; ys = corners[:, 1]
+            if (np.any(xs < -iw * 0.1) or np.any(xs > iw * 1.1) or
+                    np.any(ys < -ih * 0.1) or np.any(ys > ih * 1.1)):
+                continue
+            try:
+                M = cv2.getPerspectiveTransform(corners, dst_pts3)
+                candidate = cv2.warpPerspective(image, M, (out_size, out_size))
+                ncc = _ncc_thumbnail(candidate, ref_gray) if ref_gray is not None else -1.0
+                _crop_logger.info(f"[CROP] Layer 3 corner_rot={i*90}° ncc={ncc:.4f}")
+                if ncc > best_ncc:
+                    best_ncc = ncc
+                    best_crop = candidate
+                    src_pts3 = corners
+                    best_label = f"{i*90}°"
+            except Exception:
+                continue
+
+        crop3 = best_crop if best_crop is not None else crop3
+        _crop_logger.info(f"[CROP] Layer 3 best_rotation={best_label} ncc={best_ncc:.4f}")
+        target_w, target_h = PATTERN_SIZE
+        cur_h, cur_w = crop3.shape[:2]
+        interp3 = cv2.INTER_LANCZOS4 if (cur_w < target_w or cur_h < target_h) else cv2.INTER_AREA
+        crop3 = cv2.resize(crop3, (target_w, target_h), interpolation=interp3)
+
+        xs = corners3[:, 0]; ys = corners3[:, 1]
+        bbox3 = (int(xs.min()), int(ys.min()),
+                 int(xs.max() - xs.min()), int(ys.max() - ys.min()))
+
+        ncc3 = _ncc_thumbnail(crop3, ref_gray) if ref_gray is not None else -1.0
+        _crop_logger.info(
+            f"[CROP] Layer 3 ncc={ncc3:.4f} "
+            f"pattern_center=({pattern_center[0]:.0f},{pattern_center[1]:.0f}) "
+            f"scale={l3_scale:.3f}")
+        _crop_logger.info("[CROP] Layer 3 used (last resort)")
+        return crop3, bbox3, True, src_pts3
 
     except Exception as e:
-        _crop_logger.info(f"[CROP] debug visualization failed: {e}")
-
-    return cropped, bbox, True, src_pts
+        _crop_logger.info(f"[CROP] Layer 3 failed: {e}")
+        return None, (0, 0, 0, 0), False, None
 
 
 # ==========================================================================
@@ -1378,30 +1328,27 @@ def test_prng_correlation(captured_gray, reference_gray, block_size=16):
 
 
 def test_gradient_energy(captured_gray, reference_gray):
-    """Measure gradient-domain structural match.
-
-    Instead of comparing sharpness levels (which rewards alignment quality),
-    compute NCC between gradient maps of captured vs reference.  A genuine
-    1st-gen print has gradient patterns (edges, grating lines) that
-    structurally match the original.  A 2nd-gen copy has gradient energy
-    from printer halftone artifacts that do NOT match the original's edges.
-    """
     rh, rw = reference_gray.shape[:2]
     if captured_gray.shape[:2] != (rh, rw):
         captured_gray = cv2.resize(captured_gray, (rw, rh),
                                    interpolation=cv2.INTER_AREA)
 
-    def grad_mag(img):
+    def grad_hist(img):
         gx = cv2.Sobel(img, cv2.CV_64F, 1, 0, ksize=3)
         gy = cv2.Sobel(img, cv2.CV_64F, 0, 1, ksize=3)
-        return np.sqrt(gx ** 2 + gy ** 2)
+        mag = np.sqrt(gx**2 + gy**2)
+        mag = mag / (mag.max() + 1e-10)
+        hist, _ = np.histogram(mag, bins=32, range=(0, 1))
+        return hist.astype(np.float64)
 
-    cap_g = grad_mag(captured_gray)
-    ref_g = grad_mag(reference_gray)
-    cf = cap_g.flatten() - cap_g.mean()
-    rf = ref_g.flatten() - ref_g.mean()
-    ncc = np.sum(cf * rf) / (np.sqrt(np.sum(cf**2) * np.sum(rf**2)) + 1e-10)
-    return float(np.clip(ncc / 0.30, 0.0, 1.0))
+    cap_h = grad_hist(captured_gray)
+    ref_h = grad_hist(reference_gray)
+
+    cap_n = cap_h / (cap_h.sum() + 1e-10)
+    ref_n = ref_h / (ref_h.sum() + 1e-10)
+    similarity = float(np.sum(np.sqrt(cap_n * ref_n)))
+    # similarity ranges 0-1, ~0.95+ for identical, ~0.7-0.8 for genuine prints
+    return float(np.clip((similarity - 0.60) / 0.35, 0.0, 1.0))
 
 
 # ==========================================================================
@@ -2197,6 +2144,8 @@ def verify_pattern(captured_path, uploads_dir="uploads"):
         captured_bgr,
         dm_results_raw=dm_diagnostic.get("raw_results"),
         dm_shrink_used=dm_diagnostic.get("shrink_used", 1),
+        seed=seed,
+        debug_image_name=os.path.splitext(os.path.basename(captured_path))[0],
     )
 
     roi_bgr = crop_result[0] if crop_result[2] else None
@@ -2217,7 +2166,9 @@ def verify_pattern(captured_path, uploads_dir="uploads"):
     print("[VERIFY] === STEP 4: Preparing Captured ROI ===")
     out_w, out_h = PATTERN_SIZE
     if roi_bgr.shape[:2] != (out_h, out_w):
-        roi_bgr = cv2.resize(roi_bgr, (out_w, out_h), interpolation=cv2.INTER_AREA)
+        current_h, current_w = roi_bgr.shape[:2]
+        interp = cv2.INTER_LANCZOS4 if (current_w < out_w or current_h < out_h) else cv2.INTER_AREA
+        roi_bgr = cv2.resize(roi_bgr, (out_w, out_h), interpolation=interp)
 
     captured_rgb  = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2RGB)
     captured_gray = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2GRAY)

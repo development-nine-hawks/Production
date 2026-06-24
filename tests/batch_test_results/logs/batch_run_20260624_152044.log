@@ -1,0 +1,36 @@
+2026-06-24 15:20:44  INFO      ============================================================
+2026-06-24 15:20:44  INFO      PhoneCDP Batch Verification Run
+2026-06-24 15:20:44  INFO      Run timestamp : 2026-06-24 15:20:44
+2026-06-24 15:20:44  INFO      Input folder  : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test
+2026-06-24 15:20:44  INFO      Output folder : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results
+2026-06-24 15:20:44  INFO      Images found  : 1
+2026-06-24 15:20:44  INFO      ============================================================
+2026-06-24 15:20:44  INFO      --- Image 1/1 ---
+2026-06-24 15:20:44  INFO      Processing: tc-09.jpeg
+2026-06-24 15:21:11  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-24 15:21:11  INFO      [CROP] class=content top_dm=918x412 right_dm=470x968 dm_long=968
+2026-06-24 15:21:11  INFO      [CROP] Layer 1 — label boundary detection
+2026-06-24 15:21:12  INFO      [CROP] Layer 1 detect_dm_border result: corners=found, orientation=90
+2026-06-24 15:21:12  INFO      [CROP] Layer 1 ncc=0.0062
+2026-06-24 15:21:12  INFO      [CROP] Layer 1 rejected — ncc=0.0062 < NCC_MIN=0.05, falling through to Layer 2
+2026-06-24 15:21:12  INFO      [CROP] Layer 2 — contour detection
+2026-06-24 15:21:12  INFO      [CROP] Layer 2 _find_pattern_contour result: found
+2026-06-24 15:21:12  INFO      [CROP] Layer 2 ncc=-0.0354
+2026-06-24 15:21:12  INFO      [CROP] Layer 2 rejected — ncc=-0.0354 < NCC_MIN=0.05, falling through to Layer 3
+2026-06-24 15:21:12  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-06-24 15:21:12  INFO      [CROP] Layer 3 corners out of bounds
+2026-06-24 15:21:12  WARNING     tc-09.jpeg: UNABLE_TO_VERIFY — Pattern ROI extraction failed — could not locate/decode DMs after label flattening
+2026-06-24 15:21:12  INFO      
+2026-06-24 15:21:12  INFO      ============================================================
+2026-06-24 15:21:12  INFO      BATCH SUMMARY
+2026-06-24 15:21:12  INFO        Total       : 1
+2026-06-24 15:21:12  INFO        Authentic   : 0
+2026-06-24 15:21:12  INFO        Suspicious  : 0
+2026-06-24 15:21:12  INFO        Counterfeit : 0
+2026-06-24 15:21:12  INFO        Unable/Error: 1
+2026-06-24 15:21:12  INFO        Avg Confidence: 0.0%
+2026-06-24 15:21:12  INFO      ============================================================
+2026-06-24 15:21:12  INFO      CSV saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_results_20260624_152044.csv
+2026-06-24 15:21:12  INFO      JSON saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_results_20260624_152044.json
+2026-06-24 15:21:12  INFO      Generating PDF report → C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_test_report.pdf
+2026-06-24 15:21:15  INFO      PDF report ready: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_test_report.pdf

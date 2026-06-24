@@ -1,0 +1,178 @@
+2026-06-24 17:46:11  INFO      ============================================================
+2026-06-24 17:46:11  INFO      PhoneCDP Batch Verification Run
+2026-06-24 17:46:11  INFO      Run timestamp : 2026-06-24 17:46:11
+2026-06-24 17:46:11  INFO      Input folder  : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test
+2026-06-24 17:46:11  INFO      Output folder : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results
+2026-06-24 17:46:11  INFO      Images found  : 10
+2026-06-24 17:46:11  INFO      ============================================================
+2026-06-24 17:46:11  INFO      --- Image 1/10 ---
+2026-06-24 17:46:11  INFO      Processing: tc-01.jpeg
+2026-06-24 17:46:27  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-24 17:46:27  INFO      [CROP] DM raw rect: left=974, top=2098, width=212, height=-472 | corrected: left_full=974.00, top_full=1626.00, w_full=212.00, h_full=472.00 | y_top_cv=1902.00, y_bottom_cv=2374.00 | img_h=4000, scale=1
+2026-06-24 17:46:27  INFO      [CROP] DM raw rect: left=475, top=2131, width=473, height=208 | corrected: left_full=475.00, top_full=2131.00, w_full=473.00, h_full=208.00 | y_top_cv=1661.00, y_bottom_cv=1869.00 | img_h=4000, scale=1
+2026-06-24 17:46:27  INFO      [CROP] DM raw rect: left=393, top=1510, width=751, height=593 | corrected: left_full=393.00, top_full=1510.00, w_full=751.00, h_full=593.00 | y_top_cv=1897.00, y_bottom_cv=2490.00 | img_h=4000, scale=1
+2026-06-24 17:46:27  INFO      [CROP] class=content top_dm=473x208 right_dm=212x472 dm_long=473
+2026-06-24 17:46:27  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-06-24 17:46:27  INFO      [CROP] Layer 3 rotation debug: cos_t=1.0000, sin_t=0.0061, unit_right=[0.9999816  0.00606867], unit_down=[-0.00606867  0.9999816 ] | top_dm_center=[ 711.5 1765. ], right_dm_center=[1080. 2138.] | _TOP_DM_CX=252.00, _TOP_DM_CY=112.00 | _pat_x=0.00, _pat_y=258.00, _pat_w=504.00, _pat_h=504.00
+2026-06-24 17:46:27  INFO      [CROP] Layer 3 computed corners: TL=[ 475.9284 1899.5791], TR=[ 945.42084 1902.4285 ], BR=[ 942.5716 2371.921 ], BL=[ 473.07916 2369.0715 ] | image_bounds=(1800, 4000) | l3_scale=0.932 | observed_dm_dist=524.3 canonical_dm_dist=562.9
+2026-06-24 17:46:27  INFO      [CROP] Layer 3 corner_rot=0° ncc=0.5482
+2026-06-24 17:46:27  INFO      [CROP] Layer 3 corner_rot=90° ncc=-0.0046
+2026-06-24 17:46:27  INFO      [CROP] Layer 3 corner_rot=180° ncc=-0.0786
+2026-06-24 17:46:27  INFO      [CROP] Layer 3 corner_rot=270° ncc=-0.0092
+2026-06-24 17:46:27  INFO      [CROP] Layer 3 best_rotation=0° ncc=0.5482
+2026-06-24 17:46:27  INFO      [CROP] Layer 3 ncc=0.5500 pattern_center=(709,2136) scale=0.932
+2026-06-24 17:46:27  INFO      [CROP] Layer 3 used (last resort)
+2026-06-24 17:46:27  INFO        tc-01.jpeg: SUSPICIOUS  conf=0.641  moire=0.556  corr=1.000  grad=0.945  color=0.373
+2026-06-24 17:46:30  INFO      --- Image 2/10 ---
+2026-06-24 17:46:30  INFO      Processing: tc-02.jpeg
+2026-06-24 17:46:48  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-24 17:46:48  INFO      [CROP] DM raw rect: left=727, top=1825, width=104, height=346 | corrected: left_full=727.00, top_full=1825.00, w_full=104.00, h_full=346.00 | y_top_cv=1829.00, y_bottom_cv=2175.00 | img_h=4000, scale=1
+2026-06-24 17:46:48  INFO      [CROP] DM raw rect: left=975, top=2076, width=347, height=-107 | corrected: left_full=975.00, top_full=1969.00, w_full=347.00, h_full=107.00 | y_top_cv=1924.00, y_bottom_cv=2031.00 | img_h=4000, scale=1
+2026-06-24 17:46:48  INFO      [CROP] class=content top_dm=104x346 right_dm=347x107 dm_long=347
+2026-06-24 17:46:48  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-06-24 17:46:48  INFO      [CROP] Layer 3 rotation debug: cos_t=0.6588, sin_t=-0.7523, unit_right=[ 0.6587749 -0.7523401], unit_down=[0.7523401 0.6587749] | top_dm_center=[ 779. 2002.], right_dm_center=[1148.5 1977.5] | _TOP_DM_CX=252.00, _TOP_DM_CY=112.00 | _pat_x=0.00, _pat_y=258.00, _pat_w=504.00, _pat_h=504.00
+2026-06-24 17:46:48  INFO      [CROP] Layer 3 computed corners: TL=[ 742.0453 2190.0125], TR=[ 960.4874 1940.5453], BR=[1209.9547 2158.9875], BL=[ 991.5126 2408.4548] | image_bounds=(1800, 4000) | l3_scale=0.658 | observed_dm_dist=370.3 canonical_dm_dist=562.9
+2026-06-24 17:46:48  INFO      [CROP] Layer 3 corner_rot=0° ncc=0.3721
+2026-06-24 17:46:48  INFO      [CROP] Layer 3 corner_rot=90° ncc=0.0157
+2026-06-24 17:46:48  INFO      [CROP] Layer 3 corner_rot=180° ncc=-0.0829
+2026-06-24 17:46:48  INFO      [CROP] Layer 3 corner_rot=270° ncc=0.0004
+2026-06-24 17:46:48  INFO      [CROP] Layer 3 best_rotation=0° ncc=0.3721
+2026-06-24 17:46:48  INFO      [CROP] Layer 3 ncc=0.3709 pattern_center=(976,2174) scale=0.658
+2026-06-24 17:46:48  INFO      [CROP] Layer 3 used (last resort)
+2026-06-24 17:46:48  INFO        tc-02.jpeg: COUNTERFEIT  conf=0.372  moire=0.205  corr=0.658  grad=0.942  color=0.319
+2026-06-24 17:46:51  INFO      --- Image 3/10 ---
+2026-06-24 17:46:51  INFO      Processing: tc-03.jpeg
+2026-06-24 17:47:25  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-24 17:47:25  INFO      [CROP] DM raw rect: left=1015, top=1975, width=-186, height=395 | corrected: left_full=829.00, top_full=1975.00, w_full=186.00, h_full=395.00 | y_top_cv=1630.00, y_bottom_cv=2025.00 | img_h=4000, scale=1
+2026-06-24 17:47:25  INFO      [CROP] DM raw rect: left=1036, top=2400, width=402, height=187 | corrected: left_full=1036.00, top_full=2400.00, w_full=402.00, h_full=187.00 | y_top_cv=1413.00, y_bottom_cv=1600.00 | img_h=4000, scale=1
+2026-06-24 17:47:25  INFO      [CROP] class=content top_dm=186x395 right_dm=402x187 dm_long=402
+2026-06-24 17:47:25  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-06-24 17:47:25  INFO      [CROP] Layer 3 rotation debug: cos_t=-0.0094, sin_t=-1.0000, unit_right=[-0.00943354 -0.9999555 ], unit_down=[ 0.9999555  -0.00943354] | top_dm_center=[ 922.  1827.5], right_dm_center=[1237.  1506.5] | _TOP_DM_CX=252.00, _TOP_DM_CY=112.00 | _pat_x=0.00, _pat_y=258.00, _pat_w=504.00, _pat_h=504.00
+2026-06-24 17:47:25  INFO      [CROP] Layer 3 computed corners: TL=[1040.5527 2027.7462], TR=[1036.7538 1625.0529], BR=[1439.4473 1621.2538], BL=[1443.2462 2023.9471] | image_bounds=(1800, 4000) | l3_scale=0.799 | observed_dm_dist=449.7 canonical_dm_dist=562.9
+2026-06-24 17:47:25  INFO      [CROP] Layer 3 corner_rot=0° ncc=0.4197
+2026-06-24 17:47:25  INFO      [CROP] Layer 3 corner_rot=90° ncc=0.0117
+2026-06-24 17:47:25  INFO      [CROP] Layer 3 corner_rot=180° ncc=-0.0806
+2026-06-24 17:47:25  INFO      [CROP] Layer 3 corner_rot=270° ncc=0.0061
+2026-06-24 17:47:25  INFO      [CROP] Layer 3 best_rotation=0° ncc=0.4197
+2026-06-24 17:47:25  INFO      [CROP] Layer 3 ncc=0.4198 pattern_center=(1240,1824) scale=0.799
+2026-06-24 17:47:25  INFO      [CROP] Layer 3 used (last resort)
+2026-06-24 17:47:25  INFO        tc-03.jpeg: SUSPICIOUS  conf=0.452  moire=0.304  corr=0.767  grad=0.953  color=0.348
+2026-06-24 17:47:28  INFO      --- Image 4/10 ---
+2026-06-24 17:47:28  INFO      Processing: tc-04.jpeg
+2026-06-24 17:47:45  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-24 17:47:45  INFO      [CROP] DM raw rect: left=716, top=2405, width=-228, height=520 | corrected: left_full=488.00, top_full=2405.00, w_full=228.00, h_full=520.00 | y_top_cv=1075.00, y_bottom_cv=1595.00 | img_h=4000, scale=1
+2026-06-24 17:47:45  INFO      [CROP] DM raw rect: left=1252, top=2371, width=-505, height=-223 | corrected: left_full=747.00, top_full=2148.00, w_full=505.00, h_full=223.00 | y_top_cv=1629.00, y_bottom_cv=1852.00 | img_h=4000, scale=1
+2026-06-24 17:47:45  INFO      [CROP] class=content top_dm=505x223 right_dm=228x520 dm_long=520
+2026-06-24 17:47:45  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-06-24 17:47:45  INFO      [CROP] Layer 3 rotation debug: cos_t=-1.0000, sin_t=-0.0100, unit_right=[-0.99995035 -0.00996215], unit_down=[ 0.00996215 -0.99995035] | top_dm_center=[ 999.5 1740.5], right_dm_center=[ 602. 1335.] | _TOP_DM_CX=252.00, _TOP_DM_CY=112.00 | _pat_x=0.00, _pat_y=258.00, _pat_w=504.00, _pat_h=504.00
+2026-06-24 17:47:45  INFO      [CROP] Layer 3 computed corners: TL=[1255.1833 1595.7488], TR=[ 746.7513 1590.6833], BR=[ 751.8166 1082.2512], BL=[1260.2488 1087.3167] | image_bounds=(1800, 4000) | l3_scale=1.009 | observed_dm_dist=567.8 canonical_dm_dist=562.9
+2026-06-24 17:47:45  INFO      [CROP] Layer 3 corner_rot=0° ncc=0.5634
+2026-06-24 17:47:45  INFO      [CROP] Layer 3 corner_rot=90° ncc=-0.0068
+2026-06-24 17:47:45  INFO      [CROP] Layer 3 corner_rot=180° ncc=-0.0858
+2026-06-24 17:47:45  INFO      [CROP] Layer 3 corner_rot=270° ncc=-0.0143
+2026-06-24 17:47:45  INFO      [CROP] Layer 3 best_rotation=0° ncc=0.5634
+2026-06-24 17:47:45  INFO      [CROP] Layer 3 ncc=0.5644 pattern_center=(1004,1339) scale=1.009
+2026-06-24 17:47:45  INFO      [CROP] Layer 3 used (last resort)
+2026-06-24 17:47:46  INFO        tc-04.jpeg: SUSPICIOUS  conf=0.601  moire=0.497  corr=0.983  grad=0.937  color=0.391
+2026-06-24 17:47:48  INFO      --- Image 5/10 ---
+2026-06-24 17:47:48  INFO      Processing: tc-05.jpeg
+2026-06-24 17:48:51  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-24 17:48:51  INFO      [CROP] DM raw rect: left=1003, top=2118, width=184, height=-402 | corrected: left_full=1003.00, top_full=1716.00, w_full=184.00, h_full=402.00 | y_top_cv=1882.00, y_bottom_cv=2284.00 | img_h=4000, scale=1
+2026-06-24 17:48:51  INFO      [CROP] DM raw rect: left=568, top=2143, width=412, height=182 | corrected: left_full=568.00, top_full=2143.00, w_full=412.00, h_full=182.00 | y_top_cv=1675.00, y_bottom_cv=1857.00 | img_h=4000, scale=1
+2026-06-24 17:48:51  INFO      [CROP] class=content top_dm=412x182 right_dm=184x402 dm_long=412
+2026-06-24 17:48:51  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-06-24 17:48:51  INFO      [CROP] Layer 3 rotation debug: cos_t=1.0000, sin_t=-0.0063, unit_right=[ 0.99998033 -0.00626947], unit_down=[0.00626947 0.99998033] | top_dm_center=[ 774. 1766.], right_dm_center=[1095. 2083.] | _TOP_DM_CX=252.00, _TOP_DM_CY=112.00 | _pat_x=0.00, _pat_y=258.00, _pat_w=504.00, _pat_h=504.00
+2026-06-24 17:48:51  INFO      [CROP] Layer 3 computed corners: TL=[ 572.7537 1884.2865], TR=[ 976.71356 1881.7538 ], BR=[ 979.2463 2285.7134], BL=[ 575.28644 2288.246  ] | image_bounds=(1800, 4000) | l3_scale=0.802 | observed_dm_dist=451.1 canonical_dm_dist=562.9
+2026-06-24 17:48:51  INFO      [CROP] Layer 3 corner_rot=0° ncc=0.6633
+2026-06-24 17:48:51  INFO      [CROP] Layer 3 corner_rot=90° ncc=0.0020
+2026-06-24 17:48:51  INFO      [CROP] Layer 3 corner_rot=180° ncc=-0.0848
+2026-06-24 17:48:51  INFO      [CROP] Layer 3 corner_rot=270° ncc=-0.0013
+2026-06-24 17:48:51  INFO      [CROP] Layer 3 best_rotation=0° ncc=0.6633
+2026-06-24 17:48:51  INFO      [CROP] Layer 3 ncc=0.6633 pattern_center=(776,2085) scale=0.802
+2026-06-24 17:48:51  INFO      [CROP] Layer 3 used (last resort)
+2026-06-24 17:48:52  INFO        tc-05.jpeg: AUTHENTIC  conf=0.930  moire=1.000  corr=1.000  grad=0.969  color=0.342
+2026-06-24 17:48:54  INFO      --- Image 6/10 ---
+2026-06-24 17:48:54  INFO      Processing: tc-06.jpeg
+2026-06-24 17:49:21  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-24 17:49:21  INFO      [CROP] DM raw rect: left=1093, top=2242, width=219, height=-489 | corrected: left_full=1093.00, top_full=1753.00, w_full=219.00, h_full=489.00 | y_top_cv=1758.00, y_bottom_cv=2247.00 | img_h=4000, scale=1
+2026-06-24 17:49:21  INFO      [CROP] DM raw rect: left=570, top=2276, width=493, height=218 | corrected: left_full=570.00, top_full=2276.00, w_full=493.00, h_full=218.00 | y_top_cv=1506.00, y_bottom_cv=1724.00 | img_h=4000, scale=1
+2026-06-24 17:49:21  INFO      [CROP] class=content top_dm=493x218 right_dm=219x489 dm_long=493
+2026-06-24 17:49:21  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-06-24 17:49:21  INFO      [CROP] Layer 3 rotation debug: cos_t=1.0000, sin_t=0.0019, unit_right=[0.9999981  0.00193923], unit_down=[-0.00193923  0.9999981 ] | top_dm_center=[ 816.5 1615. ], right_dm_center=[1202.5 2002.5] | _TOP_DM_CX=252.00, _TOP_DM_CY=112.00 | _pat_x=0.00, _pat_y=258.00, _pat_w=504.00, _pat_h=504.00
+2026-06-24 17:49:21  INFO      [CROP] Layer 3 computed corners: TL=[ 571.34796 1756.3982 ], TR=[1061.1017 1757.3479], BR=[1060.152  2247.1016], BL=[ 570.39825 2246.1519 ] | image_bounds=(1800, 4000) | l3_scale=0.972 | observed_dm_dist=546.9 canonical_dm_dist=562.9
+2026-06-24 17:49:21  INFO      [CROP] Layer 3 corner_rot=0° ncc=0.5542
+2026-06-24 17:49:21  INFO      [CROP] Layer 3 corner_rot=90° ncc=-0.0064
+2026-06-24 17:49:21  INFO      [CROP] Layer 3 corner_rot=180° ncc=-0.0778
+2026-06-24 17:49:21  INFO      [CROP] Layer 3 corner_rot=270° ncc=-0.0030
+2026-06-24 17:49:21  INFO      [CROP] Layer 3 best_rotation=0° ncc=0.5542
+2026-06-24 17:49:21  INFO      [CROP] Layer 3 ncc=0.5554 pattern_center=(816,2002) scale=0.972
+2026-06-24 17:49:21  INFO      [CROP] Layer 3 used (last resort)
+2026-06-24 17:49:22  INFO        tc-06.jpeg: SUSPICIOUS  conf=0.607  moire=0.521  corr=0.993  grad=0.945  color=0.274
+2026-06-24 17:49:24  INFO      --- Image 7/10 ---
+2026-06-24 17:49:24  INFO      Processing: tc-07.jpeg
+2026-06-24 17:49:41  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-24 17:49:41  INFO      [CROP] DM raw rect: left=934, top=2075, width=90, height=-209 | corrected: left_full=934.00, top_full=1866.00, w_full=90.00, h_full=209.00 | y_top_cv=1925.00, y_bottom_cv=2134.00 | img_h=4000, scale=1
+2026-06-24 17:49:41  INFO      [CROP] DM raw rect: left=711, top=2093, width=210, height=90 | corrected: left_full=711.00, top_full=2093.00, w_full=210.00, h_full=90.00 | y_top_cv=1817.00, y_bottom_cv=1907.00 | img_h=4000, scale=1
+2026-06-24 17:49:41  INFO      [CROP] class=content top_dm=210x90 right_dm=90x209 dm_long=210
+2026-06-24 17:49:41  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-06-24 17:49:41  INFO      [CROP] Layer 3 rotation debug: cos_t=0.9999, sin_t=0.0136, unit_right=[0.9999073  0.01361447], unit_down=[-0.01361447  0.9999073 ] | top_dm_center=[ 816. 1862.], right_dm_center=[ 979.  2029.5] | _TOP_DM_CX=252.00, _TOP_DM_CY=112.00 | _pat_x=0.00, _pat_y=258.00, _pat_w=504.00, _pat_h=504.00
+2026-06-24 17:49:41  INFO      [CROP] Layer 3 computed corners: TL=[ 710.54395 1921.1947 ], TR=[ 919.8053 1924.0441], BR=[ 916.95605 2133.3054 ], BL=[ 707.6947 2130.456 ] | image_bounds=(1800, 4000) | l3_scale=0.415 | observed_dm_dist=233.7 canonical_dm_dist=562.9
+2026-06-24 17:49:41  INFO      [CROP] Layer 3 corner_rot=0° ncc=0.3351
+2026-06-24 17:49:41  INFO      [CROP] Layer 3 corner_rot=90° ncc=0.0236
+2026-06-24 17:49:41  INFO      [CROP] Layer 3 corner_rot=180° ncc=-0.0877
+2026-06-24 17:49:41  INFO      [CROP] Layer 3 corner_rot=270° ncc=-0.0023
+2026-06-24 17:49:41  INFO      [CROP] Layer 3 best_rotation=0° ncc=0.3351
+2026-06-24 17:49:41  INFO      [CROP] Layer 3 ncc=0.3271 pattern_center=(814,2027) scale=0.415
+2026-06-24 17:49:41  INFO      [CROP] Layer 3 used (last resort)
+2026-06-24 17:49:42  INFO        tc-07.jpeg: COUNTERFEIT  conf=0.366  moire=0.184  corr=0.613  grad=0.945  color=0.439
+2026-06-24 17:49:44  INFO      --- Image 8/10 ---
+2026-06-24 17:49:44  INFO      Processing: tc-08.jpeg
+2026-06-24 17:50:09  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-24 17:50:09  INFO      [CROP] DM raw rect: left=590, top=1782, width=433, height=189 | corrected: left_full=590.00, top_full=1782.00, w_full=433.00, h_full=189.00 | y_top_cv=2029.00, y_bottom_cv=2218.00 | img_h=4000, scale=1
+2026-06-24 17:50:09  INFO      [CROP] DM raw rect: left=1050, top=1743, width=198, height=-438 | corrected: left_full=1050.00, top_full=1305.00, w_full=198.00, h_full=438.00 | y_top_cv=2257.00, y_bottom_cv=2695.00 | img_h=4000, scale=1
+2026-06-24 17:50:09  INFO      [CROP] class=content top_dm=433x189 right_dm=198x438 dm_long=438
+2026-06-24 17:50:09  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-06-24 17:50:09  INFO      [CROP] Layer 3 rotation debug: cos_t=0.9999, sin_t=0.0144, unit_right=[0.9998965 0.014387 ], unit_down=[-0.014387   0.9998965] | top_dm_center=[ 806.5 2123.5], right_dm_center=[1149. 2476.] | _TOP_DM_CX=252.00, _TOP_DM_CY=112.00 | _pat_x=0.00, _pat_y=258.00, _pat_w=504.00, _pat_h=504.00
+2026-06-24 17:50:09  INFO      [CROP] Layer 3 computed corners: TL=[ 584.6407 2247.809 ], TR=[1024.6909 2254.1406], BR=[1018.3593 2694.191 ], BL=[ 578.309  2687.8594] | image_bounds=(1800, 4000) | l3_scale=0.873 | observed_dm_dist=491.5 canonical_dm_dist=562.9
+2026-06-24 17:50:09  INFO      [CROP] Layer 3 corner_rot=0° ncc=0.5453
+2026-06-24 17:50:09  INFO      [CROP] Layer 3 corner_rot=90° ncc=0.0112
+2026-06-24 17:50:09  INFO      [CROP] Layer 3 corner_rot=180° ncc=-0.0758
+2026-06-24 17:50:09  INFO      [CROP] Layer 3 corner_rot=270° ncc=0.0007
+2026-06-24 17:50:09  INFO      [CROP] Layer 3 best_rotation=0° ncc=0.5453
+2026-06-24 17:50:09  INFO      [CROP] Layer 3 ncc=0.5456 pattern_center=(802,2471) scale=0.873
+2026-06-24 17:50:09  INFO      [CROP] Layer 3 used (last resort)
+2026-06-24 17:50:09  INFO        tc-08.jpeg: AUTHENTIC  conf=0.737  moire=0.712  corr=0.951  grad=0.957  color=0.357
+2026-06-24 17:50:12  INFO      --- Image 9/10 ---
+2026-06-24 17:50:12  INFO      Processing: tc-09.jpeg
+2026-06-24 17:50:47  WARNING     tc-09.jpeg: UNABLE_TO_VERIFY — DM decode failed
+2026-06-24 17:50:47  INFO      --- Image 10/10 ---
+2026-06-24 17:50:47  INFO      Processing: tc-10.jpeg
+2026-06-24 17:51:09  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-24 17:51:09  INFO      [CROP] DM raw rect: left=789, top=2076, width=106, height=440 | corrected: left_full=789.00, top_full=2076.00, w_full=106.00, h_full=440.00 | y_top_cv=1484.00, y_bottom_cv=1924.00 | img_h=4000, scale=2
+2026-06-24 17:51:09  INFO      [CROP] DM raw rect: left=1086, top=2407, width=442, height=-113 | corrected: left_full=1086.00, top_full=2294.00, w_full=442.00, h_full=113.00 | y_top_cv=1593.00, y_bottom_cv=1706.00 | img_h=4000, scale=2
+2026-06-24 17:51:09  INFO      [CROP] class=content top_dm=106x440 right_dm=442x113 dm_long=442
+2026-06-24 17:51:09  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-06-24 17:51:09  INFO      [CROP] Layer 3 rotation debug: cos_t=0.6200, sin_t=-0.7846, unit_right=[ 0.619987   -0.78461206], unit_down=[0.78461206 0.619987  ] | top_dm_center=[ 842. 1704.], right_dm_center=[1307.  1649.5] | _TOP_DM_CX=252.00, _TOP_DM_CY=112.00 | _pat_x=0.00, _pat_y=258.00, _pat_w=504.00, _pat_h=504.00
+2026-06-24 17:51:09  INFO      [CROP] Layer 3 computed corners: TL=[ 807.3279 1943.7576], TR=[1067.2424 1614.8279], BR=[1396.1721 1874.7424], BL=[1136.2576 2203.672 ] | image_bounds=(1800, 4000) | l3_scale=0.832 | observed_dm_dist=468.2 canonical_dm_dist=562.9
+2026-06-24 17:51:09  INFO      [CROP] Layer 3 corner_rot=0° ncc=0.2184
+2026-06-24 17:51:09  INFO      [CROP] Layer 3 corner_rot=90° ncc=0.0147
+2026-06-24 17:51:09  INFO      [CROP] Layer 3 corner_rot=180° ncc=-0.0795
+2026-06-24 17:51:09  INFO      [CROP] Layer 3 corner_rot=270° ncc=0.0139
+2026-06-24 17:51:09  INFO      [CROP] Layer 3 best_rotation=0° ncc=0.2184
+2026-06-24 17:51:09  INFO      [CROP] Layer 3 ncc=0.2189 pattern_center=(1102,1909) scale=0.832
+2026-06-24 17:51:09  INFO      [CROP] Layer 3 used (last resort)
+2026-06-24 17:51:09  INFO        tc-10.jpeg: COUNTERFEIT  conf=0.245  moire=0.053  corr=0.400  grad=0.946  color=0.281
+2026-06-24 17:51:12  INFO      
+2026-06-24 17:51:12  INFO      ============================================================
+2026-06-24 17:51:12  INFO      BATCH SUMMARY
+2026-06-24 17:51:12  INFO        Total       : 10
+2026-06-24 17:51:12  INFO        Authentic   : 2
+2026-06-24 17:51:12  INFO        Suspicious  : 4
+2026-06-24 17:51:12  INFO        Counterfeit : 3
+2026-06-24 17:51:12  INFO        Unable/Error: 1
+2026-06-24 17:51:12  INFO        Avg Confidence: 55.0%
+2026-06-24 17:51:12  INFO      ============================================================
+2026-06-24 17:51:12  INFO      CSV saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_results_20260624_174611.csv
+2026-06-24 17:51:12  INFO      JSON saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_results_20260624_174611.json
+2026-06-24 17:51:12  INFO      Generating PDF report → C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_test_report.pdf
+2026-06-24 17:51:53  INFO      PDF report ready: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_test_report.pdf

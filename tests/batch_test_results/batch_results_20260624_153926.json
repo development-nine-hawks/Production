@@ -1,0 +1,66 @@
+{
+  "run_ts": "2026-06-24 15:39:26",
+  "stats": {
+    "total": 1,
+    "authentic": 0,
+    "suspicious": 0,
+    "counterfeit": 0,
+    "unable": 1,
+    "avg_confidence": 0.0,
+    "avg_moire": 0.0,
+    "avg_correlation": 0.0,
+    "avg_gradient": 0.0,
+    "avg_color": 0.0
+  },
+  "results": [
+    {
+      "filename": "tc-09.jpeg",
+      "stem": "tc-09",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\tests\\batch_test\\tc-09.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\tests\\batch_test_results\\analytics",
+      "verdict": "UNABLE_TO_VERIFY",
+      "confidence": null,
+      "seed_recovered": null,
+      "pattern_id": null,
+      "scores": {},
+      "weights": {},
+      "alignment_method": "\u2014",
+      "processing_time": 26.75,
+      "success": false,
+      "failure_reason": "Pattern ROI extraction failed \u2014 could not locate/decode DMs after label flattening",
+      "reference_path": null,
+      "captured_path_saved": null,
+      "delta_path": null,
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "C7GD",
+          "I22U"
+        ],
+        "share_a": "C7GD",
+        "share_b": "I22U",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'C7GD'",
+            [
+              1269,
+              2286,
+              -459,
+              -206
+            ]
+          ],
+          [
+            "b'I22U'",
+            [
+              776,
+              2326,
+              -235,
+              484
+            ]
+          ]
+        ],
+        "shrink_used": 2
+      }
+    }
+  ]
+}

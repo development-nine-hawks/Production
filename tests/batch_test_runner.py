@@ -331,9 +331,9 @@ def save_csv(results: list[dict], path: Path):
 def main():
     parser = argparse.ArgumentParser(
         description="PhoneCDP Batch Verification Runner")
-    parser.add_argument("--input",  default="batch_test",
+    parser.add_argument("--input",  default=str(SCRIPT_DIR / "batch_test"),
                         help="Folder containing captured label photos")
-    parser.add_argument("--output", default="batch_test_results",
+    parser.add_argument("--output", default=str(SCRIPT_DIR / "batch_test_results"),
                         help="Folder for results (created if missing)")
     args = parser.parse_args()
 

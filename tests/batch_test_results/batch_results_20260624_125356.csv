@@ -1,0 +1,11 @@
+filename,verdict,confidence,seed_recovered,pattern_id,moire,correlation,gradient,color,alignment_method,processing_time,success,failure_reason
+tc-01.jpeg,COUNTERFEIT,0.0519,1079726699,,0.0251,0.0398,0.0000,0.3160,—,86.86,True,
+tc-02.jpeg,UNABLE_TO_VERIFY,,,,0.0000,0.0000,0.0000,0.0000,—,88.57,False,DM decode failed
+tc-03.jpeg,UNABLE_TO_VERIFY,,,,0.0000,0.0000,0.0000,0.0000,—,90.23,False,DM decode failed
+tc-04.jpeg,UNABLE_TO_VERIFY,,,,0.0000,0.0000,0.0000,0.0000,—,84.1,False,DM decode failed
+tc-05.jpeg,UNABLE_TO_VERIFY,,,,0.0000,0.0000,0.0000,0.0000,—,170.64,False,DM decode failed
+tc-06.jpeg,UNABLE_TO_VERIFY,,,,0.0000,0.0000,0.0000,0.0000,—,0.01,False,Cannot load image: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test\tc-06.jpeg
+tc-07.jpeg,UNABLE_TO_VERIFY,,,,0.0000,0.0000,0.0000,0.0000,—,0.01,False,Cannot load image: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test\tc-07.jpeg
+tc-08.jpeg,UNABLE_TO_VERIFY,,,,0.0000,0.0000,0.0000,0.0000,—,0.05,False,Cannot load image: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test\tc-08.jpeg
+tc-09.jpeg,UNABLE_TO_VERIFY,,,,0.0000,0.0000,0.0000,0.0000,—,0.0,False,Cannot load image: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test\tc-09.jpeg
+tc-10.jpeg,UNABLE_TO_VERIFY,,,,0.0000,0.0000,0.0000,0.0000,—,0.0,False,Cannot load image: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test\tc-10.jpeg

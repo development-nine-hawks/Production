@@ -1,0 +1,32 @@
+2026-06-24 15:39:26  INFO      ============================================================
+2026-06-24 15:39:26  INFO      PhoneCDP Batch Verification Run
+2026-06-24 15:39:26  INFO      Run timestamp : 2026-06-24 15:39:26
+2026-06-24 15:39:26  INFO      Input folder  : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test
+2026-06-24 15:39:26  INFO      Output folder : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results
+2026-06-24 15:39:26  INFO      Images found  : 1
+2026-06-24 15:39:26  INFO      ============================================================
+2026-06-24 15:39:26  INFO      --- Image 1/1 ---
+2026-06-24 15:39:26  INFO      Processing: tc-09.jpeg
+2026-06-24 15:39:53  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-24 15:39:53  INFO      [CROP] DM raw rect: left=1269, top=2286, width=-459, height=-206 | corrected: left_full=1620.00, top_full=4160.00, w_full=918.00, h_full=412.00 | y_top_cv=-572.00, y_bottom_cv=-160.00 | img_h=4000, scale=2
+2026-06-24 15:39:53  INFO      [CROP] DM raw rect: left=776, top=2326, width=-235, height=484 | corrected: left_full=1082.00, top_full=4652.00, w_full=470.00, h_full=968.00 | y_top_cv=-1620.00, y_bottom_cv=-652.00 | img_h=4000, scale=2
+2026-06-24 15:39:53  INFO      [CROP] class=content top_dm=918x412 right_dm=470x968 dm_long=968
+2026-06-24 15:39:53  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-06-24 15:39:53  INFO      [CROP] Layer 3 rotation debug: cos_t=-1.0000, sin_t=-0.0052, unit_right=[-0.99998635 -0.00522186], unit_down=[ 0.00522186 -0.99998635] | top_dm_center=[2079. -366.], right_dm_center=[ 1317. -1136.] | _TOP_DM_CX=252.00, _TOP_DM_CY=112.00 | _pat_x=0.00, _pat_y=258.00, _pat_w=504.00, _pat_h=504.00
+2026-06-24 15:39:53  INFO      [CROP] Layer 3 computed corners: TL=[2565.4722 -644.4623], TR=[1595.4623 -649.5276], BR=[ 1600.5277 -1619.5376], BL=[ 2570.5376 -1614.4724] | image_bounds=(1800, 4000) | l3_scale=1.925 | observed_dm_dist=1083.3 canonical_dm_dist=562.9
+2026-06-24 15:39:53  INFO      [CROP] Layer 3 corners out of bounds
+2026-06-24 15:39:53  WARNING     tc-09.jpeg: UNABLE_TO_VERIFY — Pattern ROI extraction failed — could not locate/decode DMs after label flattening
+2026-06-24 15:39:53  INFO      
+2026-06-24 15:39:53  INFO      ============================================================
+2026-06-24 15:39:53  INFO      BATCH SUMMARY
+2026-06-24 15:39:53  INFO        Total       : 1
+2026-06-24 15:39:53  INFO        Authentic   : 0
+2026-06-24 15:39:53  INFO        Suspicious  : 0
+2026-06-24 15:39:53  INFO        Counterfeit : 0
+2026-06-24 15:39:53  INFO        Unable/Error: 1
+2026-06-24 15:39:53  INFO        Avg Confidence: 0.0%
+2026-06-24 15:39:53  INFO      ============================================================
+2026-06-24 15:39:53  INFO      CSV saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_results_20260624_153926.csv
+2026-06-24 15:39:53  INFO      JSON saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_results_20260624_153926.json
+2026-06-24 15:39:53  INFO      Generating PDF report → C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_test_report.pdf
+2026-06-24 15:39:56  INFO      PDF report ready: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_test_report.pdf

@@ -1,0 +1,33 @@
+2026-06-24 11:48:18  INFO      ============================================================
+2026-06-24 11:48:18  INFO      PhoneCDP Batch Verification Run
+2026-06-24 11:48:18  INFO      Run timestamp : 2026-06-24 11:48:18
+2026-06-24 11:48:18  INFO      Input folder  : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test
+2026-06-24 11:48:18  INFO      Output folder : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results
+2026-06-24 11:48:18  INFO      Images found  : 10
+2026-06-24 11:48:18  INFO      ============================================================
+2026-06-24 11:48:18  INFO      --- Image 1/10 ---
+2026-06-24 11:48:18  INFO      Processing: tc-01.png
+2026-06-24 11:49:06  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-24 11:49:06  INFO      [CROP] class=content top_dm=378x173 right_dm=170x374 dm_long=378
+2026-06-24 11:49:06  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-06-24 11:49:06  INFO      [CROP] Layer 3 ncc=0.4713 pattern_center=(758,1964) scale=0.748
+2026-06-24 11:49:06  INFO      [CROP] Layer 3 used (last resort)
+2026-06-24 11:49:06  INFO        tc-01.png: AUTHENTIC  conf=0.755  moire=0.948  corr=0.867  grad=0.095  color=0.382
+2026-06-24 11:49:10  INFO      --- Image 2/10 ---
+2026-06-24 11:49:10  INFO      Processing: tc-02.jpeg
+2026-06-24 11:49:27  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-24 11:49:27  INFO      [CROP] class=content top_dm=98x364 right_dm=358x98 dm_long=364
+2026-06-24 11:49:27  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-06-24 11:49:27  INFO      [CROP] Layer 3 ncc=0.3541 pattern_center=(1100,2094) scale=0.677
+2026-06-24 11:49:27  INFO      [CROP] Layer 3 used (last resort)
+2026-06-24 11:49:27  INFO        tc-02.jpeg: COUNTERFEIT  conf=0.365  moire=0.373  corr=0.805  grad=0.000  color=0.425
+2026-06-24 11:49:30  INFO      --- Image 3/10 ---
+2026-06-24 11:49:30  INFO      Processing: tc-03.jpeg
+2026-06-24 11:49:49  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-06-24 11:49:49  INFO      [CROP] class=content top_dm=139x311 right_dm=315x138 dm_long=315
+2026-06-24 11:49:49  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-06-24 11:49:49  INFO      [CROP] Layer 3 ncc=0.0409 pattern_center=(1166,1932) scale=0.478
+2026-06-24 11:49:49  INFO      [CROP] Layer 3 used (last resort)
+2026-06-24 11:49:49  INFO        tc-03.jpeg: COUNTERFEIT  conf=0.069  moire=0.010  corr=0.100  grad=0.037  color=0.468
+2026-06-24 11:49:52  INFO      --- Image 4/10 ---
+2026-06-24 11:49:52  INFO      Processing: tc-04.jpeg

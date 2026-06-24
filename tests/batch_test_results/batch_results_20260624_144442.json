@@ -1,0 +1,57 @@
+{
+  "run_ts": "2026-06-24 14:44:42",
+  "stats": {
+    "total": 1,
+    "authentic": 0,
+    "suspicious": 0,
+    "counterfeit": 0,
+    "unable": 1,
+    "avg_confidence": 0.0,
+    "avg_moire": 0.0,
+    "avg_correlation": 0.0,
+    "avg_gradient": 0.0,
+    "avg_color": 0.0
+  },
+  "results": [
+    {
+      "filename": "tc-09.jpeg",
+      "stem": "tc-09",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\tests\\batch_test\\tc-09.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix\\Production\\tests\\batch_test_results\\analytics",
+      "verdict": "UNABLE_TO_VERIFY",
+      "confidence": null,
+      "seed_recovered": null,
+      "pattern_id": null,
+      "scores": {},
+      "weights": {},
+      "alignment_method": "\u2014",
+      "processing_time": 94.51,
+      "success": false,
+      "failure_reason": "DM decode failed",
+      "reference_path": null,
+      "captured_path_saved": null,
+      "delta_path": null,
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "C7GD"
+        ],
+        "share_a": null,
+        "share_b": null,
+        "num_dms_found": 1,
+        "raw_results": [
+          [
+            "b'C7GD'",
+            [
+              2446,
+              3507,
+              712,
+              307
+            ]
+          ]
+        ],
+        "shrink_used": 2,
+        "failure_reason": "Fewer than 2 DataMatrix codes decoded"
+      }
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+filename,verdict,confidence,seed_recovered,pattern_id,moire,correlation,gradient,color,alignment_method,processing_time,success,failure_reason
+tc-09.jpeg,UNABLE_TO_VERIFY,,,,0.0000,0.0000,0.0000,0.0000,—,26.87,False,Pattern ROI extraction failed — could not locate/decode DMs after label flattening

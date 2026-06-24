@@ -1,0 +1,61 @@
+2026-06-24 12:53:56  INFO      ============================================================
+2026-06-24 12:53:56  INFO      PhoneCDP Batch Verification Run
+2026-06-24 12:53:56  INFO      Run timestamp : 2026-06-24 12:53:56
+2026-06-24 12:53:56  INFO      Input folder  : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test
+2026-06-24 12:53:56  INFO      Output folder : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results
+2026-06-24 12:53:56  INFO      Images found  : 10
+2026-06-24 12:53:56  INFO      ============================================================
+2026-06-24 12:53:56  INFO      --- Image 1/10 ---
+2026-06-24 12:53:56  INFO      Processing: tc-01.jpeg
+2026-06-24 12:55:22  INFO      [CROP] image shape: (8000, 6000, 3)
+2026-06-24 12:55:22  INFO      [CROP] class=content top_dm=1454x690 right_dm=646x1482 dm_long=1482
+2026-06-24 12:55:22  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-06-24 12:55:22  INFO      [CROP] Layer 3 corner_rot=0° ncc=-0.1534
+2026-06-24 12:55:22  INFO      [CROP] Layer 3 corner_rot=90° ncc=-0.0343
+2026-06-24 12:55:22  INFO      [CROP] Layer 3 corner_rot=180° ncc=-0.0264
+2026-06-24 12:55:22  INFO      [CROP] Layer 3 corner_rot=270° ncc=0.0188
+2026-06-24 12:55:22  INFO      [CROP] Layer 3 best_rotation=270° ncc=0.0188
+2026-06-24 12:55:22  INFO      [CROP] Layer 3 ncc=0.0188 pattern_center=(5336,2244) scale=2.967
+2026-06-24 12:55:22  INFO      [CROP] Layer 3 used (last resort)
+2026-06-24 12:55:23  INFO        tc-01.jpeg: COUNTERFEIT  conf=0.052  moire=0.025  corr=0.040  grad=0.000  color=0.316
+2026-06-24 12:55:25  INFO      --- Image 2/10 ---
+2026-06-24 12:55:25  INFO      Processing: tc-02.jpeg
+2026-06-24 12:56:54  WARNING     tc-02.jpeg: UNABLE_TO_VERIFY — DM decode failed
+2026-06-24 12:56:54  INFO      --- Image 3/10 ---
+2026-06-24 12:56:54  INFO      Processing: tc-03.jpeg
+2026-06-24 12:58:24  WARNING     tc-03.jpeg: UNABLE_TO_VERIFY — DM decode failed
+2026-06-24 12:58:24  INFO      --- Image 4/10 ---
+2026-06-24 12:58:24  INFO      Processing: tc-04.jpeg
+2026-06-24 12:59:48  WARNING     tc-04.jpeg: UNABLE_TO_VERIFY — DM decode failed
+2026-06-24 12:59:48  INFO      --- Image 5/10 ---
+2026-06-24 12:59:48  INFO      Processing: tc-05.jpeg
+2026-06-24 13:02:39  WARNING     tc-05.jpeg: UNABLE_TO_VERIFY — DM decode failed
+2026-06-24 13:02:39  INFO      --- Image 6/10 ---
+2026-06-24 13:02:39  INFO      Processing: tc-06.jpeg
+2026-06-24 13:02:39  WARNING     tc-06.jpeg: UNABLE_TO_VERIFY — Cannot load image: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test\tc-06.jpeg
+2026-06-24 13:02:39  INFO      --- Image 7/10 ---
+2026-06-24 13:02:39  INFO      Processing: tc-07.jpeg
+2026-06-24 13:02:39  WARNING     tc-07.jpeg: UNABLE_TO_VERIFY — Cannot load image: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test\tc-07.jpeg
+2026-06-24 13:02:39  INFO      --- Image 8/10 ---
+2026-06-24 13:02:39  INFO      Processing: tc-08.jpeg
+2026-06-24 13:02:39  WARNING     tc-08.jpeg: UNABLE_TO_VERIFY — Cannot load image: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test\tc-08.jpeg
+2026-06-24 13:02:39  INFO      --- Image 9/10 ---
+2026-06-24 13:02:39  INFO      Processing: tc-09.jpeg
+2026-06-24 13:02:39  WARNING     tc-09.jpeg: UNABLE_TO_VERIFY — Cannot load image: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test\tc-09.jpeg
+2026-06-24 13:02:39  INFO      --- Image 10/10 ---
+2026-06-24 13:02:39  INFO      Processing: tc-10.jpeg
+2026-06-24 13:02:39  WARNING     tc-10.jpeg: UNABLE_TO_VERIFY — Cannot load image: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test\tc-10.jpeg
+2026-06-24 13:02:39  INFO      
+2026-06-24 13:02:39  INFO      ============================================================
+2026-06-24 13:02:39  INFO      BATCH SUMMARY
+2026-06-24 13:02:39  INFO        Total       : 10
+2026-06-24 13:02:39  INFO        Authentic   : 0
+2026-06-24 13:02:39  INFO        Suspicious  : 0
+2026-06-24 13:02:39  INFO        Counterfeit : 1
+2026-06-24 13:02:39  INFO        Unable/Error: 9
+2026-06-24 13:02:39  INFO        Avg Confidence: 5.2%
+2026-06-24 13:02:39  INFO      ============================================================
+2026-06-24 13:02:39  INFO      CSV saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_results_20260624_125356.csv
+2026-06-24 13:02:39  INFO      JSON saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_results_20260624_125356.json
+2026-06-24 13:02:39  INFO      Generating PDF report → C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_test_report.pdf
+2026-06-24 13:02:43  INFO      PDF report ready: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix\Production\tests\batch_test_results\batch_test_report.pdf
