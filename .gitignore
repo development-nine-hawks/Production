@@ -10,3 +10,4 @@ patterns/*
 !data/.gitkeep
 .venv/
 venv/
+*.pdf
