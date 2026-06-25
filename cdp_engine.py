@@ -12,6 +12,16 @@ from config import BORDER_CELL_SIZE
 import math
 import logging
 _crop_logger = logging.getLogger("batch_runner")
+
+# ── CDP Discrimination Flags ─────────────────────────────────────────────
+# Toggle each flag independently to test contribution of each change.
+# True = change active, False = original behaviour restored for that change.
+CDP_FLAG_MOIRE_FINE_BANDS    = False  # Point 1: add ultra-fine moire bands
+CDP_FLAG_MOIRE_NORM_DIVISOR  = False  # Point 2: lower normalization divisor
+CDP_FLAG_CORR_FINE_BLOCKS    = False  # Point 3: add 4px/8px block sizes
+CDP_FLAG_CORR_COARSE_CAP     = False  # Point 4: cap coarse block scores
+# ─────────────────────────────────────────────────────────────────────────
+
 # ==========================================================================
 # CONSTANTS
 # ==========================================================================
@@ -1291,11 +1301,19 @@ def test_prng_correlation(captured_gray, reference_gray, block_size=16):
     # Finer → easier to max out (cap 1.0), coarser → capped lower.
     # norm_divisor set so raw ~0.55 → score ~0.92 (good 1st-gen),
     # raw ~0.49 → score ~0.82 (degraded copy).  Preserves the gap.
-    scale_configs = [
-        (block_size,     0.60, 1.0),   # 8×8  — finest, genuine 1st-gen
-        (block_size * 2, 0.65, 0.75),  # 16×16 — moderate blur
-        (block_size * 4, 0.75, 0.50),  # 32×32 — heavy blur / small print
-    ]
+    if CDP_FLAG_CORR_FINE_BLOCKS:
+        scale_configs = [
+            (block_size // 4, 0.45, 1.0),
+            (block_size // 2, 0.55, 1.0),
+            (block_size,      0.60, 1.0 if not CDP_FLAG_CORR_COARSE_CAP else 1.0),
+            (block_size * 2,  0.65, 0.50 if CDP_FLAG_CORR_COARSE_CAP else 0.50),
+        ]
+    else:
+        scale_configs = [
+            (block_size,     0.60, 1.0  if not CDP_FLAG_CORR_COARSE_CAP else 0.75),
+            (block_size * 2, 0.65, 0.75 if not CDP_FLAG_CORR_COARSE_CAP else 0.50),
+            (block_size * 4, 0.75, 0.50),
+        ]
 
     # Minimum std-dev of captured block means to consider a scale "usable".
     # Below this the blocks are all near-identical → correlation is noise.
