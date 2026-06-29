@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, StreamingResponse, RedirectResponse
 from pydantic import BaseModel
 from typing import Optional
+import sys
 import uvicorn
 import shutil
 import csv
@@ -328,7 +329,6 @@ def _render_label_png_file(p: dict, size_px: int = 512, pdf_mode: bool = False):
     import cv2
     import numpy as np
     import base64
-    from playwright.sync_api import sync_playwright
     from cdp_engine import calculate_auth_block_layout, generate_cropped_dm, split_seed_for_dm, draw_auth_block_opencv
 
     # Download pattern image from Cloudinary
@@ -527,16 +527,28 @@ def _render_label_png_file(p: dict, size_px: int = 512, pdf_mode: bool = False):
 </body>
 </html>"""
 
-    # Render HTML to PNG
+    # Render HTML to PNG via a subprocess so Playwright's Chromium launch runs
+    # in a fresh process with its own event loop — avoids the Windows asyncio
+    # SelectorEventLoop limitation when called from FastAPI's thread pool.
+    import subprocess
+    tmp_html_src = tempfile.NamedTemporaryFile(
+        suffix=".html", delete=False, dir=config.DATA_DIR, mode="w", encoding="utf-8"
+    )
+    tmp_html_src.write(html)
+    tmp_html_src.close()
+
     tmp_html_out = tempfile.NamedTemporaryFile(suffix=".png", delete=False, dir=config.DATA_DIR)
     tmp_html_out.close()
-    with sync_playwright() as pw:
-        browser = pw.chromium.launch()
-        page = browser.new_page(viewport={"width": card_w, "height": card_h})
-        page.set_content(html)
-        page.wait_for_timeout(200)
-        page.screenshot(path=tmp_html_out.name, full_page=True)
-        browser.close()
+
+    _render_script = os.path.join(config.BASE_DIR, "_playwright_render.py")
+    result = subprocess.run(
+        [sys.executable, _render_script,
+         tmp_html_src.name, tmp_html_out.name, str(card_w), str(card_h)],
+        capture_output=True, text=True, timeout=60,
+    )
+    os.unlink(tmp_html_src.name)
+    if result.returncode != 0:
+        raise RuntimeError(f"Playwright render failed: {result.stderr}")
 
     # Load rendered label, find magenta placeholder, replace with real QR pixels
     label = cv2.imread(tmp_html_out.name)
@@ -653,6 +665,26 @@ def cleanup_old_uploads(max_age_seconds=86400):
 
 # ── Verify API ───────────────────────────────────────────────────────────
 
+def _safe_diag(diag):
+    """Return a JSON/BSON-safe copy of a dm_diagnostic dict: drop the internal
+    `raw_results` (pylibdmtx Decoded objects containing bytes) and decode any
+    stray bytes. Without this, returning/storing the diagnostic raises
+    'Object of type bytes is not JSON serializable'."""
+    if not isinstance(diag, dict):
+        return {}
+    out = {}
+    for k, val in diag.items():
+        if k == "raw_results":
+            continue
+        if isinstance(val, bytes):
+            out[k] = val.decode("utf-8", "replace")
+        elif isinstance(val, list):
+            out[k] = [x.decode("utf-8", "replace") if isinstance(x, bytes) else x for x in val]
+        else:
+            out[k] = val
+    return out
+
+
 @app.post("/api/verify")
 async def run_verify(
     captured: UploadFile = File(...),
@@ -675,13 +707,11 @@ async def run_verify(
     result = verify_pattern(cap_path, uploads_dir=config.UPLOADS_DIR)
 
     if result.get("verdict") == "UNABLE_TO_VERIFY":
-        try:
-            os.remove(cap_path)
-        except OSError:
-            pass
+        # Keep the capture on failure (under uploads/) so it can be inspected.
         raise HTTPException(422, detail={
             "error":         result.get("error", "Verification failed"),
-            "dm_diagnostic": result.get("dm_diagnostic", {}),
+            "dm_diagnostic": _safe_diag(result.get("dm_diagnostic", {})),
+            "capture_file":  cap_name,
         })
 
     # Look up which registered pattern matches this seed
@@ -707,6 +737,8 @@ async def run_verify(
         "roi_filename":   result.get("roi_filename"),
         "aligned_filename": result["aligned_filename"],
         "reference_filename": result.get("reference_filename"),
+        "detection_filename": result.get("detection_filename"),
+        "align_method":   result.get("align_method"),
         "cloudinary_ids": {
             "captured": captured_cloud["public_id"],
             "aligned":  aligned_cloud["public_id"] if aligned_cloud else None,
@@ -717,7 +749,7 @@ async def run_verify(
         "score_color":       result["scores"]["color"],
         "score_correlation": result["scores"]["correlation"],
         "score_gradient":    result["scores"]["gradient"],
-        "dm_diagnostic":     result.get("dm_diagnostic"),
+        "dm_diagnostic":     _safe_diag(result.get("dm_diagnostic")),
         "print_size_mm":     print_size_mm,
         "notes":             notes,
         "created_at":        datetime.utcnow(),
@@ -856,10 +888,10 @@ def get_verification(vid: int):
         "id": v["id"], "pattern_id": v["pattern_id"],
         "pattern_serial": p["serial_number"] if p else "",
         "pattern_label": p["label"] if p else "",
-        "verdict": v["verdict"], "confidence": v["confidence"],
+        "verdict": v.get("verdict", "UNKNOWN"), "confidence": v.get("confidence", 0.0),
         "scores": {
-            "moire": v["score_moire"], "color": v["score_color"],
-            "correlation": v["score_correlation"], "gradient": v["score_gradient"],
+            "moire": v.get("score_moire", 0.0), "color": v.get("score_color", 0.0),
+            "correlation": v.get("score_correlation", 0.0), "gradient": v.get("score_gradient", 0.0),
         },
         "weights": {
             "moire": v.get("weight_moire", 0.65),
@@ -876,6 +908,8 @@ def get_verification(vid: int):
         "roi_filename":   v.get("roi_filename"),
         "reference_filename": v.get("reference_filename"),
         "aligned_filename": v.get("aligned_filename"),
+        "detection_filename": v.get("detection_filename"),
+        "align_method": v.get("align_method"),
         "print_size_mm": v.get("print_size_mm"),
         "notes": v.get("notes", ""),
         "created_at": v["created_at"].isoformat() if hasattr(v["created_at"], "isoformat") else str(v["created_at"]),
@@ -899,10 +933,11 @@ def get_image(vid: int, image_type: str):
         if not url:
             raise HTTPException(404, "Captured image not available")
         return RedirectResponse(url=url)
-    elif image_type in ("markers", "aligned", "roi", "reference"):
-        # 'roi' and 'reference' are new-pipeline filenames; 'markers' is legacy
+    elif image_type in ("markers", "aligned", "roi", "reference", "detection"):
+        # 'roi'/'reference'/'detection' are new-pipeline filenames; 'markers' is legacy
         key_map = {"markers": "markers_filename", "aligned": "aligned_filename",
-                   "roi": "roi_filename", "reference": "reference_filename"}
+                   "roi": "roi_filename", "reference": "reference_filename",
+                   "detection": "detection_filename"}
         filename = v.get(key_map[image_type])
         if not filename:
             raise HTTPException(404, f"{image_type} image not available")
@@ -911,7 +946,7 @@ def get_image(vid: int, image_type: str):
             raise HTTPException(404, f"{image_type} image expired")
         return FileResponse(filepath, media_type="image/png")
     else:
-        raise HTTPException(400, "Use: original, captured, markers, aligned, roi, reference")
+        raise HTTPException(400, "Use: original, captured, markers, aligned, roi, reference, detection")
 
 
 # ── Analytics / research-paper plots ───────────────────────────────────────
@@ -1114,13 +1149,13 @@ def list_results(
             "id": v["id"], "pattern_id": v["pattern_id"],
             "pattern_serial": p.get("serial_number", ""),
             "pattern_label": p.get("label", ""),
-            "verdict": v["verdict"], "confidence": v["confidence"],
+            "verdict": v.get("verdict", "UNKNOWN"), "confidence": v.get("confidence", 0.0),
             "scores": {
-                "moire": v["score_moire"], "color": v["score_color"],
-                "correlation": v["score_correlation"], "gradient": v["score_gradient"],
+                "moire": v.get("score_moire", 0.0), "color": v.get("score_color", 0.0),
+                "correlation": v.get("score_correlation", 0.0), "gradient": v.get("score_gradient", 0.0),
             },
-            "markers_found": v["markers_found"],
-            "alignment_method": v["alignment_method"],
+            "markers_found": v.get("markers_found", 0),
+            "alignment_method": v.get("alignment_method", "unknown"),
             "print_size_mm": v.get("print_size_mm"),
             "notes": v.get("notes", ""),
             "created_at": v["created_at"].isoformat() if hasattr(v["created_at"], "isoformat") else str(v["created_at"]),
@@ -1200,11 +1235,11 @@ def export_csv():
         created = v["created_at"].strftime("%Y-%m-%d %H:%M:%S") if hasattr(v["created_at"], "strftime") else str(v["created_at"])
         w.writerow([
             v["id"], created, v["pattern_id"],
-            p.get("serial_number", ""), p.get("label", ""), v["verdict"],
-            f"{v['confidence']:.3f}", f"{v['score_moire']:.3f}",
-            f"{v['score_color']:.3f}", f"{v['score_correlation']:.3f}",
-            f"{v['score_gradient']:.3f}", v["markers_found"],
-            v["alignment_method"], v.get("print_size_mm", ""),
+            p.get("serial_number", ""), p.get("label", ""), v.get("verdict", "UNKNOWN"),
+            f"{v.get('confidence', 0.0):.3f}", f"{v.get('score_moire', 0.0):.3f}",
+            f"{v.get('score_color', 0.0):.3f}", f"{v.get('score_correlation', 0.0):.3f}",
+            f"{v.get('score_gradient', 0.0):.3f}", v.get("markers_found", 0),
+            v.get("alignment_method", "unknown"), v.get("print_size_mm", ""),
             v.get("notes", ""),
         ])
     out.seek(0)

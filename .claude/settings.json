@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(python --version)",
+      "PowerShell(cd \"c:\\\\AIB\\\\Projects\\\\NineHawks\\\\With Data Matrix\\\\Codebase\"; Start-Process -FilePath \".\\\\venv\\\\Scripts\\\\uvicorn.exe\" -ArgumentList \"app:app\", \"--host\", \"0.0.0.0\", \"--port\", \"8000\", \"--reload\" -RedirectStandardOutput \"$env:TEMP\\\\phonecdp_stdout.txt\" -RedirectStandardError \"$env:TEMP\\\\phonecdp_stderr.txt\" -PassThru | Select-Object Id, ProcessName)",
+      "PowerShell(& \"C:\\\\Windows\\\\System32\\\\dxdiag.exe\" /t \"$env:TEMP\\\\dxdiag.txt\" 2>$null; Start-Sleep 5; $null)",
+      "PowerShell(Stop-Process -Name \"uvicorn\" -ErrorAction SilentlyContinue -Force)",
+      "PowerShell(Start-Sleep -Seconds 5; Get-Content \"$env:TEMP\\\\phonecdp_stderr.txt\")",
+      "PowerShell(Invoke-RestMethod -Uri \"http://localhost:8000/api/health\" -Method Get)",
+      "PowerShell(Get-Content \"$env:TEMP\\\\phonecdp_stderr.txt\" | Select-Object -Last 30)",
+      "PowerShell(Get-Content \"$env:TEMP\\\\phonecdp_stderr.txt\" | Select-Object -Last 20)",
+      "PowerShell(Stop-Process -Name \"uvicorn\" -Force -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Process -Name \"uvicorn\",\"python\" -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Process -Name \"python\")",
+      "PowerShell(Stop-Process -Force)",
+      "PowerShell(Start-Sleep 8; Get-Content \"$env:TEMP\\\\phonecdp_stderr.txt\" | Select-Object -Last 5; Invoke-RestMethod -Uri \"http://localhost:8000/api/results?limit=8\" -Method Get | ConvertTo-Json -Depth 3 | Select-Object -First 30)",
+      "PowerShell(Get-Content \"$env:TEMP\\\\phonecdp_stderr.txt\" | Select-Object -Last 50)",
+      "PowerShell(python \"C:\\\\Users\\\\aksha\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--AIB-Projects-NineHawks-With-Data-Matrix-Codebase\\\\ac62d33d-3f77-46d5-ae07-e5545dedccc0\\\\scratchpad\\\\check_dll.py\")",
+      "PowerShell($url = \"https://aka.ms/highdpimfc2013x64enu\"; $dest = \"$env:TEMP\\\\vcredist_2013_x64.exe\"; Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing; Write-Host \"Downloaded: $\\($\\(Get-Item $dest\\).Length\\) bytes\")",
+      "PowerShell(Start-Process -FilePath \"$env:TEMP\\\\vcredist_2013_x64.exe\" -ArgumentList \"/install\", \"/quiet\", \"/norestart\" -Wait -PassThru | Select-Object ExitCode)",
+      "Read(//c/Windows/System32/**)",
+      "PowerShell(Get-Process -Name \"python\",\"uvicorn\" -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 2; cd \"c:\\\\AIB\\\\Projects\\\\NineHawks\\\\With Data Matrix\\\\Codebase\"; Start-Process -FilePath \".\\\\venv\\\\Scripts\\\\uvicorn.exe\" -ArgumentList \"app:app\",\"--host\",\"0.0.0.0\",\"--port\",\"8000\",\"--reload\" -RedirectStandardOutput \"$env:TEMP\\\\phonecdp_stdout.txt\" -RedirectStandardError \"$env:TEMP\\\\phonecdp_stderr.txt\" -PassThru | Select-Object Id)",
+      "PowerShell($resp = Invoke-WebRequest -Uri \"http://localhost:8000/api/patterns/1/label-pdf?size_mm=50\" -Method Get -ErrorAction SilentlyContinue; \"Status: $\\($resp.StatusCode\\), Content-Type: $\\($resp.Headers['Content-Type']\\), Size: $\\($resp.Content.Length\\) bytes\")",
+      "PowerShell(Start-Sleep -Seconds 3; $resp = Invoke-WebRequest -Uri \"http://localhost:8000/api/patterns/1/label-pdf?size_mm=50\" -Method Get -ErrorAction SilentlyContinue -TimeoutSec 60; if \\($resp\\) { \"Status: $\\($resp.StatusCode\\), Content-Type: $\\($resp.Headers['Content-Type']\\), Size: $\\($resp.Content.Length\\) bytes\" } else { \"Failed\" })",
+      "Bash(curl -s -o /tmp/label_test.pdf -w \"%{http_code} %{content_type} %{size_download}\" \"http://localhost:8000/api/patterns/1/label-pdf?size_mm=50\")",
+      "PowerShell(cd \"c:\\\\AIB\\\\Projects\\\\NineHawks\\\\With Data Matrix\\\\Codebase\"; .\\\\venv\\\\Scripts\\\\python.exe \"C:\\\\Users\\\\aksha\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--AIB-Projects-NineHawks-With-Data-Matrix-Codebase\\\\ac62d33d-3f77-46d5-ae07-e5545dedccc0\\\\scratchpad\\\\e2e_fixB.py\" > \"$env:TEMP\\\\e2e_fixB_out.txt\" 2>&1; Get-Content \"$env:TEMP\\\\e2e_fixB_out.txt\")",
+      "PowerShell($p = Get-Process python -ErrorAction SilentlyContinue | Sort-Object StartTime | Select-Object -Last 1; if \\($p\\) { $el = \\(Get-Date\\) - $p.StartTime; \"STILL RUNNING: elapsed $\\([int]$el.TotalSeconds\\)s, CPU $\\([int]$p.CPU\\)s\" } else { \"FINISHED - no python proc\" })",
+      "PowerShell(Start-Sleep 2; $log = Get-Content \"$env:TEMP\\\\phonecdp_stderr.txt\" -Tail 3 -ErrorAction SilentlyContinue; $log; try { Invoke-RestMethod \"http://localhost:8000/api/health\" -TimeoutSec 5 | ConvertTo-Json -Compress } catch { \"ERROR: $_\" })"
+    ]
+  }
+}
