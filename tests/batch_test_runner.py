@@ -76,6 +76,7 @@ def setup_output_dirs(base: Path) -> dict[str, Path]:
         "root":       base,
         "analytics":  base / "analytics",
         "aligned":    base / "aligned_patterns",
+        "detection":  base / "detection_overlays",
         "delta":      base / "delta_maps",
         "reference":  base / "reference_patterns",
         "logs":       base / "logs",
@@ -145,10 +146,12 @@ def process_image(
         "success":         False,
         "failure_reason":  None,
         # Paths for PDF
-        "reference_path":     None,
-        "captured_path_saved":None,
-        "delta_path":         None,
-        "dm_diagnostic":      {},
+        "reference_path":       None,
+        "captured_path_saved":  None,
+        "aligned_path_saved":   None,
+        "detection_path_saved": None,
+        "delta_path":           None,
+        "dm_diagnostic":        {},
     }
 
     t0 = time.time()
@@ -186,15 +189,23 @@ def process_image(
         roi_src  = uploads_tmp / vr["roi_filename"]
         ref_src  = uploads_tmp / vr["reference_filename"]
         aln_src  = uploads_tmp / vr["aligned_filename"]
+        det_name = vr.get("detection_filename")
+        det_src  = (uploads_tmp / det_name) if det_name else None
 
-        cap_dst = dirs["aligned"]   / f"{stem}_captured.png"
-        ref_dst = dirs["reference"] / f"{stem}_reference.png"
+        cap_dst = dirs["aligned"]    / f"{stem}_captured.png"
+        ref_dst = dirs["reference"]  / f"{stem}_reference.png"
+        aln_dst = dirs["aligned"]    / f"{stem}_aligned.png"
+        det_dst = dirs["detection"]  / f"{stem}_detection.png"
 
         if roi_src.exists(): shutil.copy2(roi_src, cap_dst)
         if ref_src.exists(): shutil.copy2(ref_src, ref_dst)
+        if aln_src.exists(): shutil.copy2(aln_src, aln_dst)
+        if det_src and det_src.exists(): shutil.copy2(det_src, det_dst)
 
-        result["captured_path_saved"] = str(cap_dst) if cap_dst.exists() else None
-        result["reference_path"]      = str(ref_dst) if ref_dst.exists() else None
+        result["captured_path_saved"]  = str(cap_dst) if cap_dst.exists() else None
+        result["reference_path"]       = str(ref_dst) if ref_dst.exists() else None
+        result["aligned_path_saved"]   = str(aln_dst) if aln_dst.exists() else None
+        result["detection_path_saved"] = str(det_dst) if det_dst.exists() else None
 
         # Scores
         sc = vr.get("scores", {})

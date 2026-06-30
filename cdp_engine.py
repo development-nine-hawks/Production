@@ -1220,36 +1220,12 @@ def detect_and_crop_pattern(image, dm_results_raw=None, dm_shrink_used=1, seed=N
         M3 = cv2.getPerspectiveTransform(src_pts3, dst_pts3)
         crop3 = cv2.warpPerspective(image, M3, (out_size, out_size))
 
-        corner_sets = [
-            np.float32([TL, TR, BR, BL]),  # 0°
-            np.float32([BL, TL, TR, BR]),  # 90° CW
-            np.float32([BR, BL, TL, TR]),  # 180°
-            np.float32([TR, BR, BL, TL]),  # 270° CW
-        ]
-
-        best_crop = None
-        best_ncc = -1.0
-        best_label = ""
-        for i, corners in enumerate(corner_sets):
-            xs = corners[:, 0]; ys = corners[:, 1]
-            if (np.any(xs < -iw * 0.1) or np.any(xs > iw * 1.1) or
-                    np.any(ys < -ih * 0.1) or np.any(ys > ih * 1.1)):
-                continue
-            try:
-                M = cv2.getPerspectiveTransform(corners, dst_pts3)
-                candidate = cv2.warpPerspective(image, M, (out_size, out_size))
-                ncc = _ncc_thumbnail(candidate, ref_gray) if ref_gray is not None else -1.0
-                _crop_logger.info(f"[CROP] Layer 3 corner_rot={i*90}° ncc={ncc:.4f}")
-                if ncc > best_ncc:
-                    best_ncc = ncc
-                    best_crop = candidate
-                    src_pts3 = corners
-                    best_label = f"{i*90}°"
-            except Exception:
-                continue
-
-        crop3 = best_crop if best_crop is not None else crop3
-        _crop_logger.info(f"[CROP] Layer 3 best_rotation={best_label} ncc={best_ncc:.4f}")
+        # GEOMETRY-ONLY: TL/TR/BR/BL above are already correctly oriented via
+        # unit_right/unit_down computed from the DM rotation, so no rotation
+        # search is needed. ref_gray (if available) is kept only as a fast
+        # diagnostic NCC check, not a search loop.
+        best_ncc = _ncc_thumbnail(crop3, ref_gray) if ref_gray is not None else -1.0
+        _crop_logger.info(f"[CROP] Layer 3 geometry-only crop ncc={best_ncc:.4f}")
         target_w, target_h = PATTERN_SIZE
         cur_h, cur_w = crop3.shape[:2]
         interp3 = cv2.INTER_LANCZOS4 if (cur_w < target_w or cur_h < target_h) else cv2.INTER_AREA
@@ -2679,40 +2655,7 @@ def verify_pattern(captured_path, uploads_dir="uploads"):
     captured_rgb  = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2RGB)
     captured_gray = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2GRAY)
 
-    # Step 4b — NCC rotation alignment (ONLY for the rough-crop fallback).
-    # The DM-corner homography already fixes orientation exactly (it maps each DM
-    # to a fixed canonical position), so when it succeeded the crop is at 0°.
-    # Running the 4-way NCC there is redundant and dangerous: for a degraded
-    # counterfeit whose NCC is ~0 at every rotation, noise can make 180° win and
-    # flip a correctly-oriented crop. So skip rotation when DM-corner align ran.
-    if fid_ok:
-        print("[VERIFY] === STEP 4b: rotation skipped (DM-corner homography fixes orientation) ===")
-    else:
-        print("[VERIFY] === STEP 4b: NCC Rotation Alignment ===")
-        thumb = 128
-        ref_t = cv2.resize(reference_gray, (thumb, thumb)).astype(np.float32)
-        ref_f = ref_t - ref_t.mean()
-        ref_n = np.linalg.norm(ref_f) + 1e-9
-
-        best_rot, best_ncc = 0, -1.0
-        for rot in range(4):
-            candidate = np.rot90(captured_gray, rot)
-            t = cv2.resize(candidate, (thumb, thumb)).astype(np.float32)
-            f = t - t.mean()
-            n = np.linalg.norm(f) + 1e-9
-            ncc = float(np.dot(ref_f.ravel(), f.ravel()) / (ref_n * n))
-            print(f"[VERIFY] rot={rot*90}° ncc={ncc:.4f}")
-            if ncc > best_ncc:
-                best_ncc = ncc
-                best_rot = rot
-
-        if best_rot != 0:
-            roi_bgr       = np.rot90(roi_bgr,       best_rot).copy()
-            captured_rgb  = np.rot90(captured_rgb,  best_rot).copy()
-            captured_gray = np.rot90(captured_gray, best_rot).copy()
-            print(f"[VERIFY] Applied rotation: {best_rot*90}° (ncc={best_ncc:.4f})")
-        else:
-            print(f"[VERIFY] No rotation needed (ncc={best_ncc:.4f})")
+    print("[VERIFY] === STEP 4b: rotation skipped (Layer 3 geometry already orients correctly) ===")
 
     # (Perspective rectification now happens up front in Step 2b via align-then-
     # crop from the full photo, so there is no separate rectify-on-crop step here.)

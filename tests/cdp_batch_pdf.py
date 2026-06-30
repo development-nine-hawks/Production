@@ -560,19 +560,19 @@ def _build_sample_page(story, ss, r: dict, idx: int, total: int):
     story.append(_std_table(hdr, [6*cm, 11*cm]))
     story.append(Spacer(1, 4*mm))
 
-    # 4-image comparison row
+    # 4-image pipeline steps: Detection → Cropped → Aligned → Reference
     IW = 3.8*cm; IH = 3.8*cm
     def _ti(path):
         return _file_to_rl_image(path, IW, IH)
 
     imgs = [
-        _ti(r.get("original_path"))   or _placeholder_para("Original", ss),
-        _ti(r.get("reference_path"))  or _placeholder_para("Reference", ss),
-        _ti(r.get("captured_path_saved")) or _placeholder_para("Captured", ss),
-        _ti(r.get("delta_path"))      or _placeholder_para("Delta Map", ss),
+        _ti(r.get("detection_path_saved")) or _placeholder_para("Detection", ss),
+        _ti(r.get("captured_path_saved"))  or _placeholder_para("Cropped (as captured)", ss),
+        _ti(r.get("aligned_path_saved"))   or _placeholder_para("Aligned (scored)", ss),
+        _ti(r.get("reference_path"))       or _placeholder_para("Reference (expected)", ss),
     ]
     caps = [Paragraph(c, ss["Caption"]) for c in
-            ["Original Photo", "Reference Pattern", "Captured Pattern", "Delta Map"]]
+            ["Detection", "Cropped (as captured)", "Aligned (scored)", "Reference (expected)"]]
     img_tbl = Table([imgs, caps], colWidths=[4.1*cm]*4, rowHeights=[IH + 0.2*cm, 0.6*cm])
     img_tbl.setStyle(TableStyle([
         ("ALIGN",  (0, 0), (-1, -1), "CENTER"),
