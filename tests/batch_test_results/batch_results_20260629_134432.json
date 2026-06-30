@@ -1,0 +1,589 @@
+{
+  "run_ts": "2026-06-29 13:44:32",
+  "stats": {
+    "total": 10,
+    "authentic": 1,
+    "suspicious": 3,
+    "counterfeit": 4,
+    "unable": 2,
+    "avg_confidence": 0.449778742271183,
+    "avg_moire": 0.29739029983315457,
+    "avg_correlation": 0.7536951711763898,
+    "avg_gradient": 1.0,
+    "avg_color": 0.3110553026199341
+  },
+  "results": [
+    {
+      "filename": "tc-01.jpeg",
+      "stem": "tc-01",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test\\tc-01.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\analytics",
+      "verdict": "UNABLE_TO_VERIFY",
+      "confidence": null,
+      "seed_recovered": null,
+      "pattern_id": null,
+      "scores": {},
+      "weights": {},
+      "alignment_method": "\u2014",
+      "processing_time": 17.81,
+      "success": false,
+      "failure_reason": "DM decode failed",
+      "reference_path": null,
+      "captured_path_saved": null,
+      "delta_path": null,
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "BWB5",
+          "~02"
+        ],
+        "share_a": null,
+        "share_b": null,
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'BWB5'",
+            [
+              469,
+              1832,
+              477,
+              211
+            ]
+          ],
+          [
+            "b'~02'",
+            [
+              412,
+              2101,
+              651,
+              -361
+            ]
+          ]
+        ],
+        "shrink_used": 1,
+        "failure_reason": "No valid share pair found (check-character mismatch on all combinations)"
+      }
+    },
+    {
+      "filename": "tc-02.jpeg",
+      "stem": "tc-02",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test\\tc-02.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\analytics",
+      "verdict": "SUSPICIOUS",
+      "confidence": 0.5722291671081906,
+      "seed_recovered": 612710521,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.44451185722297964,
+        "color": 0.33296459913253784,
+        "correlation": 1.0,
+        "gradient": 1.0
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 34.57,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\reference_patterns\\tc-02_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\aligned_patterns\\tc-02_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\delta_maps\\tc-02_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "2KAZ",
+          "BWB5"
+        ],
+        "share_a": "BWB5",
+        "share_b": "2KAZ",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'2KAZ'",
+            [
+              1050,
+              1994,
+              416,
+              -168
+            ]
+          ],
+          [
+            "b'BWB5'",
+            [
+              716,
+              1711,
+              167,
+              418
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    },
+    {
+      "filename": "tc-03.jpeg",
+      "stem": "tc-03",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test\\tc-03.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\analytics",
+      "verdict": "UNABLE_TO_VERIFY",
+      "confidence": null,
+      "seed_recovered": null,
+      "pattern_id": null,
+      "scores": {},
+      "weights": {},
+      "alignment_method": "\u2014",
+      "processing_time": 23.06,
+      "success": false,
+      "failure_reason": "DM decode failed",
+      "reference_path": null,
+      "captured_path_saved": null,
+      "delta_path": null,
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "BWB5",
+          "49G69"
+        ],
+        "share_a": null,
+        "share_b": null,
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'BWB5'",
+            [
+              963,
+              1849,
+              -160,
+              344
+            ]
+          ],
+          [
+            "b'49G69\\n'",
+            [
+              980,
+              2216,
+              344,
+              166
+            ]
+          ]
+        ],
+        "shrink_used": 1,
+        "failure_reason": "No valid share pair found (check-character mismatch on all combinations)"
+      }
+    },
+    {
+      "filename": "tc-04.jpeg",
+      "stem": "tc-04",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test\\tc-04.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\analytics",
+      "verdict": "SUSPICIOUS",
+      "confidence": 0.594854428507175,
+      "seed_recovered": 612710521,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.47555440532440696,
+        "color": 0.35744065046310425,
+        "correlation": 1.0,
+        "gradient": 1.0
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 42.73,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\reference_patterns\\tc-04_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\aligned_patterns\\tc-04_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\delta_maps\\tc-04_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "BWB5",
+          "2KAZ"
+        ],
+        "share_a": "BWB5",
+        "share_b": "2KAZ",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'BWB5'",
+            [
+              1184,
+              2186,
+              -458,
+              -205
+            ]
+          ],
+          [
+            "b'2KAZ'",
+            [
+              692,
+              2216,
+              -204,
+              460
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    },
+    {
+      "filename": "tc-05.jpeg",
+      "stem": "tc-05",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test\\tc-05.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\analytics",
+      "verdict": "SUSPICIOUS",
+      "confidence": 0.4673229033189631,
+      "seed_recovered": 612710521,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.28567044948656367,
+        "color": 0.36659755110740666,
+        "correlation": 0.94977356041956,
+        "gradient": 1.0
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 133.27,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\reference_patterns\\tc-05_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\aligned_patterns\\tc-05_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\delta_maps\\tc-05_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "BWB5",
+          "2KAZ"
+        ],
+        "share_a": "BWB5",
+        "share_b": "2KAZ",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'BWB5'",
+            [
+              529,
+              1906,
+              448,
+              202
+            ]
+          ],
+          [
+            "b'2KAZ'",
+            [
+              988,
+              1885,
+              198,
+              -434
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    },
+    {
+      "filename": "tc-06.jpeg",
+      "stem": "tc-06",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test\\tc-06.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\analytics",
+      "verdict": "AUTHENTIC",
+      "confidence": 0.6965651264112249,
+      "seed_recovered": 612710521,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.6531915191383018,
+        "color": 0.21990638971328735,
+        "correlation": 1.0,
+        "gradient": 1.0
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 45.65,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\reference_patterns\\tc-06_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\aligned_patterns\\tc-06_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\delta_maps\\tc-06_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "BWB5",
+          "2KAZ"
+        ],
+        "share_a": "BWB5",
+        "share_b": "2KAZ",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'BWB5'",
+            [
+              467,
+              1938,
+              500,
+              222
+            ]
+          ],
+          [
+            "b'2KAZ'",
+            [
+              1004,
+              1902,
+              222,
+              -512
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    },
+    {
+      "filename": "tc-07.jpeg",
+      "stem": "tc-07",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test\\tc-07.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\analytics",
+      "verdict": "COUNTERFEIT",
+      "confidence": 0.2950618700320903,
+      "seed_recovered": 612710521,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.07078357230300411,
+        "color": 0.4000612616539001,
+        "correlation": 0.5904642186974759,
+        "gradient": 1.0
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 41.48,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\reference_patterns\\tc-07_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\aligned_patterns\\tc-07_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\delta_maps\\tc-07_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "2KAZ",
+          "BWB5"
+        ],
+        "share_a": "BWB5",
+        "share_b": "2KAZ",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'2KAZ'",
+            [
+              906,
+              1875,
+              94,
+              -221
+            ]
+          ],
+          [
+            "b'BWB5'",
+            [
+              676,
+              1892,
+              219,
+              96
+            ]
+          ]
+        ],
+        "shrink_used": 1
+      }
+    },
+    {
+      "filename": "tc-08.jpeg",
+      "stem": "tc-08",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test\\tc-08.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\analytics",
+      "verdict": "COUNTERFEIT",
+      "confidence": 0.40711857199285717,
+      "seed_recovered": 612710521,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.2246304869111583,
+        "color": 0.2792190909385681,
+        "correlation": 0.8318684640674742,
+        "gradient": 1.0
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 53.77,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\reference_patterns\\tc-08_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\aligned_patterns\\tc-08_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\delta_maps\\tc-08_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "BWB5",
+          "2KAZ"
+        ],
+        "share_a": "BWB5",
+        "share_b": "2KAZ",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'BWB5'",
+            [
+              468,
+              1632,
+              553,
+              252
+            ]
+          ],
+          [
+            "b'2KAZ'",
+            [
+              1046,
+              1598,
+              252,
+              -543
+            ]
+          ]
+        ],
+        "shrink_used": 2
+      }
+    },
+    {
+      "filename": "tc-09.jpeg",
+      "stem": "tc-09",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test\\tc-09.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\analytics",
+      "verdict": "COUNTERFEIT",
+      "confidence": 0.2912230032180997,
+      "seed_recovered": 612710521,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.09123198385547615,
+        "color": 0.28109267354011536,
+        "correlation": 0.5381294635802868,
+        "gradient": 1.0
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 50.54,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\reference_patterns\\tc-09_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\aligned_patterns\\tc-09_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\delta_maps\\tc-09_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "2KAZ",
+          "BWB5"
+        ],
+        "share_a": "BWB5",
+        "share_b": "2KAZ",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'2KAZ'",
+            [
+              988,
+              1998,
+              210,
+              -468
+            ]
+          ],
+          [
+            "b'BWB5'",
+            [
+              494,
+              2026,
+              466,
+              206
+            ]
+          ]
+        ],
+        "shrink_used": 2
+      }
+    },
+    {
+      "filename": "tc-10.jpeg",
+      "stem": "tc-10",
+      "original_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test\\tc-10.jpeg",
+      "analytics_dir": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\analytics",
+      "verdict": "COUNTERFEIT",
+      "confidence": 0.2738548675808626,
+      "seed_recovered": 612710521,
+      "pattern_id": null,
+      "scores": {
+        "moire": 0.1335481244233463,
+        "color": 0.251160204410553,
+        "correlation": 0.11932566264632165,
+        "gradient": 1.0
+      },
+      "weights": {
+        "moire": 0.65,
+        "color": 0.1,
+        "correlation": 0.1,
+        "gradient": 0.15
+      },
+      "alignment_method": "\u2014",
+      "processing_time": 33.07,
+      "success": true,
+      "failure_reason": null,
+      "reference_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\reference_patterns\\tc-10_reference.png",
+      "captured_path_saved": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\aligned_patterns\\tc-10_captured.png",
+      "delta_path": "C:\\Users\\kanis\\OneDrive\\Desktop\\AIB Innovations\\QR\\Data Matrix new\\Production\\tests\\batch_test_results\\delta_maps\\tc-10_delta.png",
+      "dm_diagnostic": {
+        "raw_decoded": [
+          "2KAZ",
+          "BWB5"
+        ],
+        "share_a": "BWB5",
+        "share_b": "2KAZ",
+        "num_dms_found": 2,
+        "raw_results": [
+          [
+            "b'2KAZ'",
+            [
+              1136,
+              2136,
+              415,
+              -159
+            ]
+          ],
+          [
+            "b'BWB5'",
+            [
+              812,
+              1856,
+              160,
+              414
+            ]
+          ]
+        ],
+        "shrink_used": 2
+      }
+    }
+  ]
+}

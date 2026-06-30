@@ -1,0 +1,9 @@
+2026-06-29 16:16:13  INFO      ============================================================
+2026-06-29 16:16:13  INFO      PhoneCDP Batch Verification Run
+2026-06-29 16:16:13  INFO      Run timestamp : 2026-06-29 16:16:13
+2026-06-29 16:16:13  INFO      Input folder  : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix new\Production\tests\batch_test
+2026-06-29 16:16:13  INFO      Output folder : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix new\Production\tests\batch_test_results
+2026-06-29 16:16:13  INFO      Images found  : 10
+2026-06-29 16:16:13  INFO      ============================================================
+2026-06-29 16:16:14  INFO      --- Image 1/10 ---
+2026-06-29 16:16:14  INFO      Processing: tc-01.jpeg

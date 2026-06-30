@@ -1,0 +1,11 @@
+filename,verdict,confidence,seed_recovered,pattern_id,moire,correlation,gradient,color,alignment_method,processing_time,success,failure_reason
+tc-01.jpeg,UNABLE_TO_VERIFY,,,,0.0000,0.0000,0.0000,0.0000,—,17.81,False,DM decode failed
+tc-02.jpeg,SUSPICIOUS,0.5722,612710521,,0.4445,1.0000,1.0000,0.3330,—,34.57,True,
+tc-03.jpeg,UNABLE_TO_VERIFY,,,,0.0000,0.0000,0.0000,0.0000,—,23.06,False,DM decode failed
+tc-04.jpeg,SUSPICIOUS,0.5949,612710521,,0.4756,1.0000,1.0000,0.3574,—,42.73,True,
+tc-05.jpeg,SUSPICIOUS,0.4673,612710521,,0.2857,0.9498,1.0000,0.3666,—,133.27,True,
+tc-06.jpeg,AUTHENTIC,0.6966,612710521,,0.6532,1.0000,1.0000,0.2199,—,45.65,True,
+tc-07.jpeg,COUNTERFEIT,0.2951,612710521,,0.0708,0.5905,1.0000,0.4001,—,41.48,True,
+tc-08.jpeg,COUNTERFEIT,0.4071,612710521,,0.2246,0.8319,1.0000,0.2792,—,53.77,True,
+tc-09.jpeg,COUNTERFEIT,0.2912,612710521,,0.0912,0.5381,1.0000,0.2811,—,50.54,True,
+tc-10.jpeg,COUNTERFEIT,0.2739,612710521,,0.1335,0.1193,1.0000,0.2512,—,33.07,True,

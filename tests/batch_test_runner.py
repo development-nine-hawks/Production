@@ -216,7 +216,8 @@ def process_image(
             ref_rgb       = cv2.cvtColor(ref_bgr, cv2.COLOR_BGR2RGB)
 
             block_scores = compute_per_block_scores(
-                captured_gray, ref_gray, captured_rgb, ref_rgb, block_size=16)
+                captured_gray, ref_gray, captured_rgb, ref_rgb,
+                block_size=vr.get("block_size", 16))
 
             # Save per-test plots
             for test in ["moire", "correlation", "gradient", "color"]:
@@ -371,6 +372,13 @@ def main():
     logger.info(f"Output folder : {output_dir}")
     logger.info(f"Images found  : {len(images)}")
     logger.info("=" * 60)
+
+    # ── Initialise DB (needed so verify_pattern can look up block_size) ───────
+    try:
+        from database import init_db
+        init_db()
+    except Exception as _db_exc:
+        logger.warning(f"DB init failed — block_size lookup will use default: {_db_exc}")
 
     # ── Process each image ──────────────────────────────────────────────────
     results: list[dict] = []
