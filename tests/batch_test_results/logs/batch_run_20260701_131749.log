@@ -1,0 +1,25 @@
+2026-07-01 13:17:49  INFO      ============================================================
+2026-07-01 13:17:49  INFO      PhoneCDP Batch Verification Run
+2026-07-01 13:17:49  INFO      Run timestamp : 2026-07-01 13:17:49
+2026-07-01 13:17:49  INFO      Input folder  : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix new\Production\tests\batch_test
+2026-07-01 13:17:49  INFO      Output folder : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix new\Production\tests\batch_test_results
+2026-07-01 13:17:49  INFO      Images found  : 10
+2026-07-01 13:17:49  INFO      ============================================================
+2026-07-01 13:17:51  INFO      --- Image 1/10 ---
+2026-07-01 13:17:51  INFO      Processing: tc-01.jpeg
+2026-07-01 13:18:07  WARNING     tc-01.jpeg: UNABLE_TO_VERIFY — DM decode failed
+2026-07-01 13:18:07  INFO      --- Image 2/10 ---
+2026-07-01 13:18:07  INFO      Processing: tc-02.jpeg
+2026-07-01 13:18:22  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-07-01 13:18:22  INFO      [CROP] DM raw rect: left=1050, top=1994, width=416, height=-168 | corrected: left_full=1050.00, top_full=1826.00, w_full=416.00, h_full=168.00 | y_top_cv=2006.00, y_bottom_cv=2174.00 | img_h=4000, scale=1
+2026-07-01 13:18:22  INFO      [CROP] DM raw rect: left=716, top=1711, width=167, height=418 | corrected: left_full=716.00, top_full=1711.00, w_full=167.00, h_full=418.00 | y_top_cv=1871.00, y_bottom_cv=2289.00 | img_h=4000, scale=1
+2026-07-01 13:18:22  INFO      [CROP] class=content top_dm=167x418 right_dm=416x168 dm_long=418
+2026-07-01 13:18:22  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-07-01 13:18:22  INFO      [CROP] Layer 3 rotation debug: cos_t=0.7224, sin_t=-0.6915, unit_right=[ 0.72235715 -0.69152015], unit_down=[0.69152015 0.72235715] | top_dm_center=[ 799.5 2080. ], right_dm_center=[1258. 2090.] | _TOP_DM_CX=252.00, _TOP_DM_CY=112.00 | _pat_x=0.00, _pat_y=258.00, _pat_w=504.00, _pat_h=504.00
+2026-07-01 13:18:22  INFO      [CROP] Layer 3 computed corners: TL=[ 733.4435 2307.9185], TR=[1030.0817 2023.9435], BR=[1314.0565 2320.5815], BL=[1017.41833 2604.5566 ] | image_bounds=(1800, 4000) | l3_scale=0.815 | observed_dm_dist=458.6 canonical_dm_dist=562.9
+2026-07-01 13:18:22  INFO      [CROP] Layer 3 geometry-only crop ncc=0.5739
+2026-07-01 13:18:22  INFO      [CROP] Layer 3 ncc=0.5742 pattern_center=(1024,2314) scale=0.815
+2026-07-01 13:18:22  INFO      [CROP] Layer 3 used (last resort)
+2026-07-01 13:18:38  INFO        tc-02.jpeg: SUSPICIOUS  conf=0.572  moire=0.445  corr=1.000  grad=1.000  color=0.333
+2026-07-01 13:18:40  INFO      --- Image 3/10 ---
+2026-07-01 13:18:40  INFO      Processing: tc-03.jpeg

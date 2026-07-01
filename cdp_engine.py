@@ -13,6 +13,8 @@ import math
 import logging
 _crop_logger = logging.getLogger("batch_runner")
 
+import zxingcpp
+
 # ── CDP Discrimination Flags ─────────────────────────────────────────────
 # Toggle each flag independently to test contribution of each change.
 # True = change active, False = original behaviour restored for that change.
@@ -397,73 +399,35 @@ def align_crop_from_quad(image, quad, debug=None):
     return crop, True
 
 
-def decode_dm_corners(gray, shrink=1):
-    """Decode DataMatrix codes and return their EXACT perspective corners.
 
-    libdmtx computes the precise symbol->image transform (`fit2raw`) while
-    decoding; pylibdmtx.decode() only exposes a 2-corner axis-aligned bbox from
-    it. Here we map all four unit-square corners (0,0),(1,0),(1,1),(0,1) through
-    fit2raw to recover the DM's true (perspective) corners — far more accurate
-    than the bbox, which is often short / wrong-aspect on angled phone captures.
+def align_crop_by_dm_corners(image, raw_results, debug=None):
+    """ALIGN-THEN-CROP using the two DataMatrix codes' exact corners.
 
-    Returns list of (text, corners) with corners a float32 (4,2) in OpenCV
-    y-down image coordinates.
-    """
-    from ctypes import cast, string_at
-    from pylibdmtx import pylibdmtx as P
-    from pylibdmtx.wrapper import DmtxVector2, dmtxMatrix3VMultiplyBy, c_ubyte_p
-
-    if gray.ndim == 3:
-        gray = cv2.cvtColor(gray, cv2.COLOR_BGR2GRAY)
-    h_full = gray.shape[0]
-    pixels, width, height, bpp = P._pixel_data(gray)
-    out = []
-    with P._image(cast(pixels, c_ubyte_p), width, height, P._PACK_ORDER[bpp]) as img:
-        with P._decoder(img, shrink) as decoder:
-            while True:
-                with P._region(decoder, None) as region:
-                    if not region:
-                        break
-                    with P._decoded_matrix_region(decoder, region, P.DmtxUndefined) as msg:
-                        if not msg:
-                            continue
-                        try:
-                            text = string_at(msg.contents.output).decode("utf-8", "replace").strip()
-                        except Exception:
-                            text = ""
-                        corners = []
-                        for (u, v) in ((0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)):
-                            p = DmtxVector2(u, v)
-                            dmtxMatrix3VMultiplyBy(p, region.contents.fit2raw)
-                            corners.append([shrink * p.X, h_full - shrink * p.Y])  # y-up -> y-down
-                        out.append((text, np.float32(corners)))
-    return out
-
-
-def align_crop_by_dm_corners(image, debug=None):
-    """ALIGN-THEN-CROP using the two DataMatrix codes' EXACT corners.
-
-    The DMs are large, high-contrast, always reliably located, and libdmtx gives
-    their precise perspective corners. Their 8 corners -> one homography that maps
-    the full photo straight to the canonical PATTERN_SIZE crop (alignment + crop
-    fused, one resampling). Replaces the 2-DM-center similarity, which could only
-    fix rotation/scale/translation and left perspective warp.
+    Accepts the already-decoded raw_results list from extract_seed_from_image()
+    (each item has .data bytes and .corners_cv np.float32 4×2 in y-down coords)
+    so no second decode pass is needed.  Their 8 corners → one homography that
+    maps the full photo straight to the canonical PATTERN_SIZE crop (alignment +
+    crop fused, one resampling).
 
     Returns (crop_bgr, True) on success, or (None, False) so the caller can fall
     back to the rough crop.
     """
     out_w, out_h = PATTERN_SIZE
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if image.ndim == 3 else image
 
-    # Accumulate exact-corner decodes across shrink levels (the two DMs may only
-    # decode at different scales). Corners are already in full-image coords.
+    if not raw_results or len(raw_results) < 2:
+        if debug is not None:
+            debug["stage"] = "decode<2"
+        return None, False
+
+    # Build (text, corners_cv) list from already-decoded results.
     dms_by_text = {}
-    for sh in (1, 2, 3, 4):
-        for text, corners in decode_dm_corners(gray, shrink=sh):
-            if text and text not in dms_by_text:
-                dms_by_text[text] = (text, corners)
-        if len(dms_by_text) >= 2:
-            break
+    for r in raw_results:
+        try:
+            text = r.data.decode("utf-8").strip()
+        except Exception:
+            text = ""
+        if text and text not in dms_by_text:
+            dms_by_text[text] = (text, r.corners_cv)
     dms = list(dms_by_text.values())
     if len(dms) < 2:
         if debug is not None:
@@ -2262,95 +2226,300 @@ print(f"[LAYOUT] top_dm_center=({_TOP_DM_CX:.1f},{_TOP_DM_CY:.1f}) "
       f"pattern_px={_PATTERN_PX:.0f}")
 
 
+import collections as _collections
+_ZxingRect    = _collections.namedtuple("ZxingRect",    ["left", "top", "width", "height"])
+_ZxingDecoded = _collections.namedtuple("ZxingDecoded", ["data", "rect", "corners_cv"])
+
+_B32_PAIR_RE = re.compile(r'^[A-Z2-7]{4}$')
+
+
+def _zxing_obj_from_barcode(b, img_h):
+    """Build a _ZxingDecoded from a single zxingcpp.Barcode result."""
+    pos = b.position
+    pts = [pos.top_left, pos.top_right, pos.bottom_right, pos.bottom_left]
+    xs = [p.x for p in pts]
+    ys = [p.y for p in pts]
+    corners_cv = np.float32([[p.x, p.y] for p in pts])
+    left   = min(xs)
+    width  = max(xs) - min(xs)
+    height = max(ys) - min(ys)
+    top    = img_h - min(ys) - height          # y-down → y-up
+    rect   = _ZxingRect(left=left, top=top, width=width, height=height)
+    return _ZxingDecoded(data=b.text.strip().encode("utf-8"), rect=rect,
+                         corners_cv=corners_cv)
+
+
+def _decoded_from_corners(text, corners_cv, img_h):
+    """Build a _ZxingDecoded from a (text, corners_cv) pair (pylibdmtx fallback).
+    corners_cv is already in full-image y-down pixel coords."""
+    xs = corners_cv[:, 0]
+    ys = corners_cv[:, 1]
+    left   = float(xs.min())
+    width  = float(xs.max() - xs.min())
+    height = float(ys.max() - ys.min())
+    top    = img_h - float(ys.min()) - height  # y-down → y-up
+    rect   = _ZxingRect(left=left, top=top, width=width, height=height)
+    return _ZxingDecoded(data=text.encode("utf-8"), rect=rect, corners_cv=corners_cv)
+
+
+def _pair_valid(texts):
+    """Return True if any pair in `texts` forms a valid seed via recombine_seed_from_dm."""
+    valid = [t for t in texts if _B32_PAIR_RE.match(t)]
+    for s1, s2 in itertools.combinations(valid, 2):
+        if recombine_seed_from_dm(s1, s2) is not None:
+            return True
+        if recombine_seed_from_dm(s2, s1) is not None:
+            return True
+    return False
+
+
+def decode_dm_zxing(image_bgr):
+    """Exhaustive zxing-cpp sweep: 4 preprocessing × 4 binarizer combinations.
+
+    Stops as soon as any combination finds >= 2 DataMatrix results whose texts
+    form a validated seed pair (recombine_seed_from_dm passes in either order).
+    If a combination finds only 1 valid code, it is tracked as a "best partial"
+    and reported even on total failure.
+
+    Returns (raw_results, pair_found):
+        raw_results  – list of _ZxingDecoded from the winning combination, or
+                       best partial seen if no pair was validated
+        pair_found   – True iff a validated seed pair was confirmed
+    """
+    img_h = image_bgr.shape[0]
+    gray  = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    _, otsu = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    variants = [
+        ("raw",   image_bgr),
+        ("gray",  gray),
+        ("clahe", clahe.apply(gray)),
+        ("otsu",  otsu),
+    ]
+    binarizers = [
+        ("LocalAverage",    zxingcpp.Binarizer.LocalAverage),
+        ("GlobalHistogram", zxingcpp.Binarizer.GlobalHistogram),
+        ("FixedThreshold",  zxingcpp.Binarizer.FixedThreshold),
+        ("BoolCast",        zxingcpp.Binarizer.BoolCast),
+    ]
+
+    best_partial = []   # largest non-empty result set seen without a valid pair
+
+    for prep_name, prep_img in variants:
+        for bin_name, binarizer in binarizers:
+            try:
+                barcodes = zxingcpp.read_barcodes(
+                    prep_img,
+                    formats=zxingcpp.BarcodeFormat.DataMatrix,
+                    try_rotate=True, try_downscale=True, try_invert=True,
+                    binarizer=binarizer,
+                )
+            except Exception as _e:
+                print(f"[ZXING] {prep_name}/{bin_name}: error — {_e}")
+                continue
+
+            results = [_zxing_obj_from_barcode(b, img_h)
+                       for b in barcodes if b.text.strip()]
+            texts   = [r.data.decode("utf-8") for r in results]
+            print(f"[ZXING] {prep_name}/{bin_name}: {len(results)} result(s): {sorted(texts)}")
+
+            if _pair_valid(texts):
+                print(f"[ZXING] Valid pair confirmed at {prep_name}/{bin_name} — sweep done")
+                return results, True
+
+            if len(results) > len(best_partial):
+                best_partial = results
+                if results:
+                    print(f"[ZXING] New best partial ({len(results)} code(s)): {sorted(texts)}")
+
+    if best_partial:
+        partial_texts = sorted(r.data.decode("utf-8") for r in best_partial)
+        print(f"[ZXING] Sweep exhausted — no valid pair. Best partial: {partial_texts}")
+    else:
+        print("[ZXING] Sweep exhausted — no DataMatrix codes detected in any combination")
+    return best_partial, False
+
+
+def _decode_dm_corners_pylibdmtx(gray, shrink=1):
+    """Decode DataMatrix codes using libdmtx fit2raw to get exact perspective
+    corners in full-image y-down pixel coordinates.
+    Used only by the pylibdmtx fallback in _pylibdmtx_sweep().
+    Returns list of (text, corners_cv) with corners float32 (4,2)."""
+    from ctypes import cast, string_at
+    from pylibdmtx import pylibdmtx as P
+    from pylibdmtx.wrapper import DmtxVector2, dmtxMatrix3VMultiplyBy, c_ubyte_p
+    h_full = gray.shape[0]
+    pixels, width, height, bpp = P._pixel_data(gray)
+    out = []
+    with P._image(cast(pixels, c_ubyte_p), width, height, P._PACK_ORDER[bpp]) as img:
+        with P._decoder(img, shrink) as decoder:
+            while True:
+                with P._region(decoder, None) as region:
+                    if not region:
+                        break
+                    with P._decoded_matrix_region(decoder, region, P.DmtxUndefined) as msg:
+                        if not msg:
+                            continue
+                        try:
+                            text = string_at(msg.contents.output).decode("utf-8", "replace").strip()
+                        except Exception:
+                            text = ""
+                        corners = []
+                        for (u, v) in ((0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)):
+                            p = DmtxVector2(u, v)
+                            dmtxMatrix3VMultiplyBy(p, region.contents.fit2raw)
+                            corners.append([shrink * p.X, h_full - shrink * p.Y])
+                        out.append((text, np.float32(corners)))
+    return out
+
+
+def _pylibdmtx_sweep(image_bgr):
+    """Last-resort fallback: pylibdmtx fit2raw decode at shrink 1–4.
+
+    Tracks a running union of decoded texts across shrink levels and validates
+    pairs at each level (fixes the old early-break-on-count bug). Stops as
+    soon as the union contains a valid seed pair.
+
+    Returns (raw_results, pair_found) in the same format as decode_dm_zxing().
+    All result objects use the same _ZxingDecoded shim so downstream code
+    (detect_and_crop_pattern, align_crop_by_dm_corners) needs no changes.
+    """
+    gray  = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
+    img_h = gray.shape[0]
+
+    seen             = {}   # text -> _ZxingDecoded (union, first occurrence wins)
+    best_level_count = 0
+    best_level_results = []
+
+    for sh in (1, 2, 3, 4):
+        try:
+            pairs = _decode_dm_corners_pylibdmtx(gray, shrink=sh)
+        except Exception as _e:
+            print(f"[PYLIBDMTX] shrink={sh}: error — {_e}")
+            continue
+
+        level_texts = []
+        for text, corners_cv in pairs:
+            if not text:
+                continue
+            r = _decoded_from_corners(text, corners_cv, img_h)
+            level_texts.append(text)
+            if seen.setdefault(text, r) is r:   # only log genuinely new codes
+                pass
+            seen[text] = r                       # always keep latest corners
+
+        print(f"[PYLIBDMTX] shrink={sh}: {len(pairs)} DM(s): {sorted(level_texts)}")
+
+        if len(pairs) > best_level_count:
+            best_level_count   = len(pairs)
+            best_level_results = list(seen.values())
+
+        # Validate on union so cross-level pairs are caught
+        union_texts = list(seen.keys())
+        if _pair_valid(union_texts):
+            union_results = list(seen.values())
+            print(f"[PYLIBDMTX] Valid pair in union after shrink={sh}: {sorted(union_texts)}")
+            return union_results, True
+
+    union_results = list(seen.values())
+    if union_results:
+        print(f"[PYLIBDMTX] Sweep exhausted — no valid pair. "
+              f"Union: {sorted(r.data.decode('utf-8') for r in union_results)}")
+    else:
+        print("[PYLIBDMTX] Sweep exhausted — no DataMatrix codes detected")
+    return best_level_results, False
+
+
 def extract_seed_from_image(image_bgr):
     """
-    Step 1 - DM Detection and Seed Recovery.
+    Step 1 — DM Detection and Seed Recovery.
 
-    Decodes all DataMatrix codes found in image_bgr, identifies the correct
-    share_a / share_b pair (by check-character validation), and returns the
-    recombined seed integer.
+    Decodes all DataMatrix codes in image_bgr, finds the share_a/share_b pair
+    that passes recombine_seed_from_dm(), and returns the recombined seed.
+
+    Decode strategy (two-path fallback):
+      Path 1 — zxing-cpp exhaustive sweep (4 preprocessing × 4 binarizer).
+               Stops at the first combination that yields a validated pair.
+      Path 2 — pylibdmtx fit2raw fallback (shrink 1–4, union-validated).
+               Only runs if the full zxing-cpp sweep produced no valid pair.
 
     Returns:
         (seed: int, diagnostic: dict)  on success
         (None, diagnostic: dict)       on failure
 
-    The diagnostic dict always contains a 'raw_results' key holding the full
-    pylibdmtx result list (including bounding-box rects) from the shrink level
-    that succeeded, plus 'shrink_used'.  These are forwarded to
-    detect_and_crop_pattern so it can reuse the geometry without a second
-    decode pass.
+    diagnostic always contains raw_results (list of _ZxingDecoded), shrink_used
+    (always 1 — rects/corners are full-image coords regardless of path), and
+    enough detail to diagnose failures from the log alone.
     """
-    from pylibdmtx.pylibdmtx import decode as dm_decode
+    # ── Path 1: zxing-cpp exhaustive sweep ───────────────────────────────────
+    print("[EXTRACT_SEED] === zxing-cpp exhaustive sweep ===")
+    raw_results, pair_found = decode_dm_zxing(image_bgr)
+    path_used = "zxing-cpp"
 
-    gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
+    if not pair_found:
+        # ── Path 2: pylibdmtx last-resort fallback ────────────────────────────
+        print("[EXTRACT_SEED] zxing-cpp sweep exhausted, falling back to pylibdmtx")
+        pylib_results, pylib_ok = _pylibdmtx_sweep(image_bgr)
+        if pylib_results:           # use pylibdmtx results even if no pair found
+            raw_results = pylib_results
+            pair_found  = pylib_ok
+        path_used = "pylibdmtx"
 
-    # Try several shrink levels and ACCUMULATE distinct decodes across them — a
-    # large/close or partly-blurred DM may only decode at a particular scale, and
-    # the two DMs on a label can decode at different scales. raw_results / shrink
-    # are kept from the single level that found the most DMs (so the rough-crop
-    # fallback geometry stays internally consistent); seed recovery uses the union.
-    seen = {}                 # decoded text -> first Decoded result
-    raw_results, shrink_used = [], 1
-    for sh in (1, 2, 3, 4):
-        res = dm_decode(gray, shrink=sh)
-        texts_this = set()
-        for r in res:
-            try:
-                t = r.data.decode("utf-8").strip()
-            except Exception:
-                continue
-            texts_this.add(t)
-            seen.setdefault(t, r)
-        print(f"[EXTRACT_SEED] shrink={sh} found {len(texts_this)} DM strings: {sorted(texts_this)}")
-        if len(res) > len(raw_results):
-            raw_results, shrink_used = res, sh
-        if len(texts_this) >= 2:            # one level has both -> ideal geometry
-            raw_results, shrink_used = res, sh
-            break
-        if len(seen) >= 2:                  # union has both -> enough to recover seed
-            break
+    # Deduplicate and collect decoded strings
+    seen = {}
+    for r in raw_results:
+        try:
+            t = r.data.decode("utf-8").strip()
+        except Exception:
+            continue
+        seen.setdefault(t, r)
 
     decoded_strings = list(seen.keys())
-    print(f"[EXTRACT_SEED] union: {len(decoded_strings)} DM strings: {sorted(decoded_strings)} "
-          f"(raw_results from shrink={shrink_used})")
+    print(f"[EXTRACT_SEED] [{path_used}] {len(decoded_strings)} DM string(s): "
+          f"{sorted(decoded_strings)}")
 
     diagnostic = {
         "raw_decoded":   decoded_strings,
         "share_a":       None,
         "share_b":       None,
         "num_dms_found": len(raw_results),
-        # Preserve full result list + scale so the cropper can reuse geometry
         "raw_results":   raw_results,
-        "shrink_used":   shrink_used,
+        "shrink_used":   1,     # rects/corners always in full-image coords
     }
 
     if len(decoded_strings) < 2:
-        diagnostic["failure_reason"] = "Fewer than 2 DataMatrix codes decoded"
+        diagnostic["failure_reason"] = (
+            f"Both decode paths exhausted. "
+            f"Best candidates [{path_used}]: {sorted(decoded_strings) or ['none']}"
+        )
+        print(f"[EXTRACT_SEED] Failed — {diagnostic['failure_reason']}")
         return None, diagnostic
 
-    # Try all C(n, 2) pairs; accept the first that passes recombine_seed_from_dm
-    b32_re = re.compile(r'^[A-Z2-7]{4}$')
+    # Find the valid share pair
     for s1, s2 in itertools.combinations(decoded_strings, 2):
-        if not (b32_re.match(s1) and b32_re.match(s2)):
+        if not (_B32_PAIR_RE.match(s1) and _B32_PAIR_RE.match(s2)):
             continue
         seed = recombine_seed_from_dm(s1, s2)
         if seed is not None:
             diagnostic["share_a"] = s1
             diagnostic["share_b"] = s2
-            print(f"[EXTRACT_SEED] Seed recovered: {seed} "
+            print(f"[EXTRACT_SEED] Seed recovered [{path_used}]: {seed} "
                   f"from share_a={s1}, share_b={s2}")
             return seed, diagnostic
-        # Also try reversed order
         seed = recombine_seed_from_dm(s2, s1)
         if seed is not None:
             diagnostic["share_a"] = s2
             diagnostic["share_b"] = s1
-            print(f"[EXTRACT_SEED] Seed recovered: {seed} "
+            print(f"[EXTRACT_SEED] Seed recovered [{path_used}]: {seed} "
                   f"from share_a={s2}, share_b={s1}")
             return seed, diagnostic
 
-    diagnostic["failure_reason"] = "No valid share pair found (check-character mismatch on all combinations)"
-    print(f"[EXTRACT_SEED] Failed - {diagnostic['failure_reason']}")
+    diagnostic["failure_reason"] = (
+        f"No valid share pair [{path_used}] "
+        f"(check-character mismatch on all combinations of {sorted(decoded_strings)})"
+    )
+    print(f"[EXTRACT_SEED] Failed — {diagnostic['failure_reason']}")
     return None, diagnostic
 
 
@@ -2599,9 +2768,12 @@ def verify_pattern(captured_path, uploads_dir="uploads"):
     # photo straight to the canonical pattern (alignment + crop in one resampling).
     # Falls back to the DM rough crop if either DM can't be cornered.
     print("[VERIFY] === STEP 2b: Align-then-Crop via DM corners ===")
+    print("[VERIFY] Step 2b reusing Step 1 zxing-cpp corners (no re-decode)")
     aligned_roi, fid_ok, dbg_align = None, False, {}
     try:
-        aligned_roi, fid_ok = align_crop_by_dm_corners(captured_bgr, debug=dbg_align)
+        aligned_roi, fid_ok = align_crop_by_dm_corners(
+            captured_bgr, dm_diagnostic["raw_results"], debug=dbg_align
+        )
     except Exception as _e:
         print(f"[VERIFY] DM-corner align error ({_e}) -> DM rough crop")
         aligned_roi, fid_ok = None, False

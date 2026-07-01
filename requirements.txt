@@ -12,3 +12,4 @@ requests
 playwright
 matplotlib
 pylibdmtx
+zxing-cpp
