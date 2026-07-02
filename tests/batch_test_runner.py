@@ -196,16 +196,29 @@ def process_image(
         ref_dst = dirs["reference"]  / f"{stem}_reference.png"
         aln_dst = dirs["aligned"]    / f"{stem}_aligned.png"
         det_dst = dirs["detection"]  / f"{stem}_detection.png"
+        fid_dst = dirs["aligned"]    / f"{stem}_fiducial_markers.png"
+
+        fid_name = vr.get("fiducial_filename")
+        fid_src  = (uploads_tmp / fid_name) if fid_name else None
 
         if roi_src.exists(): shutil.copy2(roi_src, cap_dst)
         if ref_src.exists(): shutil.copy2(ref_src, ref_dst)
         if aln_src.exists(): shutil.copy2(aln_src, aln_dst)
         if det_src and det_src.exists(): shutil.copy2(det_src, det_dst)
+        if fid_src and fid_src.exists(): shutil.copy2(fid_src, fid_dst)
 
         result["captured_path_saved"]  = str(cap_dst) if cap_dst.exists() else None
         result["reference_path"]       = str(ref_dst) if ref_dst.exists() else None
         result["aligned_path_saved"]   = str(aln_dst) if aln_dst.exists() else None
         result["detection_path_saved"] = str(det_dst) if det_dst.exists() else None
+        result["fiducial_path_saved"]  = str(fid_dst) if fid_dst.exists() else None
+
+        fa_applied = vr.get("fine_align_applied", False)
+        fa_n       = vr.get("fine_align_n", 0)
+        fa_dx      = vr.get("fine_align_dx", 0.0)
+        fa_dy      = vr.get("fine_align_dy", 0.0)
+        logger.info(f"  {filename}: fine-align applied={fa_applied} "
+                    f"n={fa_n}/4 dx={fa_dx:+.1f} dy={fa_dy:+.1f}")
 
         # Scores
         sc = vr.get("scores", {})
@@ -450,6 +463,20 @@ def main():
     print(f"  PDF report       : {pdf_path}")
     print(f"  CSV              : {csv_path}")
     print(f"  Log              : {log_path}")
+    print("=" * 60)
+    print()
+    print("  !! KNOWN GAP (2026-07-02): fine-alignment (Step 2c) !!")
+    print("  Fine-alignment correction fixes false COUNTERFEIT verdicts on")
+    print("  genuine labels (tc-03 rotated, tc-05 low-light, tc-06 glare).")
+    print("  However, it also raises scores for at least one known counterfeit")
+    print("  sample (tc-09) enough to pass THRESHOLD_AUTHENTIC.")
+    print("  Working hypothesis: the counterfeit was previously caught only")
+    print("  because capture misalignment incidentally degraded its PRNG")
+    print("  correlation — not via an intended detection mechanism.")
+    print("  Action needed: (a) test more counterfeit samples across different")
+    print("  reproduction techniques; (b) consider CDP pattern redesign to")
+    print("  encode detail that is hard for common printers to reproduce even")
+    print("  under correct alignment.")
     print("=" * 60)
 
 

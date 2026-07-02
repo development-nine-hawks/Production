@@ -1,0 +1,72 @@
+2026-07-02 12:59:28  INFO      ============================================================
+2026-07-02 12:59:28  INFO      PhoneCDP Batch Verification Run
+2026-07-02 12:59:28  INFO      Run timestamp : 2026-07-02 12:59:28
+2026-07-02 12:59:28  INFO      Input folder  : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix new\Production\tests\batch_test
+2026-07-02 12:59:28  INFO      Output folder : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix new\Production\tests\batch_test_results
+2026-07-02 12:59:28  INFO      Images found  : 10
+2026-07-02 12:59:28  INFO      ============================================================
+2026-07-02 12:59:29  INFO      --- Image 1/10 ---
+2026-07-02 12:59:29  INFO      Processing: tc-01.jpeg
+2026-07-02 12:59:30  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-07-02 12:59:30  INFO      [CROP] DM raw rect: left=468, top=1831, width=480, height=216 | corrected: left_full=468.00, top_full=1831.00, w_full=480.00, h_full=216.00 | y_top_cv=1953.00, y_bottom_cv=2169.00 | img_h=4000, scale=1
+2026-07-02 12:59:30  INFO      [CROP] DM raw rect: left=972, top=1330, width=216, height=474 | corrected: left_full=972.00, top_full=1330.00, w_full=216.00, h_full=474.00 | y_top_cv=2196.00, y_bottom_cv=2670.00 | img_h=4000, scale=1
+2026-07-02 12:59:30  INFO      [CROP] class=content top_dm=480x216 right_dm=216x474 dm_long=480
+2026-07-02 12:59:30  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-07-02 12:59:30  INFO      [CROP] Layer 3 rotation debug: cos_t=1.0000, sin_t=0.0000, unit_right=[1. 0.], unit_down=[-0.  1.] | top_dm_center=[ 708. 2061.], right_dm_center=[1080. 2433.] | _TOP_DM_CX=252.00, _TOP_DM_CY=112.00 | _pat_x=0.00, _pat_y=258.00, _pat_w=504.00, _pat_h=504.00
+2026-07-02 12:59:30  INFO      [CROP] Layer 3 computed corners: TL=[ 472.4623 2197.4624], TR=[ 943.5377 2197.4624], BR=[ 943.5377 2668.5376], BL=[ 472.4623 2668.5376] | image_bounds=(1800, 4000) | l3_scale=0.935 | observed_dm_dist=526.1 canonical_dm_dist=562.9
+2026-07-02 12:59:30  INFO      [CROP] Layer 3 geometry-only crop ncc=0.5844
+2026-07-02 12:59:30  INFO      [CROP] Layer 3 ncc=0.5855 pattern_center=(708,2433) scale=0.935
+2026-07-02 12:59:30  INFO      [CROP] Layer 3 used (last resort)
+2026-07-02 12:59:30  INFO        tc-01.jpeg: AUTHENTIC  conf=0.846  moire=0.864  corr=1.000  grad=1.000  color=0.341
+2026-07-02 12:59:33  INFO      --- Image 2/10 ---
+2026-07-02 12:59:33  INFO      Processing: tc-02.jpeg
+2026-07-02 12:59:33  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-07-02 12:59:33  INFO      [CROP] DM raw rect: left=1050, top=1699, width=417, height=423 | corrected: left_full=1050.00, top_full=1699.00, w_full=417.00, h_full=423.00 | y_top_cv=1878.00, y_bottom_cv=2301.00 | img_h=4000, scale=1
+2026-07-02 12:59:33  INFO      [CROP] DM raw rect: left=585, top=1714, width=423, height=414 | corrected: left_full=585.00, top_full=1714.00, w_full=423.00, h_full=414.00 | y_top_cv=1872.00, y_bottom_cv=2286.00 | img_h=4000, scale=1
+2026-07-02 12:59:33  INFO      [CROP] class=content top_dm=423x414 right_dm=417x423 dm_long=423
+2026-07-02 12:59:34  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-07-02 12:59:34  INFO      [CROP] Layer 3 rotation debug: cos_t=0.7230, sin_t=-0.6909, unit_right=[ 0.7229907  -0.69085777], unit_down=[0.69085777 0.7229907 ] | top_dm_center=[ 796.5 2079. ], right_dm_center=[1258.5 2089.5] | _TOP_DM_CX=252.00, _TOP_DM_CY=112.00 | _pat_x=0.00, _pat_y=258.00, _pat_w=504.00, _pat_h=504.00
+2026-07-02 12:59:34  INFO      [CROP] Layer 3 computed corners: TL=[ 729.72736 2308.6018 ], TR=[1028.8983 2022.7274], BR=[1314.7727 2321.8982], BL=[1015.60175 2607.7727 ] | image_bounds=(1800, 4000) | l3_scale=0.821 | observed_dm_dist=462.1 canonical_dm_dist=562.9
+2026-07-02 12:59:34  INFO      [CROP] Layer 3 geometry-only crop ncc=0.4009
+2026-07-02 12:59:34  INFO      [CROP] Layer 3 ncc=0.4011 pattern_center=(1022,2315) scale=0.821
+2026-07-02 12:59:34  INFO      [CROP] Layer 3 used (last resort)
+2026-07-02 12:59:34  INFO        tc-02.jpeg: AUTHENTIC  conf=0.818  moire=0.818  corr=1.000  grad=1.000  color=0.364
+2026-07-02 12:59:37  INFO      --- Image 3/10 ---
+2026-07-02 12:59:37  INFO      Processing: tc-03.jpeg
+2026-07-02 12:59:37  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-07-02 12:59:37  INFO      [CROP] DM raw rect: left=805, top=1847, width=156, height=347 | corrected: left_full=805.00, top_full=1847.00, w_full=156.00, h_full=347.00 | y_top_cv=1806.00, y_bottom_cv=2153.00 | img_h=4000, scale=1
+2026-07-02 12:59:37  INFO      [CROP] DM raw rect: left=978, top=2218, width=351, height=156 | corrected: left_full=978.00, top_full=2218.00, w_full=351.00, h_full=156.00 | y_top_cv=1626.00, y_bottom_cv=1782.00 | img_h=4000, scale=1
+2026-07-02 12:59:37  INFO      [CROP] class=content top_dm=156x347 right_dm=351x156 dm_long=351
+2026-07-02 12:59:38  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-07-02 12:59:38  INFO      [CROP] Layer 3 rotation debug: cos_t=-0.0092, sin_t=-1.0000, unit_right=[-0.00915712 -0.9999581 ], unit_down=[ 0.9999581  -0.00915712] | top_dm_center=[ 883.  1979.5], right_dm_center=[1153.5 1704. ] | _TOP_DM_CX=252.00, _TOP_DM_CY=112.00 | _pat_x=0.00, _pat_y=258.00, _pat_w=504.00, _pat_h=504.00
+2026-07-02 12:59:38  INFO      [CROP] Layer 3 computed corners: TL=[ 984.72864 2151.4373 ], TR=[ 981.56287 1805.7286 ], BR=[1327.2714 1802.5629], BL=[1330.4371 2148.2712] | image_bounds=(1800, 4000) | l3_scale=0.686 | observed_dm_dist=386.1 canonical_dm_dist=562.9
+2026-07-02 12:59:38  INFO      [CROP] Layer 3 geometry-only crop ncc=0.5794
+2026-07-02 12:59:38  INFO      [CROP] Layer 3 ncc=0.5793 pattern_center=(1156,1977) scale=0.686
+2026-07-02 12:59:38  INFO      [CROP] Layer 3 used (last resort)
+2026-07-02 12:59:38  INFO        tc-03.jpeg: COUNTERFEIT  conf=0.204  moire=0.004  corr=0.277  grad=0.986  color=0.254
+2026-07-02 12:59:41  INFO      --- Image 4/10 ---
+2026-07-02 12:59:41  INFO      Processing: tc-04.jpeg
+2026-07-02 12:59:41  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-07-02 12:59:41  INFO      [CROP] DM raw rect: left=483, top=2212, width=210, height=468 | corrected: left_full=483.00, top_full=2212.00, w_full=210.00, h_full=468.00 | y_top_cv=1320.00, y_bottom_cv=1788.00 | img_h=4000, scale=1
+2026-07-02 12:59:41  INFO      [CROP] DM raw rect: left=723, top=1978, width=462, height=210 | corrected: left_full=723.00, top_full=1978.00, w_full=462.00, h_full=210.00 | y_top_cv=1812.00, y_bottom_cv=2022.00 | img_h=4000, scale=1
+2026-07-02 12:59:41  INFO      [CROP] class=content top_dm=462x210 right_dm=210x468 dm_long=468
+2026-07-02 12:59:41  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-07-02 12:59:41  INFO      [CROP] Layer 3 rotation debug: cos_t=-1.0000, sin_t=0.0041, unit_right=[-0.99999154  0.00411519], unit_down=[-0.00411519 -0.99999154] | top_dm_center=[ 954. 1917.], right_dm_center=[ 588. 1554.] | _TOP_DM_CX=252.00, _TOP_DM_CY=112.00 | _pat_x=0.00, _pat_y=258.00, _pat_w=504.00, _pat_h=504.00
+2026-07-02 12:59:41  INFO      [CROP] Layer 3 computed corners: TL=[1184.2386 1782.3392], TR=[ 722.6608 1784.2386], BR=[ 720.7613 1322.6608], BL=[1182.3392 1320.7614] | image_bounds=(1800, 4000) | l3_scale=0.916 | observed_dm_dist=515.5 canonical_dm_dist=562.9
+2026-07-02 12:59:41  INFO      [CROP] Layer 3 geometry-only crop ncc=0.5739
+2026-07-02 12:59:41  INFO      [CROP] Layer 3 ncc=0.5760 pattern_center=(952,1552) scale=0.916
+2026-07-02 12:59:41  INFO      [CROP] Layer 3 used (last resort)
+2026-07-02 12:59:42  INFO        tc-04.jpeg: AUTHENTIC  conf=0.939  moire=1.000  corr=1.000  grad=1.000  color=0.389
+2026-07-02 12:59:45  INFO      --- Image 5/10 ---
+2026-07-02 12:59:45  INFO      Processing: tc-05.jpeg
+2026-07-02 12:59:45  INFO      [CROP] image shape: (4000, 1800, 3)
+2026-07-02 12:59:45  INFO      [CROP] DM raw rect: left=528, top=1906, width=435, height=201 | corrected: left_full=528.00, top_full=1906.00, w_full=435.00, h_full=201.00 | y_top_cv=1893.00, y_bottom_cv=2094.00 | img_h=4000, scale=1
+2026-07-02 12:59:45  INFO      [CROP] DM raw rect: left=993, top=1453, width=195, height=435 | corrected: left_full=993.00, top_full=1453.00, w_full=195.00, h_full=435.00 | y_top_cv=2112.00, y_bottom_cv=2547.00 | img_h=4000, scale=1
+2026-07-02 12:59:45  INFO      [CROP] class=content top_dm=435x201 right_dm=195x435 dm_long=435
+2026-07-02 12:59:45  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-07-02 12:59:45  INFO      [CROP] Layer 3 rotation debug: cos_t=0.9999, sin_t=-0.0132, unit_right=[ 0.9999127  -0.01321471], unit_down=[0.01321471 0.9999127 ] | top_dm_center=[ 745.5 1993.5], right_dm_center=[1090.5 2329.5] | _TOP_DM_CX=252.00, _TOP_DM_CY=112.00 | _pat_x=0.00, _pat_y=258.00, _pat_w=504.00, _pat_h=504.00
+2026-07-02 12:59:45  INFO      [CROP] Layer 3 computed corners: TL=[ 531.5578 2121.2563], TR=[ 962.7437 2115.5579], BR=[ 968.4422 2546.7437], BL=[ 537.2563 2552.4421] | image_bounds=(1800, 4000) | l3_scale=0.856 | observed_dm_dist=481.6 canonical_dm_dist=562.9
+2026-07-02 12:59:45  INFO      [CROP] Layer 3 geometry-only crop ncc=0.5233
+2026-07-02 12:59:45  INFO      [CROP] Layer 3 ncc=0.5239 pattern_center=(750,2334) scale=0.856
+2026-07-02 12:59:45  INFO      [CROP] Layer 3 used (last resort)
+2026-07-02 12:59:46  INFO        tc-05.jpeg: COUNTERFEIT  conf=0.210  moire=0.000  corr=0.223  grad=1.000  color=0.374

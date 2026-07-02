@@ -202,6 +202,114 @@ def _blank_fiducials(img):
     return out
 
 
+def fine_align_via_fiducials(crop_512, debug=None):
+    """Fine-alignment correction using the 4 corner fiducial markers.
+
+    Runs AFTER Step 2b's coarse DM-corner homography and BEFORE Step 5
+    scoring.  Locates each physical ring+disc fiducial in the coarse 512×512
+    crop by template matching, derives a median translation offset, and
+    applies it so the PRNG pattern lands on the correct block-grid phase.
+
+    Policy (see design doc):
+      >= 3 of 4 fiducials cleared the score threshold → apply correction
+       < 3                                            → return crop unchanged
+
+    Args:
+        crop_512 : uint8 ndarray (H, W) or (H, W, 3) — the coarse crop.
+        debug    : optional dict; filled with per-fiducial results if provided.
+
+    Returns:
+        (corrected_crop, applied: bool)
+    """
+    SEARCH_HALF = 30                     # ± px around each canonical centre
+    TMPL_R      = FIDUCIAL_RING_R + 4   # template half-side → (2*TMPL_R+1)² px
+    SCORE_THR   = 0.40                  # min TM_CCOEFF_NORMED to accept
+    MIN_DETECT  = 3                     # need at least this many to apply
+
+    h, w = crop_512.shape[:2]
+    gray = (cv2.cvtColor(crop_512, cv2.COLOR_BGR2GRAY)
+            if crop_512.ndim == 3 else crop_512)
+
+    # Build synthetic ring+disc template matching add_fiducial_markers() exactly
+    T = 2 * TMPL_R + 1
+    tmpl = np.full((T, T), 128, dtype=np.uint8)
+    cv2.circle(tmpl, (TMPL_R, TMPL_R), FIDUCIAL_RING_R, 0,   -1)  # black ring
+    cv2.circle(tmpl, (TMPL_R, TMPL_R), FIDUCIAL_DISC_R, 255, -1)  # white disc
+
+    canon_centers = _fiducial_centers(w, h)
+    slot_labels   = ['TL', 'TR', 'BR', 'BL']
+
+    accepted = []   # dicts for fiducials that cleared the threshold
+    rejected = []   # dicts for those that didn't
+
+    for lbl, (cx, cy) in zip(slot_labels, canon_centers):
+        cx_i, cy_i = int(round(cx)), int(round(cy))
+
+        # Extract padded search region (clamped to image boundaries)
+        sx0 = max(0, cx_i - SEARCH_HALF - TMPL_R)
+        sy0 = max(0, cy_i - SEARCH_HALF - TMPL_R)
+        sx1 = min(w, cx_i + SEARCH_HALF + TMPL_R + 1)
+        sy1 = min(h, cy_i + SEARCH_HALF + TMPL_R + 1)
+        patch = gray[sy0:sy1, sx0:sx1]
+
+        if patch.shape[0] < T or patch.shape[1] < T:
+            rejected.append({'label': lbl, 'score': 0.0, 'reason': 'patch_too_small'})
+            continue
+
+        res = cv2.matchTemplate(patch.astype(np.float32),
+                                tmpl.astype(np.float32),
+                                cv2.TM_CCOEFF_NORMED)
+        _, max_val, _, max_loc = cv2.minMaxLoc(res)
+        max_val = float(max_val)
+
+        # Template centre in crop coordinates
+        det_cx = sx0 + max_loc[0] + TMPL_R
+        det_cy = sy0 + max_loc[1] + TMPL_R
+
+        entry = {
+            'label':    lbl,
+            'canon':    (cx_i, cy_i),
+            'detected': (det_cx, det_cy),
+            'offset':   (cx_i - det_cx, cy_i - det_cy),  # correction direction
+            'score':    max_val,
+        }
+        if max_val >= SCORE_THR:
+            accepted.append(entry)
+        else:
+            entry['reason'] = 'below_threshold'
+            rejected.append(entry)
+
+    # Compute median correction from accepted detections
+    applied = False
+    corrected = crop_512
+    dx = dy = 0.0
+
+    if len(accepted) >= MIN_DETECT:
+        dx = float(np.median([e['offset'][0] for e in accepted]))
+        dy = float(np.median([e['offset'][1] for e in accepted]))
+        M  = np.float32([[1, 0, dx], [0, 1, dy]])
+        corrected = cv2.warpAffine(crop_512, M, (w, h),
+                                   flags=cv2.INTER_LANCZOS4,
+                                   borderMode=cv2.BORDER_REFLECT_101)
+        applied = True
+        print(f"[FINE_ALIGN] correction applied  dx={dx:+.1f} dy={dy:+.1f}  "
+              f"({len(accepted)}/4 fiducials)")
+    else:
+        print(f"[FINE_ALIGN] correction SKIPPED  only {len(accepted)}/4 fiducials "
+              f"detected (need {MIN_DETECT})")
+
+    if debug is not None:
+        debug.update(
+            fa_accepted=accepted,
+            fa_rejected=rejected,
+            fa_dx=dx, fa_dy=dy,
+            fa_applied=applied,
+            fa_n_detected=len(accepted),
+        )
+
+    return corrected, applied
+
+
 def _sample_mean(gray, cx, cy, radii, n=24):
     """Mean intensity sampled on circles of the given radii around (cx,cy)."""
     h, w = gray.shape[:2]
@@ -2815,6 +2923,26 @@ def verify_pattern(captured_path, uploads_dir="uploads"):
     Returns:
         dict with keys: verdict, confidence, seed_recovered, scores, weights,
         dm_diagnostic, roi_filename, reference_filename, aligned_filename.
+
+    KNOWN GAP (2026-07-02): fine-alignment correction (Step 2c) fixes false
+    COUNTERFEIT verdicts on genuine labels captured with slight misalignment
+    (confirmed on tc-03 rotated, tc-05 low-light, tc-06 glare).  However, it
+    also raises correlation/moire scores for at least one known counterfeit
+    sample (tc-09), causing it to cross THRESHOLD_AUTHENTIC.
+
+    Working hypothesis: the counterfeit's printer could not reproduce the CDP
+    pattern at sufficient fidelity to survive alignment — meaning fine alignment
+    removes an INCIDENTAL defense that was never the intended detection
+    mechanism.  The tc-09 sample happened to be caught previously only because
+    capture misalignment degraded its PRNG correlation below threshold.
+
+    This is unverified against only one counterfeit sample.  Needs:
+      (a) more counterfeit samples across different reproduction techniques to
+          test whether the incidental-misalignment catch is representative;
+      (b) potential redesign of the CDP pattern itself to encode higher-frequency
+          detail that is difficult for common printers to reproduce even under
+          correct alignment, making moire/correlation a real rather than
+          incidental discriminator.
     """
     os.makedirs(uploads_dir, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
@@ -2957,7 +3085,9 @@ def verify_pattern(captured_path, uploads_dir="uploads"):
         print(_msg)
         _crop_logger.info(_msg)
 
-    # Step 4 - Prepare captured ROI
+    # Step 4 - Prepare captured ROI (resize to canonical PATTERN_SIZE first so
+    # that Step 2c fine-alignment always receives a guaranteed 512×512 input
+    # matching the canonical fiducial coordinate system).
     print("[VERIFY] === STEP 4: Preparing Captured ROI ===")
     out_w, out_h = PATTERN_SIZE
     if roi_bgr.shape[:2] != (out_h, out_w):
@@ -2965,12 +3095,26 @@ def verify_pattern(captured_path, uploads_dir="uploads"):
         interp = cv2.INTER_LANCZOS4 if (current_w < out_w or current_h < out_h) else cv2.INTER_AREA
         roi_bgr = cv2.resize(roi_bgr, (out_w, out_h), interpolation=interp)
 
+    # Step 2c - Fine alignment via fiducial markers.
+    # Runs after Step 4 resize so roi_bgr is guaranteed 512×512.  The corrected
+    # crop becomes the sole input to Step 4b NCC and Step 5 scoring; the coarse
+    # crop is discarded.  If fewer than 3 fiducials are detected the function
+    # returns the input unchanged and _fa_applied is False.
+    print("[VERIFY] === STEP 2c: Fine Alignment via Fiducial Markers ===")
+    _fa_debug = {}
+    roi_bgr, _fa_applied = fine_align_via_fiducials(roi_bgr, debug=_fa_debug)
+    _fa_n  = _fa_debug.get('fa_n_detected', 0)
+    _fa_dx = _fa_debug.get('fa_dx', 0.0)
+    _fa_dy = _fa_debug.get('fa_dy', 0.0)
+    print(f"[FINE-ALIGN] applied={_fa_applied} n_detected={_fa_n} "
+          f"dx={_fa_dx:+.1f} dy={_fa_dy:+.1f}")
+
     captured_rgb  = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2RGB)
     captured_gray = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2GRAY)
 
-    print("[VERIFY] === STEP 4b: NCC check on scored crop vs reference ===")
+    print("[VERIFY] === STEP 4b: NCC check on fine-aligned crop vs reference ===")
     _ncc_4b = _ncc_thumbnail(roi_bgr, reference_gray)
-    print(f"[VERIFY] Step 4b: roi_bgr vs reference NCC = {_ncc_4b:.4f}")
+    print(f"[VERIFY] Step 4b: fine-aligned roi_bgr vs reference NCC = {_ncc_4b:.4f}")
 
     # Step 5 - Run all four tests. Marker regions are neutralized in both capture
     # and reference so the fiducials themselves contribute no discrimination signal.
@@ -3007,17 +3151,63 @@ def verify_pattern(captured_path, uploads_dir="uploads"):
     roi_filename       = f"roi_{ts}.png"
     reference_filename = f"reference_{ts}.png"
     aligned_filename   = f"aligned_{ts}.png"
+    fiducial_filename  = f"fiducial_{ts}.png"
 
     # "Cropped pattern" = raw in-photo region (perspective intact); falls back to
     # the rectified ROI only if the raw crop couldn't be taken.
-    # "Aligned" = rectified + orientation-corrected ROI that was actually scored
-    # (also consumed by the per-block analytics, so it must stay this image).
+    # "Aligned" = fine-aligned, orientation-corrected ROI that was actually scored.
     cropped_to_save = raw_crop_bgr if raw_crop_bgr is not None else roi_bgr
     cv2.imwrite(os.path.join(uploads_dir, roi_filename),       cropped_to_save)
     cv2.imwrite(os.path.join(uploads_dir, reference_filename), reference_bgr)
     cv2.imwrite(os.path.join(uploads_dir, aligned_filename),   roi_bgr)
 
-    print(f"[VERIFY] Saved: {roi_filename}, {reference_filename}, {aligned_filename}")
+    # Fiducial markers debug image: fine-aligned crop with each corner's
+    # canonical expected position (white ring outline) and detected position
+    # (filled coloured dot + line from canonical) annotated.
+    # TL=red  TR=green  BR=blue  BL=yellow  (BGR colour space)
+    try:
+        _CORNER_COLORS = {
+            'TL': (0,   0,   255),
+            'TR': (0,   255, 0  ),
+            'BR': (255, 0,   0  ),
+            'BL': (0,   255, 255),
+        }
+        _fid_vis = roi_bgr.copy()
+        _fid_accepted_labels = {e['label'] for e in _fa_debug.get('fa_accepted', [])}
+        for _e in _fa_debug.get('fa_accepted', []) + _fa_debug.get('fa_rejected', []):
+            _lbl = _e['label']
+            _col = _CORNER_COLORS.get(_lbl, (128, 128, 128))
+            _cx, _cy = int(_e['canon'][0]), int(_e['canon'][1])
+            # Canonical expected position: thin white ring
+            cv2.circle(_fid_vis, (_cx, _cy), FIDUCIAL_RING_R, (255, 255, 255), 1, cv2.LINE_AA)
+            if _lbl in _fid_accepted_labels and 'detected' in _e:
+                _dcx, _dcy = int(_e['detected'][0]), int(_e['detected'][1])
+                # Detected position: filled coloured dot + white outline
+                cv2.circle(_fid_vis, (_dcx, _dcy), 8, _col, -1, cv2.LINE_AA)
+                cv2.circle(_fid_vis, (_dcx, _dcy), 9, (255, 255, 255), 1, cv2.LINE_AA)
+                # Line from canonical to detected to visualise offset
+                cv2.line(_fid_vis, (_cx, _cy), (_dcx, _dcy), _col, 1, cv2.LINE_AA)
+                cv2.putText(_fid_vis, f"{_lbl} {_e['score']:.2f}",
+                            (_dcx + 11, _dcy + 4),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.38, _col, 1, cv2.LINE_AA)
+            else:
+                # Rejected: grey X at canonical position
+                cv2.line(_fid_vis, (_cx-6, _cy-6), (_cx+6, _cy+6), (80, 80, 80), 2, cv2.LINE_AA)
+                cv2.line(_fid_vis, (_cx+6, _cy-6), (_cx-6, _cy+6), (80, 80, 80), 2, cv2.LINE_AA)
+                cv2.putText(_fid_vis, f"{_lbl} {_e.get('score', 0):.2f}",
+                            (_cx + 11, _cy + 4),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.38, (80, 80, 80), 1, cv2.LINE_AA)
+        _fid_legend = (f"fine-align: {'applied' if _fa_applied else 'skipped'}"
+                       f"  n={_fa_n}/4  dx={_fa_dx:+.1f}  dy={_fa_dy:+.1f}")
+        cv2.putText(_fid_vis, _fid_legend, (8, 16),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.imwrite(os.path.join(uploads_dir, fiducial_filename), _fid_vis)
+    except Exception as _fid_e:
+        print(f"[VERIFY] fiducial debug image failed ({_fid_e})")
+        fiducial_filename = None
+
+    print(f"[VERIFY] Saved: {roi_filename}, {reference_filename}, "
+          f"{aligned_filename}, {fiducial_filename}")
 
     return {
         "verdict":            verdict,
@@ -3040,5 +3230,10 @@ def verify_pattern(captured_path, uploads_dir="uploads"):
         "reference_filename": reference_filename,
         "aligned_filename":   aligned_filename,
         "detection_filename": detection_filename,
+        "fiducial_filename":  fiducial_filename,
         "align_method":       "dm_corners" if fid_ok else "rough_crop",
+        "fine_align_applied": _fa_applied,
+        "fine_align_n":       _fa_n,
+        "fine_align_dx":      _fa_dx,
+        "fine_align_dy":      _fa_dy,
     }
