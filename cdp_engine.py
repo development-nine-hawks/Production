@@ -415,6 +415,8 @@ def align_crop_by_dm_corners(image, raw_results, debug=None):
     out_w, out_h = PATTERN_SIZE
 
     if not raw_results or len(raw_results) < 2:
+        print(f"[STEP2B] FAIL decode<2: raw_results has "
+              f"{len(raw_results) if raw_results else 0} entries")
         if debug is not None:
             debug["stage"] = "decode<2"
         return None, False
@@ -430,9 +432,12 @@ def align_crop_by_dm_corners(image, raw_results, debug=None):
             dms_by_text[text] = (text, r.corners_cv)
     dms = list(dms_by_text.values())
     if len(dms) < 2:
+        print(f"[STEP2B] FAIL decode<2: only {len(dms)} unique DM text(s) after dedup: "
+              f"{list(dms_by_text.keys())}")
         if debug is not None:
             debug["stage"] = "decode<2"
         return None, False
+    print(f"[STEP2B] {len(dms)} DM(s) available: {[d[0] for d in dms]}")
 
     # Classify Top (share_a) vs Right (share_b) DM by content (rotation-invariant).
     b32 = re.compile(r'^[A-Z2-7]{4}$')
@@ -446,9 +451,18 @@ def align_crop_by_dm_corners(image, raw_results, debug=None):
         if recombine_seed_from_dm(tj, ti) is not None:
             top, right = dms[j], dms[i]; break
     if top is None:
+        texts   = [d[0] for d in dms]
+        b32_ok  = [t for t in texts if b32.match(t)]
+        b32_bad = [t for t in texts if not b32.match(t)]
+        print(f"[STEP2B] FAIL classify: no valid share_a/share_b pair. "
+              f"b32-valid={b32_ok} b32-invalid={b32_bad}")
         if debug is not None:
             debug["stage"] = "classify_fail"
         return None, False
+    print(f"[STEP2B] classified: top={top[0]!r} "
+          f"centroid=({top[1].mean(0)[0]:.1f},{top[1].mean(0)[1]:.1f})  "
+          f"right={right[0]!r} "
+          f"centroid=({right[1].mean(0)[0]:.1f},{right[1].mean(0)[1]:.1f})")
 
     # Global orientation (canonical +x/+y in image space) from the DM centroids.
     tc, rc = top[1].mean(0), right[1].mean(0)
@@ -456,17 +470,122 @@ def align_crop_by_dm_corners(image, raw_results, debug=None):
     vec_img = (rc - tc).astype(float)
     cdst, odst = np.linalg.norm(vec_layout), np.linalg.norm(vec_img)
     if odst < 1e-6:
+        print(f"[STEP2B] FAIL centroid-coincide: DM centroids are identical "
+              f"(dist={odst:.2e})")
+        if debug is not None:
+            debug["stage"] = "centroid_coincide"
         return None, False
+    angle_deg = math.degrees(math.atan2(float(vec_img[1]), float(vec_img[0])))
+    print(f"[STEP2B] orientation: centroid-vec=({vec_img[0]:.1f},{vec_img[1]:.1f}) "
+          f"dist={odst:.1f}px angle={angle_deg:.1f}°")
     vln, vin = vec_layout / cdst, vec_img / odst
     cos_t = float(vln @ vin); sin_t = float(vln[0]*vin[1] - vln[1]*vin[0])
     ur = np.array([cos_t, sin_t]); ud = np.array([-sin_t, cos_t])
 
     def _order(q):
+        """Sort 4 corners into TL/TR/BR/BL using orientation axes ur/ud.
+        Returns (ordered_float32, None) on success, or (None, reason_str) on
+        failure — same safety style as _sd_quad() elsewhere."""
         ctr = q.mean(0); r = (q - ctr) @ ur; d = (q - ctr) @ ud
         s, df = r + d, r - d
-        return np.float32([q[np.argmin(s)], q[np.argmax(df)], q[np.argmax(s)], q[np.argmin(df)]])
+        ordered = np.float32([q[np.argmin(s)], q[np.argmax(df)],
+                               q[np.argmax(s)], q[np.argmin(df)]])
+        # Reject if any two slots received the same input corner (degenerate assignment)
+        unique_pts = len({(round(float(p[0])), round(float(p[1]))) for p in ordered})
+        if unique_pts < 4:
+            return None, f"duplicate-slot ({unique_pts} unique of 4)"
+        # Reject near-zero-area quads (corners collapsed onto a line)
+        x, y = ordered[:, 0], ordered[:, 1]
+        area = 0.5 * abs(float(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1))))
+        if area < 100.0:
+            return None, f"area={area:.1f}px² < 100"
+        # Reject non-convex (bowtie) quads — cross products must all have the same sign
+        signs = []
+        for i in range(4):
+            e1 = ordered[(i + 1) % 4] - ordered[i]
+            e2 = ordered[(i + 2) % 4] - ordered[(i + 1) % 4]
+            signs.append(float(e1[0] * e2[1] - e1[1] * e2[0]))
+        if not (all(s > 0 for s in signs) or all(s < 0 for s in signs)):
+            return None, f"non-convex (cross-products={[round(v, 1) for v in signs]})"
+        return ordered, None
 
-    top_quad, right_quad = _order(top[1]), _order(right[1])
+    top_quad,   top_reason   = _order(top[1])
+    right_quad, right_reason = _order(right[1])
+    if top_quad is None:
+        print(f"[STEP2B] FAIL _order top DM ({top[0]!r}): {top_reason}")
+        if debug is not None:
+            debug["stage"] = "order_degenerate"
+        return None, False
+    if right_quad is None:
+        print(f"[STEP2B] FAIL _order right DM ({right[0]!r}): {right_reason}")
+        if debug is not None:
+            debug["stage"] = "order_degenerate"
+        return None, False
+
+    def _quad_area(q):
+        x, y = q[:, 0], q[:, 1]
+        return 0.5 * abs(float(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1))))
+
+    print(f"[STEP2B] _order OK: top area={_quad_area(top_quad):.0f}px²  "
+          f"right area={_quad_area(right_quad):.0f}px²")
+
+    # ── [STEP2B-LOCAL] Diagnostic: does the global axis assign corners the same  ──
+    # ── way as each DM's own local orientation?  Pure logging — no logic change. ──
+    def _corner_indices_under(q, ur_ax, ud_ax):
+        """Return [TL_idx, TR_idx, BR_idx, BL_idx] into q for the given axes."""
+        ctr = q.mean(0)
+        r_ax = (q - ctr) @ ur_ax
+        d_ax = (q - ctr) @ ud_ax
+        s_ax, df_ax = r_ax + d_ax, r_ax - d_ax
+        return [int(np.argmin(s_ax)), int(np.argmax(df_ax)),
+                int(np.argmax(s_ax)), int(np.argmin(df_ax))]
+
+    def _local_axes_minrect(q):
+        """Local orientation axes from cv2.minAreaRect on q (4 pts)."""
+        rect = cv2.minAreaRect(q.reshape(-1, 1, 2).astype(np.float32))
+        angle_rad = math.radians(rect[2])
+        ur_l = np.array([math.cos(angle_rad), math.sin(angle_rad)], float)
+        if ur_l[0] < 0:
+            ur_l = -ur_l          # keep pointing into +x half-plane
+        ud_l = np.array([-ur_l[1], ur_l[0]], float)
+        # Signed angle from global ur to local ur_l (positive = CCW in image)
+        dot  = float(np.clip(ur_l @ ur, -1.0, 1.0))
+        diff = math.degrees(math.acos(dot))
+        if float(ur_l[0]*ur[1] - ur_l[1]*ur[0]) < 0:
+            diff = -diff
+        return ur_l, ud_l, diff
+
+    _SLOT = ["TL", "TR", "BR", "BL"]
+    for _dm_label, _dm_corners, _dm_text in [
+            ("top",   top[1],   top[0]),
+            ("right", right[1], right[0])]:
+        _ur_l, _ud_l, _ang_diff = _local_axes_minrect(_dm_corners)
+        _g_idx = _corner_indices_under(_dm_corners, ur,    ud)
+        _l_idx = _corner_indices_under(_dm_corners, _ur_l, _ud_l)
+        _bad   = [(s, _g_idx[s], _l_idx[s])
+                  for s in range(4) if _g_idx[s] != _l_idx[s]]
+        if _bad:
+            print(f"[STEP2B-LOCAL] {_dm_label} ({_dm_text!r}): "
+                  f"MISMATCH {len(_bad)}/4 slots  "
+                  f"local_vs_global={_ang_diff:+.1f}°")
+            for _s, _gi, _li in _bad:
+                _gp = _dm_corners[_gi]; _lp = _dm_corners[_li]
+                print(f"[STEP2B-LOCAL]   {_SLOT[_s]}: "
+                      f"global→#{_gi}({_gp[0]:.0f},{_gp[1]:.0f})  "
+                      f"local→#{_li}({_lp[0]:.0f},{_lp[1]:.0f})  "
+                      f"Δ={np.linalg.norm(_gp - _lp):.0f}px")
+        else:
+            print(f"[STEP2B-LOCAL] {_dm_label} ({_dm_text!r}): "
+                  f"agree all 4 slots  local_vs_global={_ang_diff:+.1f}°")
+        _go = [_dm_corners[i] for i in _g_idx]
+        _lo = [_dm_corners[i] for i in _l_idx]
+        print("[STEP2B-LOCAL]   global: " +
+              "  ".join(f"{_SLOT[s]}=({_go[s][0]:.0f},{_go[s][1]:.0f})"
+                        for s in range(4)))
+        print("[STEP2B-LOCAL]   local:  " +
+              "  ".join(f"{_SLOT[s]}=({_lo[s][0]:.0f},{_lo[s][1]:.0f})"
+                        for s in range(4)))
+    # ── end [STEP2B-LOCAL] ────────────────────────────────────────────────────────
 
     # Canonical DM corners expressed in the PATTERN frame ([0,PATTERN_SIZE]).
     def _to_pat(X, Y):
@@ -478,18 +597,26 @@ def align_crop_by_dm_corners(image, raw_results, debug=None):
     src = np.float32(list(top_quad) + list(right_quad))
     dst = np.float32(_rect4(_top_dm_x, _top_dm_y, _top_dm_w, _top_dm_h) +
                      _rect4(_right_x, _right_y, _right_w, _right_h))
+    print(f"[STEP2B] findHomography: 8 src→dst point pairs (top 4 + right 4)")
     try:
-        Hh, _ = cv2.findHomography(src, dst, cv2.RANSAC, 5.0)
+        Hh, mask = cv2.findHomography(src, dst, cv2.RANSAC, 5.0)
         if Hh is None:
+            print(f"[STEP2B] FAIL homography_none: findHomography returned None "
+                  f"for 8 correspondences")
             if debug is not None:
                 debug["stage"] = "homography_none"
             return None, False
+        inliers = int(mask.sum()) if mask is not None else -1
+        print(f"[STEP2B] homography solved: {inliers}/8 RANSAC inliers  "
+              f"det(H)={np.linalg.det(Hh):.4f}")
         crop = cv2.warpPerspective(image, Hh, (out_w, out_h), flags=cv2.INTER_LINEAR)
-    except cv2.error:
+    except cv2.error as _e:
+        print(f"[STEP2B] FAIL homography_failed: cv2.error — {_e}")
         if debug is not None:
             debug["stage"] = "homography_failed"
         return None, False
 
+    print(f"[STEP2B] SUCCESS: warpPerspective → {out_w}×{out_h} crop")
     if debug is not None:
         debug.update(stage="ok", top_quad=top_quad, right_quad=right_quad, H=Hh)
     return crop, True
@@ -2775,13 +2902,20 @@ def verify_pattern(captured_path, uploads_dir="uploads"):
             captured_bgr, dm_diagnostic["raw_results"], debug=dbg_align
         )
     except Exception as _e:
-        print(f"[VERIFY] DM-corner align error ({_e}) -> DM rough crop")
+        print(f"[VERIFY] DM-corner align error ({_e}) -> Layer 3 fallback")
         aligned_roi, fid_ok = None, False
+    _step2b_layer3_fallback = False
     if fid_ok:
         roi_bgr = aligned_roi
-        print("[VERIFY] Align-then-crop via exact DM corners (8-point homography)")
+        print("[VERIFY] Step 2b: align-then-crop via exact DM corners (8-point homography)")
     else:
-        print("[VERIFY] DM-corner align failed -> DM rough crop")
+        _step2b_layer3_fallback = True
+        roi_bgr = crop_result[0]          # revert to Layer 3 crop
+        stage = dbg_align.get("stage", "unknown")
+        if stage == "order_degenerate":
+            print("[VERIFY] Step 2b: corner ordering ambiguous/degenerate, falling back to Layer 3 crop")
+        else:
+            print(f"[VERIFY] Step 2b: align failed ({stage}), falling back to Layer 3 crop")
 
     # Annotated "Detection & Alignment" overlay for the UI: the full photo with the
     # detected DM corners and the derived pattern region drawn on it.
@@ -2816,6 +2950,13 @@ def verify_pattern(captured_path, uploads_dir="uploads"):
         seed, block_size=block_size, pattern_size=pattern_size)
     reference_bgr = cv2.cvtColor(reference_rgb, cv2.COLOR_RGB2BGR)
 
+    # Deferred Step 2b outcome log — NCC is only computable now that reference exists
+    if _step2b_layer3_fallback:
+        _l3_ncc = _ncc_thumbnail(roi_bgr, reference_gray)
+        _msg = f"[STEP2B] DEFERRED: Step 2b fell back to Layer 3 crop  ncc={_l3_ncc:.4f}"
+        print(_msg)
+        _crop_logger.info(_msg)
+
     # Step 4 - Prepare captured ROI
     print("[VERIFY] === STEP 4: Preparing Captured ROI ===")
     out_w, out_h = PATTERN_SIZE
@@ -2827,10 +2968,9 @@ def verify_pattern(captured_path, uploads_dir="uploads"):
     captured_rgb  = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2RGB)
     captured_gray = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2GRAY)
 
-    print("[VERIFY] === STEP 4b: rotation skipped (Layer 3 geometry already orients correctly) ===")
-
-    # (Perspective rectification now happens up front in Step 2b via align-then-
-    # crop from the full photo, so there is no separate rectify-on-crop step here.)
+    print("[VERIFY] === STEP 4b: NCC check on scored crop vs reference ===")
+    _ncc_4b = _ncc_thumbnail(roi_bgr, reference_gray)
+    print(f"[VERIFY] Step 4b: roi_bgr vs reference NCC = {_ncc_4b:.4f}")
 
     # Step 5 - Run all four tests. Marker regions are neutralized in both capture
     # and reference so the fiducials themselves contribute no discrimination signal.
@@ -2841,7 +2981,7 @@ def verify_pattern(captured_path, uploads_dir="uploads"):
     ref_rgb_s  = _blank_fiducials(reference_rgb)
     moire             = test_moire_detection(cap_gray_s, ref_gray_s)
     color             = test_color_analysis(cap_rgb_s, ref_rgb_s)
-    corr, raw_corr    = test_prng_correlation(cap_gray_s, ref_gray_s, BLOCK_SIZE)
+    corr, raw_corr    = test_prng_correlation(cap_gray_s, ref_gray_s, block_size)
     gradient          = test_gradient_energy(cap_gray_s, ref_gray_s)
 
     print(f"[VERIFY] moire={moire:.4f}  color={color:.4f}  "
