@@ -432,84 +432,223 @@ def _build_exec_summary(story, ss, results: list, batch_stats: dict):
 # ---------------------------------------------------------------------------
 
 def _build_results_table(story, ss, results: list):
-    # Switch to landscape for this page only, then return to portrait after.
+    # Switch to landscape for both summary tables, then return to portrait.
     story.append(NextPageTemplate("landscape"))
     story.append(PageBreak())
 
-    story.append(Paragraph("All Results Summary", ss["SectionHead"]))
+    # ── Table 1: Summary (lean — verdict + confidence only) ──────────────────
+    story.append(Paragraph("All Results — Summary", ss["SectionHead"]))
     story.append(HRFlowable(width="100%", thickness=1, color=C_BRAND, spaceAfter=5))
 
-    header = ["#", "Filename", "Description", "Expected", "Actual", "Confidence",
-              "Moiré", "Corr.", "Grad.", "Color", "Time(s)", "Result"]
-    rows   = [header]
-    row_colors = []
-    result_colors = []
+    hdr1 = ["#", "Filename", "Description", "Expected", "Actual", "Confidence", "Result"]
+    sum_rows = [hdr1]
+    sum_row_colors = []
+    sum_result_colors = []
     for i, r in enumerate(results, 1):
-        sc = r.get("scores") or {}
-        filename = r.get("filename", "")
+        filename    = r.get("filename", "")
         actual      = r.get("verdict", "—")
         expected    = EXPECTED_VERDICTS.get(filename, "—")
         description = TEST_CASE_DESCRIPTIONS.get(filename, "—")
-        if expected == "—":
-            result_str = "—"
-        elif actual == expected:
-            result_str = "SUCCESS"
-        else:
-            result_str = "FAILURE"
-        rows.append([
-            str(i), filename[:20], description[:42], expected, actual,
-            _pct(r.get("confidence")),
-            f"{sc.get('moire',0):.3f}", f"{sc.get('correlation',0):.3f}",
-            f"{sc.get('gradient',0):.3f}", f"{sc.get('color',0):.3f}",
-            f"{r.get('processing_time',0):.1f}",
-            result_str,
+        result_str  = ("SUCCESS" if actual == expected
+                       else "FAILURE" if expected != "—"
+                       else "—")
+        sum_rows.append([
+            str(i), filename[:22], description[:50],
+            expected, actual, _pct(r.get("confidence")), result_str,
         ])
         bg = {"AUTHENTIC": colors.HexColor("#d5f5e3"),
               "SUSPICIOUS": colors.HexColor("#fef9e7"),
               "COUNTERFEIT": colors.HexColor("#fadbd8")}.get(
               actual, colors.HexColor("#f8f9fa"))
-        row_colors.append(("BACKGROUND", (0, i), (-1, i), bg))
-        result_col = 11  # 0-indexed: last column
+        sum_row_colors.append(("BACKGROUND", (0, i), (-1, i), bg))
         if result_str == "SUCCESS":
-            result_colors.append(("BACKGROUND", (result_col, i), (result_col, i), colors.HexColor("#d5f5e3")))
-            result_colors.append(("TEXTCOLOR",  (result_col, i), (result_col, i), colors.HexColor("#1a7a40")))
+            sum_result_colors += [
+                ("BACKGROUND", (6, i), (6, i), colors.HexColor("#d5f5e3")),
+                ("TEXTCOLOR",  (6, i), (6, i), colors.HexColor("#1a7a40")),
+            ]
         elif result_str == "FAILURE":
-            result_colors.append(("BACKGROUND", (result_col, i), (result_col, i), colors.HexColor("#fadbd8")))
-            result_colors.append(("TEXTCOLOR",  (result_col, i), (result_col, i), colors.HexColor("#a93226")))
+            sum_result_colors += [
+                ("BACKGROUND", (6, i), (6, i), colors.HexColor("#fadbd8")),
+                ("TEXTCOLOR",  (6, i), (6, i), colors.HexColor("#a93226")),
+            ]
 
-    # Landscape A4 usable width: 297mm - 2*15mm margins = 267mm
-    _lw = 26.7 * cm
-    # Proportions: #(3%) | Filename(12%) | Description(28%) | Expected(9%) | Actual(9%) |
-    #              Confidence(8%) | Moiré(7%) | Corr.(7%) | Grad.(7%) | Color(7%) | Time(6%) | Result(7%)
-    col_w = [
-        _lw * 0.03,  # #
-        _lw * 0.12,  # Filename
-        _lw * 0.28,  # Description
-        _lw * 0.09,  # Expected
-        _lw * 0.09,  # Actual
-        _lw * 0.08,  # Confidence
-        _lw * 0.06,  # Moiré
-        _lw * 0.06,  # Corr.
-        _lw * 0.06,  # Grad.
-        _lw * 0.06,  # Color
-        _lw * 0.06,  # Time(s)
-        _lw * 0.07,  # Result  (sums to 1.06 → slight stretch is fine; RL clips to frame)
+    _lw = 26.7 * cm   # landscape A4 usable width (297mm - 2×15mm)
+    col_w1 = [
+        _lw * 0.03,   # #
+        _lw * 0.13,   # Filename
+        _lw * 0.36,   # Description
+        _lw * 0.11,   # Expected
+        _lw * 0.11,   # Actual
+        _lw * 0.12,   # Confidence
+        _lw * 0.10,   # Result
     ]
-    tbl = Table(rows, colWidths=col_w, repeatRows=1)
-    tbl.setStyle(TableStyle([
+    t1 = Table(sum_rows, colWidths=col_w1, repeatRows=1)
+    t1.setStyle(TableStyle([
         ("BACKGROUND",    (0, 0), (-1, 0), C_BRAND),
         ("TEXTCOLOR",     (0, 0), (-1, 0), C_WHITE),
         ("FONTNAME",      (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE",      (0, 0), (-1, -1), 6),
+        ("FONTSIZE",      (0, 0), (-1, -1), 7),
+        ("GRID",          (0, 0), (-1, -1), 0.3, C_GRAY),
+        ("ALIGN",         (3, 0), (-1, -1), "CENTER"),
+        ("TOPPADDING",    (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 4),
+        *sum_row_colors,
+        *sum_result_colors,
+    ]))
+    story.append(t1)
+    story.append(Spacer(1, 8*mm))
+
+    # ── Table 2: Raw Metrics (capped | raw | batch pct per metric) ───────────
+    story.append(Paragraph("All Results — Raw Metrics", ss["SectionHead"]))
+    story.append(HRFlowable(width="100%", thickness=1, color=C_BRAND, spaceAfter=5))
+
+    hdr2 = ["#", "Filename",
+             "Moiré\ncapped", "Moiré\nraw", "Moiré\n%ile",
+             "Corr\ncapped",  "Corr\nraw",  "Corr\n%ile",
+             "Grad\ncapped",  "Grad\nraw",  "Grad\n%ile"]
+    raw_rows = [hdr2]
+    raw_row_colors = []
+    for i, r in enumerate(results, 1):
+        sc = r.get("scores") or {}
+        rs = r.get("raw_scores") or {}
+        filename = r.get("filename", "")
+        actual   = r.get("verdict", "—")
+
+        def _rv(m):
+            v = rs.get(m, {}).get("pre_clip")
+            return f"{v:.3f}" if v is not None else "—"
+        def _rp(m):
+            p = rs.get(m, {}).get("pct")
+            return f"{p:.0f}" if p is not None else "—"
+
+        raw_rows.append([
+            str(i), filename[:18],
+            f"{sc.get('moire',0):.3f}",       _rv("moire"),       _rp("moire"),
+            f"{sc.get('correlation',0):.3f}",  _rv("correlation"), _rp("correlation"),
+            f"{sc.get('gradient',0):.3f}",     _rv("gradient"),    _rp("gradient"),
+        ])
+        bg = {"AUTHENTIC": colors.HexColor("#d5f5e3"),
+              "SUSPICIOUS": colors.HexColor("#fef9e7"),
+              "COUNTERFEIT": colors.HexColor("#fadbd8")}.get(
+              actual, colors.HexColor("#f8f9fa"))
+        raw_row_colors.append(("BACKGROUND", (0, i), (-1, i), bg))
+
+    col_w2 = [
+        _lw * 0.03,   # #
+        _lw * 0.12,   # Filename
+        _lw * 0.08,   # Moiré capped
+        _lw * 0.08,   # Moiré raw
+        _lw * 0.07,   # Moiré pct
+        _lw * 0.08,   # Corr capped
+        _lw * 0.08,   # Corr raw
+        _lw * 0.07,   # Corr pct
+        _lw * 0.08,   # Grad capped
+        _lw * 0.08,   # Grad raw
+        _lw * 0.07,   # Grad pct   (total = 0.84 of lw; leaves breathing room)
+    ]
+    t2 = Table(raw_rows, colWidths=col_w2, repeatRows=1)
+    t2.setStyle(TableStyle([
+        ("BACKGROUND",    (0, 0), (-1, 0), C_BRAND),
+        ("TEXTCOLOR",     (0, 0), (-1, 0), C_WHITE),
+        ("FONTNAME",      (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE",      (0, 0), (-1, -1), 7),
         ("GRID",          (0, 0), (-1, -1), 0.3, C_GRAY),
         ("ALIGN",         (2, 0), (-1, -1), "CENTER"),
-        ("TOPPADDING",    (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 3),
-        *row_colors,
-        *result_colors,
+        ("TOPPADDING",    (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 4),
+        *raw_row_colors,
     ]))
-    story.append(tbl)
+    story.append(t2)
+    story.append(Spacer(1, 5*mm))
+
+    # ── Percentile rank table (metric × rank position) ───────────────────────
+    story.append(Paragraph("Percentile Rankings", ss["SectionHead"]))
+    story.append(HRFlowable(width="100%", thickness=1, color=C_BRAND, spaceAfter=5))
+
+    n_samples = len(results)
+
+    def _ordinal(n):
+        if 11 <= n <= 13:
+            return f"{n}th"
+        return f"{n}{['th','st','nd','rd','th','th','th','th','th','th'][n % 10]}"
+
+    rank_headers = ["Metric"]
+    for pos in range(1, n_samples + 1):
+        if pos == 1:
+            rank_headers.append(f"{_ordinal(pos)}\n(100 %ile)")
+        elif pos == n_samples:
+            rank_headers.append(f"{_ordinal(pos)}\n(0 %ile)")
+        else:
+            rank_headers.append(_ordinal(pos))
+
+    rank_rows = [rank_headers]
+    for metric, label in [("moire", "Moiré"), ("correlation", "Correlation"), ("gradient", "Gradient")]:
+        ranked = sorted(
+            results,
+            key=lambda r: r.get("raw_scores", {}).get(metric, {}).get("pre_clip") or 0,
+            reverse=True,
+        )
+        row = [label]
+        for r in ranked:
+            stem = r.get("filename", "—")
+            stem = stem.rsplit(".", 1)[0] if "." in stem else stem
+            row.append(stem)
+        rank_rows.append(row)
+
+    metric_col_w = 2.8 * cm
+    rank_col_w   = (_lw - metric_col_w) / n_samples
+    rank_col_widths = [metric_col_w] + [rank_col_w] * n_samples
+
+    # Mark counterfeit cells red (tc-09, tc-10 by expected verdict lookup)
+    counterfeit_stems = {
+        fn.rsplit(".", 1)[0]
+        for fn, v in EXPECTED_VERDICTS.items()
+        if v == "COUNTERFEIT"
+    }
+    cell_colors = []
+    for row_i, row in enumerate(rank_rows[1:], start=1):
+        for col_j, cell in enumerate(row[1:], start=1):
+            if cell in counterfeit_stems:
+                cell_colors.append(("BACKGROUND", (col_j, row_i), (col_j, row_i), colors.HexColor("#fadbd8")))
+                cell_colors.append(("TEXTCOLOR",  (col_j, row_i), (col_j, row_i), colors.HexColor("#a93226")))
+
+    t3 = Table(rank_rows, colWidths=rank_col_widths, repeatRows=1)
+    t3.setStyle(TableStyle([
+        ("BACKGROUND",    (0, 0), (-1, 0), C_BRAND),
+        ("TEXTCOLOR",     (0, 0), (-1, 0), C_WHITE),
+        ("FONTNAME",      (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("BACKGROUND",    (0, 1), (0, -1), C_LIGHT),
+        ("FONTNAME",      (0, 1), (0, -1), "Helvetica-Bold"),
+        ("FONTSIZE",      (0, 0), (-1, -1), 7),
+        ("GRID",          (0, 0), (-1, -1), 0.3, C_GRAY),
+        ("ALIGN",         (0, 0), (-1, -1), "CENTER"),
+        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING",    (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 3),
+        ("ROWBACKGROUNDS",(0, 1), (-1, -1), [C_WHITE, C_LIGHT]),
+        *cell_colors,
+    ]))
+    story.append(t3)
+    story.append(Spacer(1, 5*mm))
+
+    # ── Calibration caveat footnote ──────────────────────────────────────────
+    caveat = (
+        "<b>Calibration note:</b> Percentile and gap figures are calibrated "
+        "against a batch containing only 2 counterfeit samples (tc-09, tc-10) "
+        "— not yet validated against a broader counterfeit sample set.  "
+        "Fine-alignment (Step 2c) has a known open finding: when it "
+        "successfully applies to a counterfeit sample, corrected scores can "
+        "rise enough to cross THRESHOLD_AUTHENTIC — see KNOWN GAP note in "
+        "cdp_engine.py.  "
+        "<b>Gradient note:</b> gradient raw values show genuine/counterfeit "
+        "overlap in this batch (a genuine sample scored lower than a "
+        "counterfeit); this is not a capping artefact — the test lacks "
+        "discriminating power and needs replacement, not recalibration."
+    )
+    story.append(Paragraph(caveat, ss["Body"]))
 
     # Return to portrait for the remaining pages.
     story.append(NextPageTemplate("main"))
@@ -560,20 +699,23 @@ def _build_sample_page(story, ss, r: dict, idx: int, total: int):
     story.append(_std_table(hdr, [6*cm, 11*cm]))
     story.append(Spacer(1, 4*mm))
 
-    # 4-image pipeline steps: Detection → Cropped → Aligned → Reference
-    IW = 3.8*cm; IH = 3.8*cm
+    # 5-image pipeline steps: Detection → Cropped → Aligned → Aligned+fiducials → Reference
+    IW = 3.0*cm; IH = 3.0*cm
     def _ti(path):
         return _file_to_rl_image(path, IW, IH)
 
     imgs = [
-        _ti(r.get("detection_path_saved")) or _placeholder_para("Detection", ss),
-        _ti(r.get("captured_path_saved"))  or _placeholder_para("Cropped (as captured)", ss),
-        _ti(r.get("aligned_path_saved"))   or _placeholder_para("Aligned (scored)", ss),
-        _ti(r.get("reference_path"))       or _placeholder_para("Reference (expected)", ss),
+        _ti(r.get("detection_path_saved"))  or _placeholder_para("Detection", ss),
+        _ti(r.get("captured_path_saved"))   or _placeholder_para("Cropped (as captured)", ss),
+        _ti(r.get("aligned_path_saved"))    or _placeholder_para("Aligned (scored)", ss),
+        _ti(r.get("fiducial_path_saved"))   or _placeholder_para("Aligned + fiducials", ss),
+        _ti(r.get("reference_path"))        or _placeholder_para("Reference (expected)", ss),
     ]
-    caps = [Paragraph(c, ss["Caption"]) for c in
-            ["Detection", "Cropped (as captured)", "Aligned (scored)", "Reference (expected)"]]
-    img_tbl = Table([imgs, caps], colWidths=[4.1*cm]*4, rowHeights=[IH + 0.2*cm, 0.6*cm])
+    caps = [Paragraph(c, ss["Caption"]) for c in [
+        "Detection", "Cropped (as captured)", "Aligned (scored)",
+        "Aligned + fiducials", "Reference (expected)",
+    ]]
+    img_tbl = Table([imgs, caps], colWidths=[3.3*cm]*5, rowHeights=[IH + 0.2*cm, 0.6*cm])
     img_tbl.setStyle(TableStyle([
         ("ALIGN",  (0, 0), (-1, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
@@ -619,19 +761,29 @@ def _build_sample_page(story, ss, r: dict, idx: int, total: int):
         else:
             story.append(Paragraph("Delta map not available.", ss["Body"]))
 
-    # Metrics table
+    # Metrics table — capped score, raw (uncapped) score, batch percentile, weight
     story.append(Spacer(1, 3*mm))
     story.append(Paragraph("Numeric Metrics", ss["SubHead"]))
     wt = r.get("weights") or {}
+    rs = r.get("raw_scores") or {}
+
+    def _raw_val(metric):
+        v = rs.get(metric, {}).get("pre_clip")
+        return f"{v:.4f}" if v is not None else "—"
+
+    def _pct_rank(metric):
+        p = rs.get(metric, {}).get("pct")
+        return f"{p:.0f}%" if p is not None else "—"
+
     mrows = [
-        ["Metric", "Score", "Weight"],
-        ["Moiré",         f"{scores.get('moire',0):.4f}",       f"{wt.get('moire',0.65)*100:.0f}%"],
-        ["Correlation",   f"{scores.get('correlation',0):.4f}", f"{wt.get('correlation',0.10)*100:.0f}%"],
-        ["Gradient",      f"{scores.get('gradient',0):.4f}",    f"{wt.get('gradient',0.15)*100:.0f}%"],
-        ["Color",         f"{scores.get('color',0):.4f}",       f"{wt.get('color',0.10)*100:.0f}%"],
-        ["Confidence",    _pct(conf),                            "—"],
+        ["Metric", "Capped", "Raw (uncapped)", "Batch %ile", "Weight"],
+        ["Moiré",       f"{scores.get('moire',0):.4f}",       _raw_val("moire"),       _pct_rank("moire"),       f"{wt.get('moire',0.65)*100:.0f}%"],
+        ["Correlation", f"{scores.get('correlation',0):.4f}", _raw_val("correlation"), _pct_rank("correlation"), f"{wt.get('correlation',0.10)*100:.0f}%"],
+        ["Gradient",    f"{scores.get('gradient',0):.4f}",    _raw_val("gradient"),    _pct_rank("gradient"),    f"{wt.get('gradient',0.15)*100:.0f}%"],
+        ["Color",       f"{scores.get('color',0):.4f}",       "—",                     "—",                      f"{wt.get('color',0.10)*100:.0f}%"],
+        ["Confidence",  _pct(conf),                            "—",                     "—",                      "—"],
     ]
-    mt = Table(mrows, colWidths=[7*cm, 4*cm, 3*cm])
+    mt = Table(mrows, colWidths=[3.5*cm, 2.5*cm, 3.5*cm, 2.5*cm, 2*cm])
     mt.setStyle(TableStyle([
         ("BACKGROUND",    (0, 0), (-1, 0), C_BRAND),
         ("TEXTCOLOR",     (0, 0), (-1, 0), C_WHITE),
@@ -678,6 +830,33 @@ def _build_aggregate_section(story, ss, charts: dict):
 
 
 # ---------------------------------------------------------------------------
+# Batch-level percentile helper
+# ---------------------------------------------------------------------------
+
+def _add_percentiles(results: list):
+    """
+    Compute batch-rank percentile for each metric's pre_clip raw score and
+    store it in-place: result["raw_scores"][metric]["pct"] = 0–100.
+
+    Percentile = rank / (N-1) * 100 where rank=0 is the lowest raw score
+    in the batch.  Results with no raw_scores entry for a metric are skipped.
+    """
+    for metric in ("moire", "correlation", "gradient"):
+        indexed = [
+            (i, r.get("raw_scores", {}).get(metric, {}).get("pre_clip"))
+            for i, r in enumerate(results)
+        ]
+        valid = [(i, v) for i, v in indexed if v is not None]
+        n = len(valid)
+        if n < 2:
+            continue
+        ranked = sorted(valid, key=lambda x: x[1])
+        for rank, (i, _) in enumerate(ranked):
+            pct = rank / (n - 1) * 100.0
+            results[i].setdefault("raw_scores", {}).setdefault(metric, {})["pct"] = pct
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
@@ -710,6 +889,8 @@ def build_report_pdf(output_path: str, results: list, batch_stats: dict, run_ts:
         PageTemplate(id="landscape", frames=[lframe], onPage=_add_header_footer,
                      pagesize=landscape(A4)),
     ])
+
+    _add_percentiles(results)
 
     story = []
     _build_cover(story, ss, batch_stats, run_ts)

@@ -1931,6 +1931,102 @@ def test_gradient_energy(captured_gray, reference_gray):
     return float(np.clip((similarity - 0.60) / 0.35, 0.0, 1.0))
 
 
+# --------------------------------------------------------------------------
+# Diagnostic helpers — pre-clip raw values.  NOT used in live scoring.
+# --------------------------------------------------------------------------
+
+def _moire_raw(captured_gray, reference_gray):
+    """Pre-clip bandpass-NCC moire score (same math as test_moire_detection
+    with reference, without the final np.clip).  Diagnostic use only."""
+    h, w = captured_gray.shape[:2]
+    rh, rw = reference_gray.shape[:2]
+    if (h, w) != (rh, rw):
+        captured_gray = cv2.resize(captured_gray, (rw, rh), interpolation=cv2.INTER_AREA)
+
+    def _bp(img, lo_s, hi_s):
+        lo = cv2.GaussianBlur(img.astype(np.float64), (0, 0), lo_s)
+        hi = cv2.GaussianBlur(img.astype(np.float64), (0, 0), hi_s)
+        return lo - hi
+
+    bands = [(2, 1, 0.50), (4, 2, 0.30), (8, 4, 0.20)]
+    score = 0.0
+    for lo_s, hi_s, w_ in bands:
+        cb = _bp(captured_gray, lo_s, hi_s)
+        rb = _bp(reference_gray, lo_s, hi_s)
+        cf = cb.flatten() - cb.mean()
+        rf = rb.flatten() - rb.mean()
+        ncc = np.sum(cf * rf) / (np.sqrt(np.sum(cf ** 2) * np.sum(rf ** 2)) + 1e-10)
+        score += w_ * max(0.0, ncc)
+    return float(score / 0.25), float(score)   # (pre_clip_normed, raw_score)
+
+
+def _corr_raw(captured_gray, reference_gray, block_size=16):
+    """Pre-clip correlation score alongside the selected block size and raw
+    Pearson r.  Diagnostic use only."""
+    h, w = captured_gray.shape[:2]
+    rh, rw = reference_gray.shape[:2]
+    if (h, w) != (rh, rw):
+        captured_gray = cv2.resize(captured_gray, (rw, rh), interpolation=cv2.INTER_AREA)
+        h, w = rh, rw
+
+    if CDP_FLAG_CORR_FINE_BLOCKS:
+        scale_configs = [
+            (block_size // 4, 0.45, 1.0),
+            (block_size // 2, 0.55, 1.0),
+            (block_size,      0.60, 1.0),
+            (block_size * 2,  0.65, 0.50),
+        ]
+    else:
+        scale_configs = [
+            (block_size,     0.60, 1.0  if not CDP_FLAG_CORR_COARSE_CAP else 0.75),
+            (block_size * 2, 0.65, 0.75 if not CDP_FLAG_CORR_COARSE_CAP else 0.50),
+            (block_size * 4, 0.75, 0.50),
+        ]
+
+    MIN_STD = 2.0
+    for bs, norm_div, cap in scale_configs:
+        by_, bx_ = h // bs, w // bs
+        if by_ < 4 or bx_ < 4:
+            continue
+        cap_b = np.zeros((by_, bx_))
+        ref_b = np.zeros((by_, bx_))
+        for i in range(by_):
+            for j in range(bx_):
+                y1, y2, x1, x2 = i * bs, (i + 1) * bs, j * bs, (j + 1) * bs
+                cap_b[i, j] = np.mean(captured_gray[y1:y2, x1:x2])
+                ref_b[i, j] = np.mean(reference_gray[y1:y2, x1:x2])
+        if np.std(cap_b) < MIN_STD:
+            continue
+        cf = cap_b.flatten() - cap_b.mean()
+        rf = ref_b.flatten() - ref_b.mean()
+        pearson_r = float(np.sum(cf * rf) / (np.sqrt(np.sum(cf ** 2) * np.sum(rf ** 2)) + 1e-10))
+        return pearson_r / norm_div, bs, norm_div, pearson_r  # (pre_clip, sel_bs, norm_div, pearson_r)
+    return 0.0, None, None, 0.0
+
+
+def _gradient_raw(captured_gray, reference_gray):
+    """Pre-clip gradient score ((bhattacharyya - 0.60) / 0.35) and the raw
+    Bhattacharyya coefficient.  Diagnostic use only."""
+    rh, rw = reference_gray.shape[:2]
+    if captured_gray.shape[:2] != (rh, rw):
+        captured_gray = cv2.resize(captured_gray, (rw, rh), interpolation=cv2.INTER_AREA)
+
+    def grad_hist(img):
+        gx = cv2.Sobel(img, cv2.CV_64F, 1, 0, ksize=3)
+        gy = cv2.Sobel(img, cv2.CV_64F, 0, 1, ksize=3)
+        mag = np.sqrt(gx ** 2 + gy ** 2)
+        mag = mag / (mag.max() + 1e-10)
+        hist, _ = np.histogram(mag, bins=32, range=(0, 1))
+        return hist.astype(np.float64)
+
+    cap_h = grad_hist(captured_gray)
+    ref_h = grad_hist(reference_gray)
+    cap_n = cap_h / (cap_h.sum() + 1e-10)
+    ref_n = ref_h / (ref_h.sum() + 1e-10)
+    similarity = float(np.sum(np.sqrt(cap_n * ref_n)))
+    return (similarity - 0.60) / 0.35, similarity  # (pre_clip, bhattacharyya)
+
+
 # ==========================================================================
 # VERIFICATION — FULL PIPELINE
 # ==========================================================================

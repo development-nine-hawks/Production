@@ -45,6 +45,10 @@ sys.path.insert(0, str(SCRIPT_DIR))
 from cdp_engine import (
     verify_pattern,
     regenerate_reference,
+    _moire_raw,
+    _corr_raw,
+    _gradient_raw,
+    _blank_fiducials,
 )
 from cdp_analytics import (
     compute_per_block_scores,
@@ -80,6 +84,7 @@ def setup_output_dirs(base: Path) -> dict[str, Path]:
         "delta":      base / "delta_maps",
         "reference":  base / "reference_patterns",
         "logs":       base / "logs",
+        "reports":    base / "reports",
     }
     for d in dirs.values():
         d.mkdir(parents=True, exist_ok=True)
@@ -150,8 +155,10 @@ def process_image(
         "captured_path_saved":  None,
         "aligned_path_saved":   None,
         "detection_path_saved": None,
+        "fiducial_path_saved":  None,
         "delta_path":           None,
         "dm_diagnostic":        {},
+        "raw_scores":           {},
     }
 
     t0 = time.time()
@@ -229,8 +236,11 @@ def process_image(
                     f"grad={sc.get('gradient',0):.3f}  color={sc.get('color',0):.3f}")
 
         # ── Per-block analytics ─────────────────────────────────────────────
-        # Load the captured ROI and the reference (both 512×512)
+        # Load the captured ROI and the reference (both 512×512).
+        # roi_bgr = pre-alignment captured crop (used for per-block heatmaps).
+        # aln_bgr = fine-aligned image (used for delta map and raw scores).
         roi_bgr = cv2.imread(str(roi_src)) if roi_src.exists() else None
+        aln_bgr = cv2.imread(str(aln_src)) if aln_src.exists() else None
         ref_bgr = cv2.imread(str(ref_src)) if ref_src.exists() else None
 
         if roi_bgr is not None and ref_bgr is not None:
@@ -258,9 +268,12 @@ def process_image(
                     except Exception as e:
                         logger.warning(f"  Plot {test}/{ptype} failed: {e}")
 
-            # Delta map
+            # Delta map — use fine-aligned image so the captured panel matches
+            # the image that actually went into Step 5 scoring, not the raw crop.
             try:
-                delta_png = render_delta_map(captured_gray, ref_gray)
+                delta_src_bgr = aln_bgr if aln_bgr is not None else roi_bgr
+                delta_gray    = cv2.cvtColor(delta_src_bgr, cv2.COLOR_BGR2GRAY)
+                delta_png = render_delta_map(delta_gray, ref_gray)
                 delta_dst = dirs["delta"] / f"{stem}_delta.png"
                 _save_png_bytes(delta_png, delta_dst)
                 result["delta_path"] = str(delta_dst)
@@ -268,6 +281,25 @@ def process_image(
                 logger.warning(f"  Delta map failed: {e}")
         else:
             logger.warning(f"  {filename}: could not load ROI/ref for per-block analytics")
+
+        # ── Raw (uncapped) scores ────────────────────────────────────────────
+        # Uses the fine-aligned image with fiducials blanked — identical setup
+        # to what verify_pattern() passes into Step 5 scoring.
+        if aln_bgr is not None and ref_bgr is not None:
+            try:
+                bs = vr.get("block_size") or 8
+                aln_g_s = _blank_fiducials(cv2.cvtColor(aln_bgr, cv2.COLOR_BGR2GRAY))
+                ref_g_s = _blank_fiducials(cv2.cvtColor(ref_bgr, cv2.COLOR_BGR2GRAY))
+                mpc, _  = _moire_raw(aln_g_s, ref_g_s)
+                cpc, _, _, _ = _corr_raw(aln_g_s, ref_g_s, block_size=bs)
+                gpc, _  = _gradient_raw(aln_g_s, ref_g_s)
+                result["raw_scores"] = {
+                    "moire":       {"pre_clip": mpc},
+                    "correlation": {"pre_clip": cpc},
+                    "gradient":    {"pre_clip": gpc},
+                }
+            except Exception as e:
+                logger.warning(f"  {filename}: raw score helpers failed: {e}")
 
         result["success"] = True
 
@@ -425,12 +457,12 @@ def main():
     logger.info("=" * 60)
 
     # ── Save CSV ────────────────────────────────────────────────────────────
-    csv_path = output_dir / f"batch_results_{ts_file}.csv"
+    csv_path = dirs["reports"] / f"batch_results_{ts_file}.csv"
     save_csv(results, csv_path)
     logger.info(f"CSV saved: {csv_path}")
 
     # ── Save JSON ───────────────────────────────────────────────────────────
-    json_path = output_dir / f"batch_results_{ts_file}.json"
+    json_path = dirs["reports"] / f"batch_results_{ts_file}.json"
     with json_path.open("w", encoding="utf-8") as jf:
         # Make serialisable — remove ndarray values
         safe = []
