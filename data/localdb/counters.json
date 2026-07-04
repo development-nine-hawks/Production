@@ -1,6 +1,10 @@
 [
   {
     "_id": "patterns",
-    "seq": 1
+    "seq": 4
+  },
+  {
+    "_id": "verifications",
+    "seq": 4
   }
 ]

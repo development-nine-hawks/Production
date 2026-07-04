@@ -45,31 +45,29 @@ C_WHITE  = colors.white
 C_BLACK  = colors.black
 
 EXPECTED_VERDICTS = {
-    # "tc-01.jpeg": "AUTHENTIC",
-    # "tc-02.jpeg": "AUTHENTIC",
-    # "tc-03.jpeg": "AUTHENTIC",
-    # "tc-04.jpeg": "AUTHENTIC",
-    "tc-05.jpeg":       "AUTHENTIC",
-    "tc-05-flash.jpeg": "AUTHENTIC",
-    # "tc-06.jpeg": "AUTHENTIC",
-    # "tc-07.jpeg": "AUTHENTIC",
-    # "tc-08.jpeg": "AUTHENTIC",
-    # "tc-09.jpeg": "COUNTERFEIT",
-    # "tc-10.jpeg": "COUNTERFEIT",
+    "tc-01.jpeg":  "AUTHENTIC",
+    "tc-02.jpeg":  "AUTHENTIC",
+    "tc-03.jpeg":  "AUTHENTIC",
+    "tc-04.jpeg":  "AUTHENTIC",
+    "tc-05.jpeg":  "AUTHENTIC",
+    "tc-06.jpeg":  "AUTHENTIC",
+    "tc-07.jpeg":  "AUTHENTIC",
+    "tc-08.jpeg":  "AUTHENTIC",
+    "tc-09.jpeg":  "COUNTERFEIT",
+    "tc-10.jpeg":  "COUNTERFEIT",
 }
 
 TEST_CASE_DESCRIPTIONS = {
-    # "tc-01.jpeg": "Genuine label, photo straight-on",
-    # "tc-02.jpeg": "Genuine label, slight angle (~30°)",
-    # "tc-03.jpeg": "Genuine label, rotated 90°",
-    # "tc-04.jpeg": "Genuine label, rotated 180°",
-    "tc-05.jpeg":       "Genuine label, low light — no flash",
-    "tc-05-flash.jpeg": "Genuine label, low light — phone flash",
-    # "tc-06.jpeg": "Genuine label, glare/flash on pattern",
-    # "tc-07.jpeg": "Genuine label, far away (pattern small in frame)",
-    # "tc-08.jpeg": "Genuine label, motion blur",
-    # "tc-09.jpeg": "Counterfeit label, straight-on (print → photo → reprint → photo)",
-    # "tc-10.jpeg": "Counterfeit label, at an angle",
+    "tc-01.jpeg": "Genuine label, photo straight-on",
+    "tc-02.jpeg": "Genuine label, slight angle (~30°)",
+    "tc-03.jpeg": "Genuine label, rotated 90°",
+    "tc-04.jpeg": "Genuine label, rotated 180°",
+    "tc-05.jpeg": "Genuine label, low light — no flash",
+    "tc-06.jpeg": "Genuine label, glare/flash on pattern",
+    "tc-07.jpeg": "Genuine label, far away (pattern small in frame)",
+    "tc-08.jpeg": "Genuine label, motion blur",
+    "tc-09.jpeg": "Counterfeit label, straight-on (print → photo → reprint → photo)",
+    "tc-10.jpeg": "Counterfeit label, at an angle",
 }
 
 
@@ -454,9 +452,10 @@ def _build_results_table(story, ss, results: list):
         result_str  = ("SUCCESS" if actual == expected
                        else "FAILURE" if expected != "—"
                        else "—")
+        conf_cell = _pct(r.get("confidence")) if actual == "AUTHENTIC" else ""
         sum_rows.append([
             str(i), filename[:22], description[:50],
-            expected, actual, _pct(r.get("confidence")), result_str,
+            expected, actual, conf_cell, result_str,
         ])
         bg = {"AUTHENTIC": colors.HexColor("#d5f5e3"),
               "SUSPICIOUS": colors.HexColor("#fef9e7"),
@@ -674,30 +673,51 @@ def _build_sample_page(story, ss, r: dict, idx: int, total: int):
     vc = _verdict_color(verdict)
     # Use hex string directly for color value
     hex_col = vc.hexval() if hasattr(vc, "hexval") else "#333333"
+    conf_inline = (f'  <font size="10">Confidence: {_pct(conf)}</font>'
+                   if verdict == "AUTHENTIC" else "")
     story.append(Paragraph(
-        f'<font color="{hex_col}"><b>{verdict}</b></font>'
-        f'  <font size="10">Confidence: {_pct(conf)}</font>',
+        f'<font color="{hex_col}"><b>{verdict}</b></font>{conf_inline}',
         ss["VerdictBig"]))
     story.append(Spacer(1, 3*mm))
 
     # Header table
     dm = r.get("dm_diagnostic", {})
     seed_str = (f"{seed} (0x{seed:08X})" if isinstance(seed, int) else str(seed)) if seed else "—"
-    hdr = [
-        ["Field", "Value"],
-        ["Filename",         filename],
-        ["Description",      TEST_CASE_DESCRIPTIONS.get(filename, "—")],
-        ["Pattern ID",       str(r.get("pattern_id") or "—")],
-        ["Recovered Seed",   seed_str],
-        ["Verdict",          verdict],
-        ["Confidence",       _pct(conf)],
-        ["Alignment Method", r.get("alignment_method", "—")],
-        ["Quality Score",    f"{r.get('quality_score', 0):.3f}" if r.get("quality_score") else "—"],
-        ["Align Confidence", f"{r.get('align_confidence', 0):.3f}" if r.get("align_confidence") else "—"],
-        ["Processing Time",  f"{r.get('processing_time', 0):.2f}s"],
-        ["DMs Found",        str(dm.get("num_dms_found", "—"))],
-        ["Failure Reason",   r.get("failure_reason") or "—"],
+    cq = r.get("capture_quality") or {}
+    _qual_flag_map = [
+        ("is_very_dark",   "VERY DARK"),
+        ("is_low_light",   "LOW LIGHT"),
+        ("is_blurry",      "BLURRY"),
+        ("is_overexposed", "OVEREXPOSED"),
+        ("is_too_far",     "TOO FAR"),
     ]
+    _fired = [label for key, label in _qual_flag_map if cq.get(key)]
+    _qual_str    = ", ".join(_fired) if _fired else "OK"
+    _retake_str  = "YES" if r.get("retake_requested") else "No"
+    _dmw         = cq.get("dm_width_px")
+    _dmw_str     = f"{_dmw:.0f} px" if _dmw is not None else "—"
+
+    hdr = [["Field", "Value"]]
+    hdr.append(["Filename",         filename])
+    hdr.append(["Description",      TEST_CASE_DESCRIPTIONS.get(filename, "—")])
+    hdr.append(["Pattern ID",       str(r.get("pattern_id") or "—")])
+    hdr.append(["Recovered Seed",   seed_str])
+    hdr.append(["Verdict",          verdict])
+    if verdict == "AUTHENTIC":
+        hdr.append(["Confidence",   _pct(conf)])
+    hdr.append(["Alignment Method", r.get("alignment_method", "—")])
+    if r.get("quality_score"):
+        hdr.append(["Quality Score",    f"{r['quality_score']:.3f}"])
+    if r.get("align_confidence"):
+        hdr.append(["Align Confidence", f"{r['align_confidence']:.3f}"])
+    hdr.append(["Processing Time",  f"{r.get('processing_time', 0):.2f}s"])
+    hdr.append(["DMs Found",        str(dm.get("num_dms_found", "—"))])
+    if r.get("failure_reason"):
+        hdr.append(["Failure Reason", r["failure_reason"]])
+    hdr.append(["Capture Flags",    _qual_str])
+    hdr.append(["Retake Requested", _retake_str])
+    if _dmw is not None:
+        hdr.append(["DM Width (camera)", _dmw_str])
     story.append(_std_table(hdr, [6*cm, 11*cm]))
     story.append(Spacer(1, 4*mm))
 

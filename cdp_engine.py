@@ -310,6 +310,115 @@ def fine_align_via_fiducials(crop_512, debug=None):
     return corrected, applied
 
 
+_MAX_FID_OFFSET = 20.0   # px in 512x512 crop: max allowed fiducial-to-canonical distance
+_MAX_CORR_DEV   = 30.0   # px: max allowed crop-corner deviation from identity for the
+                          # correction homography (protects against unstable exact-4-pt solve)
+
+def _refine_homography_with_fiducials(captured_bgr, H_rough, src_dm, dst_dm,
+                                       rough_crop_512):
+    """
+    Fiducial-guided correction applied to the rough 512x512 crop.
+
+    Detects fiducials in the rough crop, pre-filters detections with an offset
+    threshold, then solves a CORRECTION HOMOGRAPHY entirely in crop space:
+        src = detected positions  (where fiducials actually are in rough crop)
+        dst = canonical positions (where they should be)
+
+    With 4 valid fiducials: exact 8-DOF solve via getPerspectiveTransform.
+    With 3 valid fiducials: exact affine solve via getAffineTransform.
+    Applied to rough_crop_512 (not the full-resolution camera image).
+
+    This approach avoids mixing DM-corner points (dst outside the 512x512 frame,
+    requiring extrapolation) with interior fiducial corrections in a single RANSAC
+    solve — that mixing causes RANSAC to reject valid DM corners as outliers because
+    the same reprojection threshold that is right for interior points is far too tight
+    for extrapolated DM positions (a 7px interior shift amplifies to ~50px at y=-262).
+
+    captured_bgr, H_rough, src_dm, dst_dm are retained in the signature for
+    API compatibility but are not used; only rough_crop_512 is consumed.
+
+    Returns (refined_crop, applied, n_fid_detected, fa_debug).
+    refined_crop is None and applied is False when fewer than 3 valid fiducials
+    are found or the correction homography is degenerate.
+    """
+    out_w, out_h = PATTERN_SIZE
+    fa_debug = {}
+    _, _ = fine_align_via_fiducials(rough_crop_512, debug=fa_debug)
+    n_fid    = fa_debug.get('fa_n_detected', 0)
+    accepted = fa_debug.get('fa_accepted', [])
+
+    if n_fid < 3:
+        print(f"[STEP2B+] refinement skipped: only {n_fid}/4 fiducials detected")
+        return None, False, n_fid, fa_debug
+
+    slot_labels   = ['TL', 'TR', 'BR', 'BL']
+    canon_centers = _fiducial_centers(out_w, out_h)
+    canon_map     = dict(zip(slot_labels, canon_centers))
+
+    src_pts, dst_pts = [], []
+    for entry in accepted:
+        lbl          = entry['label']
+        det_x, det_y = entry['detected']
+        canon_xy     = np.array(canon_map[lbl], dtype=np.float64)
+        offset_mag   = float(np.linalg.norm(np.array([det_x, det_y]) - canon_xy))
+        if offset_mag > _MAX_FID_OFFSET:
+            print(f"[STEP2B+] {lbl} fiducial offset {offset_mag:.1f}px > {_MAX_FID_OFFSET}px "
+                  f"— excluded from correction solve")
+            continue
+        src_pts.append([float(det_x), float(det_y)])
+        dst_pts.append([float(canon_xy[0]), float(canon_xy[1])])
+
+    n_valid = len(src_pts)
+    if n_valid < 3:
+        print(f"[STEP2B+] only {n_valid} valid fiducials after offset filter — skipping")
+        return None, False, n_fid, fa_debug
+
+    src_arr = np.float32(src_pts)
+    dst_arr = np.float32(dst_pts)
+
+    # Solve correction H in crop space (detected → canonical).
+    if n_valid >= 4:
+        # Exact 8-DOF perspective from 4 points — no RANSAC needed.
+        H_corr = cv2.getPerspectiveTransform(src_arr[:4], dst_arr[:4])
+    else:
+        # Exact 6-DOF affine from 3 points, promoted to 3x3.
+        A = cv2.getAffineTransform(src_arr[:3], dst_arr[:3])
+        H_corr = np.eye(3, dtype=np.float64)
+        H_corr[:2, :] = A.astype(np.float64)
+
+    if H_corr is None:
+        print("[STEP2B+] correction homography solve returned None — skipping")
+        return None, False, n_fid, fa_debug
+
+    # Sanity check: correction must not distort crop corners by more than _MAX_CORR_DEV.
+    # A degenerate 4-point exact solve (nearly colinear fiducials) can produce extreme
+    # perspective distortion at corners even when fiducial offsets are small.
+    try:
+        H_corr_inv = np.linalg.inv(H_corr)
+        max_dev = 0.0
+        for cx, cy in [(0,0), (out_w,0), (out_w,out_h), (0,out_h)]:
+            p = H_corr_inv @ np.array([cx, cy, 1.0])
+            if abs(p[2]) < 1e-9:
+                continue
+            dev = float(np.hypot(p[0]/p[2] - cx, p[1]/p[2] - cy))
+            max_dev = max(max_dev, dev)
+        if max_dev > _MAX_CORR_DEV:
+            print(f"[STEP2B+] correction corner deviation {max_dev:.1f}px > "
+                  f"{_MAX_CORR_DEV}px — correction is degenerate, falling back")
+            return None, False, n_fid, fa_debug
+    except np.linalg.LinAlgError:
+        print("[STEP2B+] H_corr not invertible — skipping")
+        return None, False, n_fid, fa_debug
+
+    print(f"[STEP2B+] crop-space correction H: {n_valid} pts  "
+          f"({'homography' if n_valid >= 4 else 'affine'})  corner_dev={max_dev:.1f}px")
+
+    refined_crop = cv2.warpPerspective(rough_crop_512, H_corr, (out_w, out_h),
+                                        flags=cv2.INTER_LINEAR,
+                                        borderMode=cv2.BORDER_REFLECT_101)
+    return refined_crop, True, n_fid, fa_debug
+
+
 def _sample_mean(gray, cx, cy, radii, n=24):
     """Mean intensity sampled on circles of the given radii around (cx,cy)."""
     h, w = gray.shape[:2]
@@ -726,7 +835,8 @@ def align_crop_by_dm_corners(image, raw_results, debug=None):
 
     print(f"[STEP2B] SUCCESS: warpPerspective → {out_w}×{out_h} crop")
     if debug is not None:
-        debug.update(stage="ok", top_quad=top_quad, right_quad=right_quad, H=Hh)
+        debug.update(stage="ok", top_quad=top_quad, right_quad=right_quad, H=Hh,
+                     src=src, dst=dst)
     return crop, True
 
 
@@ -2033,7 +2143,7 @@ def _gradient_raw(captured_gray, reference_gray):
 # Capture quality assessment
 # --------------------------------------------------------------------------
 
-def assess_capture_quality(gray_roi: np.ndarray) -> dict:
+def assess_capture_quality(gray_roi: np.ndarray, dm_width=None) -> dict:
     """Assess image quality on the fine-aligned 512×512 grayscale ROI.
 
     Runs on the same image that gets scored so the thresholds are meaningful
@@ -2048,6 +2158,11 @@ def assess_capture_quality(gray_roi: np.ndarray) -> dict:
     Blur (Laplacian variance) is artificially reduced by the INTER_AREA resize,
     so the threshold (< 60) is calibrated against post-resize sharpness, not
     full-resolution sharpness.
+
+    dm_width: TL→TR edge length of the top DataMatrix in camera pixels, used as
+    a distance proxy.  Calibrated against 42-sample data: samples at 217–255px
+    all scored AUTHENTIC, so 200px is used as the is_too_far threshold to avoid
+    false advisories on genuinely good captures.
     """
     mean_brightness = float(np.mean(gray_roi))
     laplacian_var   = float(cv2.Laplacian(gray_roi.astype(np.float64),
@@ -2058,6 +2173,7 @@ def assess_capture_quality(gray_roi: np.ndarray) -> dict:
     is_low_light   = mean_brightness < 70
     is_blurry      = laplacian_var   < 60
     is_overexposed = bright_fraction > 0.08
+    is_too_far     = dm_width is not None and dm_width < 200
 
     hints = []
     if is_very_dark:
@@ -2076,6 +2192,10 @@ def assess_capture_quality(gray_roi: np.ndarray) -> dict:
         hints.append(
             "Flash glare detected on the pattern — step back slightly or disable flash"
         )
+    if is_too_far:
+        hints.append(
+            "Label appears too far away — move the phone closer and try again"
+        )
 
     return {
         "mean_brightness":  round(mean_brightness, 1),
@@ -2085,6 +2205,8 @@ def assess_capture_quality(gray_roi: np.ndarray) -> dict:
         "is_very_dark":     is_very_dark,
         "is_blurry":        is_blurry,
         "is_overexposed":   is_overexposed,
+        "is_too_far":       is_too_far,
+        "dm_width_px":      round(dm_width, 1) if dm_width is not None else None,
         "hints":            hints,
     }
 
@@ -3201,8 +3323,33 @@ def verify_pattern(captured_path, uploads_dir="uploads"):
         print(f"[VERIFY] DM-corner align error ({_e}) -> Layer 3 fallback")
         aligned_roi, fid_ok = None, False
     _step2b_layer3_fallback = False
+    _skip_fine_align = False
+    _fa_applied = False
+    _fa_n  = 0
+    _fa_dx = 0.0
+    _fa_dy = 0.0
+    _fa_debug = {}   # always defined; populated by Step 2c or by overlay re-detection
     if fid_ok:
-        roi_bgr = aligned_roi
+        rough_crop_512 = aligned_roi
+        # Step 2b+: crop-space correction homography from fiducial detections in the
+        # rough crop.  Applied as a second warp on the 512×512 crop (not on the
+        # camera image), so extrapolation instability from DM-corner mixing is avoided.
+        print("[VERIFY] === STEP 2b+: Refine homography with fiducial correspondences ===")
+        _H_rough = dbg_align.get('H')
+        _src_dm  = dbg_align.get('src')
+        _dst_dm  = dbg_align.get('dst')
+        if _H_rough is not None and _src_dm is not None:
+            _refined, _ref_ok, _fa_n, _fa_dbg_ref = _refine_homography_with_fiducials(
+                captured_bgr, _H_rough, _src_dm, _dst_dm, rough_crop_512)
+            if _ref_ok and _refined is not None:
+                roi_bgr = _refined
+                _fa_applied = True
+                _skip_fine_align = True
+                print(f"[STEP2B+] applied crop-space correction ({_fa_n} fiducials)")
+            else:
+                roi_bgr = rough_crop_512
+        else:
+            roi_bgr = rough_crop_512
         print("[VERIFY] Step 2b: align-then-crop via exact DM corners (8-point homography)")
     else:
         _step2b_layer3_fallback = True
@@ -3263,17 +3410,20 @@ def verify_pattern(captured_path, uploads_dir="uploads"):
         interp = cv2.INTER_LANCZOS4 if (current_w < out_w or current_h < out_h) else cv2.INTER_AREA
         roi_bgr = cv2.resize(roi_bgr, (out_w, out_h), interpolation=interp)
 
-    # Step 2c - Fine alignment via fiducial markers.
-    # Runs after Step 4 resize so roi_bgr is guaranteed 512×512.  The corrected
-    # crop becomes the sole input to Step 4b NCC and Step 5 scoring; the coarse
-    # crop is discarded.  If fewer than 3 fiducials are detected the function
-    # returns the input unchanged and _fa_applied is False.
+    # Step 2c - Fine alignment via fiducial markers (affine fallback).
+    # Skipped when Step 2b+ combined homography already applied a refined warp.
+    # When it runs, the crop must be 512x512 (guaranteed by Step 4 resize above).
     print("[VERIFY] === STEP 2c: Fine Alignment via Fiducial Markers ===")
-    _fa_debug = {}
-    roi_bgr, _fa_applied = fine_align_via_fiducials(roi_bgr, debug=_fa_debug)
-    _fa_n  = _fa_debug.get('fa_n_detected', 0)
-    _fa_dx = _fa_debug.get('fa_dx', 0.0)
-    _fa_dy = _fa_debug.get('fa_dy', 0.0)
+    if not _skip_fine_align:
+        roi_bgr, _fa_applied = fine_align_via_fiducials(roi_bgr, debug=_fa_debug)
+        _fa_n  = _fa_debug.get('fa_n_detected', 0)
+        _fa_dx = _fa_debug.get('fa_dx', 0.0)
+        _fa_dy = _fa_debug.get('fa_dy', 0.0)
+    else:
+        # Re-run detection on the refined crop so the fiducial overlay image shows
+        # positions in the correct (post-refinement) coordinate frame.
+        fine_align_via_fiducials(roi_bgr, debug=_fa_debug)
+        _fa_n = _fa_debug.get('fa_n_detected', _fa_n)
     print(f"[FINE-ALIGN] applied={_fa_applied} n_detected={_fa_n} "
           f"dx={_fa_dx:+.1f} dy={_fa_dy:+.1f}")
 
@@ -3282,13 +3432,26 @@ def verify_pattern(captured_path, uploads_dir="uploads"):
 
     # Capture quality assessment — runs on the fine-aligned grayscale ROI
     # (same image that gets scored) so results are directly interpretable.
-    capture_quality = assess_capture_quality(captured_gray)
+    _top_quad = dbg_align.get('top_quad')
+    _dm_width_px = None
+    if _top_quad is not None:
+        _tq = np.array(_top_quad, dtype=np.float64)
+        _dm_width_px = float(np.linalg.norm(_tq[1] - _tq[0]))
+    capture_quality = assess_capture_quality(captured_gray, dm_width=_dm_width_px)
     if capture_quality["hints"]:
         for _h in capture_quality["hints"]:
             print(f"[QUALITY] {_h}")
+    _dmw_str = f"{_dm_width_px:.0f}px" if _dm_width_px is not None else "unknown"
     print(f"[QUALITY] brightness={capture_quality['mean_brightness']:.1f}  "
           f"blur={capture_quality['laplacian_var']:.1f}  "
-          f"bright_frac={capture_quality['bright_fraction']:.3f}")
+          f"bright_frac={capture_quality['bright_fraction']:.3f}  "
+          f"dm_width={_dmw_str}")
+
+    _retake_flags = ('is_very_dark', 'is_low_light', 'is_blurry', 'is_overexposed', 'is_too_far')
+    retake_requested = any(capture_quality.get(f) for f in _retake_flags)
+    retake_reasons   = [f for f in _retake_flags if capture_quality.get(f)]
+    if retake_requested:
+        print(f"[QUALITY] retake_requested=True  reasons={retake_reasons}")
 
     print("[VERIFY] === STEP 4b: NCC check on fine-aligned crop vs reference ===")
     _ncc_4b = _ncc_thumbnail(roi_bgr, reference_gray)
@@ -3415,4 +3578,6 @@ def verify_pattern(captured_path, uploads_dir="uploads"):
         "fine_align_dx":      _fa_dx,
         "fine_align_dy":      _fa_dy,
         "capture_quality":    capture_quality,
+        "retake_requested":   retake_requested,
+        "retake_reasons":     retake_reasons,
     }

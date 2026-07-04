@@ -750,6 +750,8 @@ async def run_verify(
         "score_correlation": result["scores"]["correlation"],
         "score_gradient":    result["scores"]["gradient"],
         "dm_diagnostic":     _safe_diag(result.get("dm_diagnostic")),
+        "retake_requested":  result.get("retake_requested", False),
+        "retake_reasons":    result.get("retake_reasons", []),
         "print_size_mm":     print_size_mm,
         "notes":             notes,
         "created_at":        datetime.utcnow(),
@@ -777,7 +779,9 @@ async def run_verify(
         "print_size_mm":   doc["print_size_mm"],
         "notes":           doc["notes"],
         "created_at":      doc["created_at"].isoformat(),
-        "capture_quality": result.get("capture_quality"),
+        "capture_quality":   result.get("capture_quality"),
+        "retake_requested":  result.get("retake_requested", False),
+        "retake_reasons":    result.get("retake_reasons", []),
     }
 
 

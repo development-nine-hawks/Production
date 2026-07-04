@@ -13,5 +13,50 @@
     "created_at": {
       "__datetime__": "2026-06-22T09:44:22.875320"
     }
+  },
+  {
+    "id": 2,
+    "seed": 1472570406,
+    "serial_number": "SN-2026-00002",
+    "label": "",
+    "filename": "phone_cdp_20260704_171622_1472570406.png",
+    "image_url": "/local-cdn/phonecdp/patterns/phone_cdp_20260704_171622_1472570406.png",
+    "cloudinary_public_id": "phonecdp/patterns/phone_cdp_20260704_171622_1472570406.png",
+    "pattern_size": 512,
+    "block_size": 8,
+    "notes": "",
+    "created_at": {
+      "__datetime__": "2026-07-04T11:46:22.718916"
+    }
+  },
+  {
+    "id": 3,
+    "seed": 1923199868,
+    "serial_number": "SN-2026-00003",
+    "label": "color test",
+    "filename": "phone_cdp_20260704_172615_1923199868.png",
+    "image_url": "/local-cdn/phonecdp/patterns/phone_cdp_20260704_172615_1923199868.png",
+    "cloudinary_public_id": "phonecdp/patterns/phone_cdp_20260704_172615_1923199868.png",
+    "pattern_size": 512,
+    "block_size": 16,
+    "notes": "",
+    "created_at": {
+      "__datetime__": "2026-07-04T11:56:15.402511"
+    }
+  },
+  {
+    "id": 4,
+    "seed": 1015692102,
+    "serial_number": "SN-2026-00003",
+    "label": "color test",
+    "filename": "phone_cdp_20260704_172731_1015692102.png",
+    "image_url": "/local-cdn/phonecdp/patterns/phone_cdp_20260704_172731_1015692102.png",
+    "cloudinary_public_id": "phonecdp/patterns/phone_cdp_20260704_172731_1015692102.png",
+    "pattern_size": 512,
+    "block_size": 8,
+    "notes": "",
+    "created_at": {
+      "__datetime__": "2026-07-04T11:57:31.325859"
+    }
   }
 ]

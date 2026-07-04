@@ -1,0 +1,166 @@
+[
+  {
+    "id": 1,
+    "pattern_id": 2,
+    "seed_recovered": 1472570406,
+    "captured_url": "/local-cdn/phonecdp/captures/capture_20260704_172057.jpeg",
+    "aligned_url": "/local-cdn/phonecdp/aligned/aligned_20260704_172057_801334.png",
+    "roi_filename": "roi_20260704_172057_801334.png",
+    "aligned_filename": "aligned_20260704_172057_801334.png",
+    "reference_filename": "reference_20260704_172057_801334.png",
+    "detection_filename": "detection_20260704_172057_801334.png",
+    "align_method": "dm_corners",
+    "cloudinary_ids": {
+      "captured": "phonecdp/captures/capture_20260704_172057.jpeg",
+      "aligned": "phonecdp/aligned/aligned_20260704_172057_801334.png"
+    },
+    "verdict": "AUTHENTIC",
+    "confidence": 0.7732709321764031,
+    "score_moire": 0.7661798280520045,
+    "score_color": 0.33757099509239197,
+    "score_correlation": 0.9661047147631443,
+    "score_gradient": 0.9659098197136441,
+    "dm_diagnostic": {
+      "raw_decoded": [
+        "AHFQ",
+        "GP7E"
+      ],
+      "share_a": "AHFQ",
+      "share_b": "GP7E",
+      "num_dms_found": 2,
+      "shrink_used": 1
+    },
+    "retake_requested": true,
+    "retake_reasons": [
+      "is_blurry"
+    ],
+    "print_size_mm": null,
+    "notes": "",
+    "created_at": {
+      "__datetime__": "2026-07-04T11:51:00.472860"
+    }
+  },
+  {
+    "id": 2,
+    "pattern_id": 2,
+    "seed_recovered": 1472570406,
+    "captured_url": "/local-cdn/phonecdp/captures/capture_20260704_172519.jpeg",
+    "aligned_url": "/local-cdn/phonecdp/aligned/aligned_20260704_172519_563077.png",
+    "roi_filename": "roi_20260704_172519_563077.png",
+    "aligned_filename": "aligned_20260704_172519_563077.png",
+    "reference_filename": "reference_20260704_172519_563077.png",
+    "detection_filename": "detection_20260704_172519_563077.png",
+    "align_method": "dm_corners",
+    "cloudinary_ids": {
+      "captured": "phonecdp/captures/capture_20260704_172519.jpeg",
+      "aligned": "phonecdp/aligned/aligned_20260704_172519_563077.png"
+    },
+    "verdict": "AUTHENTIC",
+    "confidence": 0.6787908431304395,
+    "score_moire": 0.6606898228262583,
+    "score_color": 0.11807288229465485,
+    "score_correlation": 0.9503406247269379,
+    "score_gradient": 0.9500073839414153,
+    "dm_diagnostic": {
+      "raw_decoded": [
+        "AHFQ",
+        "GP7E"
+      ],
+      "share_a": "AHFQ",
+      "share_b": "GP7E",
+      "num_dms_found": 2,
+      "shrink_used": 1
+    },
+    "retake_requested": true,
+    "retake_reasons": [
+      "is_blurry"
+    ],
+    "print_size_mm": null,
+    "notes": "",
+    "created_at": {
+      "__datetime__": "2026-07-04T11:55:21.812783"
+    }
+  },
+  {
+    "id": 3,
+    "pattern_id": 3,
+    "seed_recovered": 1923199868,
+    "captured_url": "/local-cdn/phonecdp/captures/capture_20260704_172903.jpeg",
+    "aligned_url": "/local-cdn/phonecdp/aligned/aligned_20260704_172903_090898.png",
+    "roi_filename": "roi_20260704_172903_090898.png",
+    "aligned_filename": "aligned_20260704_172903_090898.png",
+    "reference_filename": "reference_20260704_172903_090898.png",
+    "detection_filename": "detection_20260704_172903_090898.png",
+    "align_method": "dm_corners",
+    "cloudinary_ids": {
+      "captured": "phonecdp/captures/capture_20260704_172903.jpeg",
+      "aligned": "phonecdp/aligned/aligned_20260704_172903_090898.png"
+    },
+    "verdict": "AUTHENTIC",
+    "confidence": 0.8043805608799611,
+    "score_moire": 0.8714630717792755,
+    "score_color": 0.1278608739376068,
+    "score_correlation": 1.0,
+    "score_gradient": 0.834289845531143,
+    "dm_diagnostic": {
+      "raw_decoded": [
+        "BMAY",
+        "JHWH"
+      ],
+      "share_a": "BMAY",
+      "share_b": "JHWH",
+      "num_dms_found": 2,
+      "shrink_used": 1
+    },
+    "retake_requested": true,
+    "retake_reasons": [
+      "is_blurry"
+    ],
+    "print_size_mm": null,
+    "notes": "",
+    "created_at": {
+      "__datetime__": "2026-07-04T11:59:05.680592"
+    }
+  },
+  {
+    "id": 4,
+    "pattern_id": 3,
+    "seed_recovered": 1923199868,
+    "captured_url": "/local-cdn/phonecdp/captures/capture_20260704_173018.jpeg",
+    "aligned_url": "/local-cdn/phonecdp/aligned/aligned_20260704_173018_226283.png",
+    "roi_filename": "roi_20260704_173018_226283.png",
+    "aligned_filename": "aligned_20260704_173018_226283.png",
+    "reference_filename": "reference_20260704_173018_226283.png",
+    "detection_filename": "detection_20260704_173018_226283.png",
+    "align_method": "dm_corners",
+    "cloudinary_ids": {
+      "captured": "phonecdp/captures/capture_20260704_173018.jpeg",
+      "aligned": "phonecdp/aligned/aligned_20260704_173018_226283.png"
+    },
+    "verdict": "AUTHENTIC",
+    "confidence": 0.8647078564900834,
+    "score_moire": 0.8923103789370779,
+    "score_color": 0.39299875497817993,
+    "score_correlation": 1.0,
+    "score_gradient": 0.9693748978877654,
+    "dm_diagnostic": {
+      "raw_decoded": [
+        "JHWH",
+        "BMAY"
+      ],
+      "share_a": "BMAY",
+      "share_b": "JHWH",
+      "num_dms_found": 2,
+      "shrink_used": 1
+    },
+    "retake_requested": true,
+    "retake_reasons": [
+      "is_blurry"
+    ],
+    "print_size_mm": null,
+    "notes": "",
+    "created_at": {
+      "__datetime__": "2026-07-04T12:00:20.620232"
+    }
+  }
+]

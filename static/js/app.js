@@ -566,8 +566,11 @@ async function pgVerify(el) {
                 const r = await API.postForm('/api/verify', fd);
 
                 // ── Quality gate — hold result, don't render yet ───────────
-                const cq = r.capture_quality;
-                if (cq && cq.hints && cq.hints.length) {
+                // Only fires when quality is flagged AND the verdict is not
+                // AUTHENTIC. If the pipeline succeeded despite low quality,
+                // the result is trustworthy and the warning adds no value.
+                if (r.retake_requested && r.verdict !== 'AUTHENTIC') {
+                    const hints = (r.capture_quality && r.capture_quality.hints) || [];
                     vr.innerHTML = `
                       <div class="rounded-xl border border-amber-200 bg-amber-50 p-6 flex gap-4">
                         <svg class="w-6 h-6 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -577,7 +580,7 @@ async function pgVerify(el) {
                         <div class="flex-1">
                           <p class="font-semibold text-amber-900">Capture quality issue detected</p>
                           <div class="mt-1 space-y-0.5">
-                            ${cq.hints.map(h => `<p class="text-sm text-amber-700">${h}</p>`).join('')}
+                            ${hints.map(h => `<p class="text-sm text-amber-700">${h}</p>`).join('')}
                           </div>
                           <p class="text-xs text-amber-400 mt-3">Verification ran but the result may be unreliable due to the above.</p>
                           <button id="reveal-result-btn"
