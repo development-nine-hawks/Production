@@ -36,6 +36,23 @@ function sBar(label, val, wt) {
 function fmtDate(iso) { const d = new Date(iso); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}); }
 function spin(t='Loading...') { return `<div class="flex items-center justify-center py-16"><div class="flex flex-col items-center gap-3"><div class="w-8 h-8 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin"></div><span class="text-sm text-gray-500">${t}</span></div></div>`; }
 
+async function computeImageBrightness(file) {
+    return new Promise(resolve => {
+        const img = new Image(), url = URL.createObjectURL(file);
+        img.onload = () => {
+            const c = document.createElement('canvas'); c.width = c.height = 100;
+            const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0, 100, 100);
+            const d = ctx.getImageData(0, 0, 100, 100).data;
+            let s = 0;
+            for (let i = 0; i < d.length; i += 4) s += 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+            URL.revokeObjectURL(url);
+            resolve(s / 10000);
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); resolve(255); };
+        img.src = url;
+    });
+}
+
 // ==========================================================================
 // Router
 // ==========================================================================
@@ -221,13 +238,54 @@ async function pgVerify(el) {
     dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('border-brand-500','bg-brand-50'); setFiles(e.dataTransfer.files); });
     fi.addEventListener('change', () => setFiles(fi.files));
 
+    function resetResultPanel() {
+        document.getElementById('vr').innerHTML = `
+          <div class="flex flex-col items-center justify-center h-72 text-center gap-3">
+            <div class="w-16 h-16 rounded-2xl bg-gray-50 flex items-center justify-center">
+              <svg class="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <p class="text-gray-400 text-sm font-medium">Upload a label photo to begin</p>
+            <p class="text-gray-300 text-xs max-w-xs">No pattern selection needed — everything is read from the Data Matrix codes on the label</p>
+          </div>`;
+    }
+
+    function showLowLightGate(brightness) {
+        const veryDark = brightness < 45;
+        vb.disabled = true;
+        document.getElementById('vr').innerHTML = `
+          <div class="rounded-xl border border-amber-200 bg-amber-50 p-6 flex gap-4">
+            <svg class="w-6 h-6 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <div class="flex-1">
+              <p class="font-semibold text-amber-900">${veryDark ? 'Image is very dark' : 'Low light detected'}</p>
+              <p class="text-sm text-amber-700 mt-1">${veryDark
+                  ? 'Enable flash or move to a brighter area — the pattern cannot be read reliably in this light.'
+                  : 'The image may be too dim for accurate verification. Try enabling flash for a cleaner result.'}</p>
+              <p class="text-xs text-amber-400 mt-2">Detected brightness: ${Math.round(brightness)} / 255</p>
+              <button id="run-anyway-btn"
+                class="mt-4 border border-amber-400 text-amber-800 bg-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-amber-50 transition">
+                Run anyway
+              </button>
+            </div>
+          </div>`;
+        document.getElementById('run-anyway-btn').addEventListener('click', () => {
+            vb.disabled = false;
+            resetResultPanel();
+            runVerify();
+        });
+    }
+
     function setFiles(f) {
         files = Array.from(f);
         const fl = document.getElementById('fl'), opt = document.getElementById('opt-fields');
         if (files.length) {
             fl.classList.remove('hidden');
             opt.classList.remove('hidden');
-            // Show image previews inline
             fl.innerHTML = files.map(file => {
                 const url = URL.createObjectURL(file);
                 return `<div class="flex items-center gap-3 bg-gray-50 rounded-xl p-2">
@@ -239,15 +297,257 @@ async function pgVerify(el) {
                 </div>`;
             }).join('');
             vb.disabled = false;
+            resetResultPanel();
+            // Brightness pre-check on single file — show warning immediately
+            if (files.length === 1) {
+                computeImageBrightness(files[0]).then(brightness => {
+                    if (brightness < 70) showLowLightGate(brightness);
+                });
+            }
         } else {
             fl.classList.add('hidden');
             opt.classList.add('hidden');
             vb.disabled = true;
+            resetResultPanel();
         }
     }
 
-    vb.addEventListener('click', async () => {
-        if (!files.length) return;
+    function renderSingleResult(r) {
+        window._lastVerifyResult = r;
+        const vr = document.getElementById('vr');
+
+        const seedHex = r.seed_recovered != null
+            ? '0x' + r.seed_recovered.toString(16).toUpperCase().padStart(8,'0') : null;
+
+        const patternChip = r.pattern_label || r.pattern_serial
+            ? `<span class="text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-2.5 py-0.5 font-medium ml-2">${r.pattern_label || r.pattern_serial}</span>`
+            : `<span class="text-xs bg-gray-100 text-gray-500 rounded-full px-2.5 py-0.5 ml-2">Unregistered seed</span>`;
+
+        const seedChip = r.seed_recovered != null
+            ? `<div class="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 mt-3">
+                 <svg class="w-3.5 h-3.5 text-indigo-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                     d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                 </svg>
+                 <span class="text-xs text-indigo-600">Seed decoded from DMs:</span>
+                 <span class="text-xs font-mono font-bold text-indigo-900">${r.seed_recovered}</span>
+                 <span class="text-xs font-mono text-indigo-400">(${seedHex})</span>
+               </div>`
+            : `<div class="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mt-3 text-xs text-red-700">
+                 <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                     d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                 </svg>
+                 Seed could not be recovered from the Data Matrix codes
+               </div>`;
+
+        const dm = r.dm_diagnostic || {};
+        const dmRow = (label, val, mono=false) =>
+            `<div class="flex justify-between text-xs py-1 border-b border-gray-50 last:border-0">
+               <span class="text-gray-400">${label}</span>
+               <span class="${mono?'font-mono':''} font-medium text-gray-800 max-w-[55%] truncate text-right">${val ?? '—'}</span>
+             </div>`;
+
+        const dmPanel = `
+        <div class="bg-white rounded-xl border p-4 mb-3">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-xs font-bold shrink-0">1</div>
+            <span class="font-semibold text-sm">Data Matrix Decode</span>
+            <span class="ml-auto text-xs px-2 py-0.5 rounded-full ${dm.num_dms_found>=2?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}">${dm.num_dms_found||0} / 2 DMs</span>
+          </div>
+          <div class="grid grid-cols-2 gap-3 mb-2">
+            <div>
+              <p class="text-xs text-gray-400 mb-1">Captured photo</p>
+              <img src="/api/verify/${r.id}/images/captured"
+                   class="w-full rounded-lg border cursor-pointer object-cover aspect-[3/4]"
+                   onclick="openImageModal(this.src)"
+                   onerror="this.parentElement.innerHTML='<div class=\\'w-full rounded-lg bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Not available</div>'"/>
+            </div>
+            <div class="space-y-0.5 pt-1">
+              ${dmRow('DMs found', dm.num_dms_found)}
+              ${dmRow('Share A', dm.share_a, true)}
+              ${dmRow('Share B', dm.share_b, true)}
+              ${dm.failure_reason?`<p class="text-xs text-red-500 mt-1">${dm.failure_reason}</p>`:''}
+            </div>
+          </div>
+          ${seedChip}
+        </div>`;
+
+        const roiPanel = `
+        <div class="bg-white rounded-xl border p-4 mb-3">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xs font-bold shrink-0">2</div>
+            <span class="font-semibold text-sm">ROI Extraction</span>
+            <span class="ml-auto text-xs text-gray-400">DM geometry → 512×512</span>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <p class="text-xs text-gray-400 mb-1">Cropped pattern</p>
+              <img src="/api/verify/${r.id}/images/roi" class="w-full rounded-lg border cursor-pointer aspect-square object-cover" onclick="openImageModal(this.src)"
+                   onerror="this.parentElement.innerHTML='<div class=\\'w-full rounded-lg bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Expired</div>'"/>
+            </div>
+            <div>
+              <p class="text-xs text-gray-400 mb-1">Aligned</p>
+              <img src="/api/verify/${r.id}/images/aligned" class="w-full rounded-lg border cursor-pointer aspect-square object-cover" onclick="openImageModal(this.src)"
+                   onerror="this.parentElement.innerHTML='<div class=\\'w-full rounded-lg bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Expired</div>'"/>
+            </div>
+          </div>
+        </div>`;
+
+        const refPanel = `
+        <div class="bg-white rounded-xl border p-4 mb-3">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 text-xs font-bold shrink-0">3</div>
+            <span class="font-semibold text-sm">Reference Regeneration</span>
+            <span class="ml-auto text-xs text-gray-400">seed → digital twin</span>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <p class="text-xs text-gray-400 mb-1">Regenerated</p>
+              <img src="/api/verify/${r.id}/images/reference" class="w-full rounded-lg border cursor-pointer aspect-square object-cover" onclick="openImageModal(this.src)"
+                   onerror="this.parentElement.innerHTML='<div class=\\'w-full rounded-lg bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Expired</div>'"/>
+            </div>
+            <div>
+              <p class="text-xs text-gray-400 mb-1">Original (DB)</p>
+              <img src="/api/verify/${r.id}/images/original" class="w-full rounded-lg border cursor-pointer aspect-square object-cover" onclick="openImageModal(this.src)"
+                   onerror="this.parentElement.innerHTML='<div class=\\'w-full rounded-lg bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Not stored</div>'"/>
+            </div>
+          </div>
+        </div>`;
+
+        const cq = r.capture_quality;
+        const captureHintsHtml = (cq && cq.hints && cq.hints.length)
+            ? `<div class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex gap-3">
+                 <svg class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                     d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                 </svg>
+                 <div class="space-y-0.5">${cq.hints.map(h =>
+                   `<p class="text-sm text-amber-800 font-medium">${h}</p>`).join('')}
+                 </div>
+               </div>`
+            : '';
+
+        const wt = r.weights || {moire:0.65, color:0.10, correlation:0.10, gradient:0.15};
+        const scoresPanel = `
+        <div class="bg-white rounded-xl border p-4">
+          <div class="flex items-center gap-2 mb-4">
+            <div class="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 text-xs font-bold shrink-0">4</div>
+            <span class="font-semibold text-sm">Authentication Scores</span>
+          </div>
+          <div class="space-y-2.5 mb-5">
+            ${sBar('Moire',r.scores.moire,wt.moire)}
+            ${sBar('Color',r.scores.color,wt.color)}
+            ${sBar('Correlation',r.scores.correlation,wt.correlation)}
+            ${sBar('Gradient',r.scores.gradient,wt.gradient)}
+          </div>
+          ${confGauge(r.confidence)}
+        </div>`;
+
+        vr.innerHTML = `
+        <!-- Header -->
+        <div class="flex items-start justify-between mb-5">
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h2 class="text-lg font-bold">Result</h2>
+              ${vBadge(r.verdict)}
+              ${patternChip}
+            </div>
+            <p class="text-xs text-gray-400 mt-1">${fmtDate(r.created_at)}</p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0 ml-3">
+            <button onclick="copyTestResult()" title="Copy results"
+              class="p-1.5 rounded-lg border hover:bg-gray-50 transition text-gray-500">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+              </svg>
+            </button>
+            <a href="#/results/${r.id}" class="text-xs text-brand-600 hover:underline">Full details →</a>
+          </div>
+        </div>
+        <!-- Capture quality hints -->
+        ${captureHintsHtml}
+        <!-- Pipeline steps -->
+        <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Detection Pipeline</p>
+        ${dmPanel}${roiPanel}${refPanel}${scoresPanel}
+
+        <!-- Per-block Analytics -->
+        <div class="mt-5">
+          <div class="flex justify-between items-center mb-4">
+            <div>
+              <p class="font-semibold text-sm">Per-block Analytics</p>
+              <p class="text-xs text-gray-400 mt-0.5">Each block scored independently across all 4 tests</p>
+            </div>
+            <a href="/api/verify/${r.id}/report.pdf" target="_blank"
+               class="inline-flex items-center gap-1.5 bg-brand-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-brand-700 transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              Download Report PDF
+            </a>
+          </div>
+
+          ${['moire','correlation','gradient','color'].map(t => `
+          <div class="mb-6">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">${t.toUpperCase()}</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <p class="text-[11px] text-gray-400 mb-1 text-center">Heatmap (per-block, overlaid)</p>
+                <img src="/api/verify/${r.id}/plot/${t}/heatmap.png"
+                     class="w-full rounded-lg border cursor-pointer"
+                     onclick="openImageModal(this.src)"
+                     onerror="this.outerHTML='<div class=\\'w-full rounded-lg border bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Unavailable</div>'"/>
+              </div>
+              <div>
+                <p class="text-[11px] text-gray-400 mb-1 text-center">Distribution</p>
+                <img src="/api/verify/${r.id}/plot/${t}/histogram.png"
+                     class="w-full rounded-lg border cursor-pointer"
+                     onclick="openImageModal(this.src)"
+                     onerror="this.outerHTML='<div class=\\'w-full rounded-lg border bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Unavailable</div>'"/>
+              </div>
+              <div>
+                <p class="text-[11px] text-gray-400 mb-1 text-center">Per-block scatter</p>
+                <img src="/api/verify/${r.id}/plot/${t}/scatter.png"
+                     class="w-full rounded-lg border cursor-pointer"
+                     onclick="openImageModal(this.src)"
+                     onerror="this.outerHTML='<div class=\\'w-full rounded-lg border bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Unavailable</div>'"/>
+              </div>
+            </div>
+          </div>`).join('')}
+
+          <!-- Delta Map -->
+          <div class="mb-2">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Δ DELTA MAP</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <p class="text-[11px] text-gray-400 mb-1 text-center">Reference (original)</p>
+                <img src="/api/verify/${r.id}/images/original"
+                     class="w-full rounded-lg border cursor-pointer aspect-square object-cover"
+                     onclick="openImageModal(this.src)"
+                     onerror="this.outerHTML='<div class=\\'w-full rounded-lg border bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Unavailable</div>'"/>
+              </div>
+              <div>
+                <p class="text-[11px] text-gray-400 mb-1 text-center">Captured (aligned)</p>
+                <img src="/api/verify/${r.id}/images/aligned"
+                     class="w-full rounded-lg border cursor-pointer aspect-square object-cover"
+                     onclick="openImageModal(this.src)"
+                     onerror="this.outerHTML='<div class=\\'w-full rounded-lg border bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Expired</div>'"/>
+              </div>
+              <div>
+                <p class="text-[11px] text-gray-400 mb-1 text-center">|δ| heatmap</p>
+                <img src="/api/verify/${r.id}/plot/moire/delta.png"
+                     class="w-full rounded-lg border cursor-pointer aspect-square object-cover"
+                     onclick="openImageModal(this.src)"
+                     onerror="this.outerHTML='<div class=\\'w-full rounded-lg border bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Expired</div>'"/>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    async function runVerify() {
         vb.disabled = true;
         vb.innerHTML = '<div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Analysing…';
         const vr = document.getElementById('vr');
@@ -264,224 +564,36 @@ async function pgVerify(el) {
                 if (nt) fd.append('notes', nt);
 
                 const r = await API.postForm('/api/verify', fd);
-                window._lastVerifyResult = r;
 
-                // ── Identified pattern chip ────────────────────────────────
-                const seedHex = r.seed_recovered != null
-                    ? '0x' + r.seed_recovered.toString(16).toUpperCase().padStart(8,'0') : null;
+                // ── Quality gate — hold result, don't render yet ───────────
+                const cq = r.capture_quality;
+                if (cq && cq.hints && cq.hints.length) {
+                    vr.innerHTML = `
+                      <div class="rounded-xl border border-amber-200 bg-amber-50 p-6 flex gap-4">
+                        <svg class="w-6 h-6 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                        <div class="flex-1">
+                          <p class="font-semibold text-amber-900">Capture quality issue detected</p>
+                          <div class="mt-1 space-y-0.5">
+                            ${cq.hints.map(h => `<p class="text-sm text-amber-700">${h}</p>`).join('')}
+                          </div>
+                          <p class="text-xs text-amber-400 mt-3">Verification ran but the result may be unreliable due to the above.</p>
+                          <button id="reveal-result-btn"
+                            class="mt-4 border border-amber-400 text-amber-800 bg-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-amber-50 transition">
+                            Show result anyway
+                          </button>
+                        </div>
+                      </div>`;
+                    document.getElementById('reveal-result-btn').addEventListener('click', () => {
+                        renderSingleResult(r);
+                        showToast('Verification complete!', 'success');
+                    });
+                    return;
+                }
 
-                const patternChip = r.pattern_label || r.pattern_serial
-                    ? `<span class="text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-2.5 py-0.5 font-medium ml-2">${r.pattern_label || r.pattern_serial}</span>`
-                    : `<span class="text-xs bg-gray-100 text-gray-500 rounded-full px-2.5 py-0.5 ml-2">Unregistered seed</span>`;
-
-                const seedChip = r.seed_recovered != null
-                    ? `<div class="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 mt-3">
-                         <svg class="w-3.5 h-3.5 text-indigo-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                             d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
-                         </svg>
-                         <span class="text-xs text-indigo-600">Seed decoded from DMs:</span>
-                         <span class="text-xs font-mono font-bold text-indigo-900">${r.seed_recovered}</span>
-                         <span class="text-xs font-mono text-indigo-400">(${seedHex})</span>
-                       </div>`
-                    : `<div class="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mt-3 text-xs text-red-700">
-                         <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                             d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                         </svg>
-                         Seed could not be recovered from the Data Matrix codes
-                       </div>`;
-
-                // ── DM diagnostic ─────────────────────────────────────────
-                const dm = r.dm_diagnostic || {};
-                const dmRow = (label, val, mono=false) =>
-                    `<div class="flex justify-between text-xs py-1 border-b border-gray-50 last:border-0">
-                       <span class="text-gray-400">${label}</span>
-                       <span class="${mono?'font-mono':''} font-medium text-gray-800 max-w-[55%] truncate text-right">${val ?? '—'}</span>
-                     </div>`;
-
-                const dmPanel = `
-                <div class="bg-white rounded-xl border p-4 mb-3">
-                  <div class="flex items-center gap-2 mb-3">
-                    <div class="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-xs font-bold shrink-0">1</div>
-                    <span class="font-semibold text-sm">Data Matrix Decode</span>
-                    <span class="ml-auto text-xs px-2 py-0.5 rounded-full ${dm.num_dms_found>=2?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}">${dm.num_dms_found||0} / 2 DMs</span>
-                  </div>
-                  <div class="grid grid-cols-2 gap-3 mb-2">
-                    <div>
-                      <p class="text-xs text-gray-400 mb-1">Captured photo</p>
-                      <img src="/api/verify/${r.id}/images/captured"
-                           class="w-full rounded-lg border cursor-pointer object-cover aspect-[3/4]"
-                           onclick="openImageModal(this.src)"
-                           onerror="this.parentElement.innerHTML='<div class=\\'w-full rounded-lg bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Not available</div>'"/>
-                    </div>
-                    <div class="space-y-0.5 pt-1">
-                      ${dmRow('DMs found', dm.num_dms_found)}
-                      ${dmRow('Share A', dm.share_a, true)}
-                      ${dmRow('Share B', dm.share_b, true)}
-                      ${dm.failure_reason?`<p class="text-xs text-red-500 mt-1">${dm.failure_reason}</p>`:''}
-                    </div>
-                  </div>
-                  ${seedChip}
-                </div>`;
-
-                const roiPanel = `
-                <div class="bg-white rounded-xl border p-4 mb-3">
-                  <div class="flex items-center gap-2 mb-3">
-                    <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xs font-bold shrink-0">2</div>
-                    <span class="font-semibold text-sm">ROI Extraction</span>
-                    <span class="ml-auto text-xs text-gray-400">DM geometry → 512×512</span>
-                  </div>
-                  <div class="grid grid-cols-2 gap-3">
-                    <div>
-                      <p class="text-xs text-gray-400 mb-1">Cropped pattern</p>
-                      <img src="/api/verify/${r.id}/images/roi" class="w-full rounded-lg border cursor-pointer aspect-square object-cover" onclick="openImageModal(this.src)"
-                           onerror="this.parentElement.innerHTML='<div class=\\'w-full rounded-lg bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Expired</div>'"/>
-                    </div>
-                    <div>
-                      <p class="text-xs text-gray-400 mb-1">Aligned</p>
-                      <img src="/api/verify/${r.id}/images/aligned" class="w-full rounded-lg border cursor-pointer aspect-square object-cover" onclick="openImageModal(this.src)"
-                           onerror="this.parentElement.innerHTML='<div class=\\'w-full rounded-lg bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Expired</div>'"/>
-                    </div>
-                  </div>
-                </div>`;
-
-                const refPanel = `
-                <div class="bg-white rounded-xl border p-4 mb-3">
-                  <div class="flex items-center gap-2 mb-3">
-                    <div class="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 text-xs font-bold shrink-0">3</div>
-                    <span class="font-semibold text-sm">Reference Regeneration</span>
-                    <span class="ml-auto text-xs text-gray-400">seed → digital twin</span>
-                  </div>
-                  <div class="grid grid-cols-2 gap-3">
-                    <div>
-                      <p class="text-xs text-gray-400 mb-1">Regenerated</p>
-                      <img src="/api/verify/${r.id}/images/reference" class="w-full rounded-lg border cursor-pointer aspect-square object-cover" onclick="openImageModal(this.src)"
-                           onerror="this.parentElement.innerHTML='<div class=\\'w-full rounded-lg bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Expired</div>'"/>
-                    </div>
-                    <div>
-                      <p class="text-xs text-gray-400 mb-1">Original (DB)</p>
-                      <img src="/api/verify/${r.id}/images/original" class="w-full rounded-lg border cursor-pointer aspect-square object-cover" onclick="openImageModal(this.src)"
-                           onerror="this.parentElement.innerHTML='<div class=\\'w-full rounded-lg bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Not stored</div>'"/>
-                    </div>
-                  </div>
-                </div>`;
-
-                const wt = r.weights || {moire:0.65, color:0.10, correlation:0.10, gradient:0.15};
-                const scoresPanel = `
-                <div class="bg-white rounded-xl border p-4">
-                  <div class="flex items-center gap-2 mb-4">
-                    <div class="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 text-xs font-bold shrink-0">4</div>
-                    <span class="font-semibold text-sm">Authentication Scores</span>
-                  </div>
-                  <div class="space-y-2.5 mb-5">
-                    ${sBar('Moire',r.scores.moire,wt.moire)}
-                    ${sBar('Color',r.scores.color,wt.color)}
-                    ${sBar('Correlation',r.scores.correlation,wt.correlation)}
-                    ${sBar('Gradient',r.scores.gradient,wt.gradient)}
-                  </div>
-                  ${confGauge(r.confidence)}
-                </div>`;
-
-                vr.innerHTML = `
-                <!-- Header -->
-                <div class="flex items-start justify-between mb-5">
-                  <div>
-                    <div class="flex items-center gap-2 flex-wrap">
-                      <h2 class="text-lg font-bold">Result</h2>
-                      ${vBadge(r.verdict)}
-                      ${patternChip}
-                    </div>
-                    <p class="text-xs text-gray-400 mt-1">${fmtDate(r.created_at)}</p>
-                  </div>
-                  <div class="flex items-center gap-2 shrink-0 ml-3">
-                    <button onclick="copyTestResult()" title="Copy results"
-                      class="p-1.5 rounded-lg border hover:bg-gray-50 transition text-gray-500">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                      </svg>
-                    </button>
-                    <a href="#/results/${r.id}" class="text-xs text-brand-600 hover:underline">Full details →</a>
-                  </div>
-                </div>
-                <!-- Pipeline steps -->
-                <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Detection Pipeline</p>
-                ${dmPanel}${roiPanel}${refPanel}${scoresPanel}
-
-                <!-- Per-block Analytics -->
-                <div class="mt-5">
-                  <div class="flex justify-between items-center mb-4">
-                    <div>
-                      <p class="font-semibold text-sm">Per-block Analytics</p>
-                      <p class="text-xs text-gray-400 mt-0.5">Each block scored independently across all 4 tests</p>
-                    </div>
-                    <a href="/api/verify/${r.id}/report.pdf" target="_blank"
-                       class="inline-flex items-center gap-1.5 bg-brand-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-brand-700 transition">
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                      </svg>
-                      Download Report PDF
-                    </a>
-                  </div>
-
-                  ${['moire','correlation','gradient','color'].map(t => `
-                  <div class="mb-6">
-                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">${t.toUpperCase()}</p>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div>
-                        <p class="text-[11px] text-gray-400 mb-1 text-center">Heatmap (per-block, overlaid)</p>
-                        <img src="/api/verify/${r.id}/plot/${t}/heatmap.png"
-                             class="w-full rounded-lg border cursor-pointer"
-                             onclick="openImageModal(this.src)"
-                             onerror="this.outerHTML='<div class=\\'w-full rounded-lg border bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Unavailable</div>'"/>
-                      </div>
-                      <div>
-                        <p class="text-[11px] text-gray-400 mb-1 text-center">Distribution</p>
-                        <img src="/api/verify/${r.id}/plot/${t}/histogram.png"
-                             class="w-full rounded-lg border cursor-pointer"
-                             onclick="openImageModal(this.src)"
-                             onerror="this.outerHTML='<div class=\\'w-full rounded-lg border bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Unavailable</div>'"/>
-                      </div>
-                      <div>
-                        <p class="text-[11px] text-gray-400 mb-1 text-center">Per-block scatter</p>
-                        <img src="/api/verify/${r.id}/plot/${t}/scatter.png"
-                             class="w-full rounded-lg border cursor-pointer"
-                             onclick="openImageModal(this.src)"
-                             onerror="this.outerHTML='<div class=\\'w-full rounded-lg border bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Unavailable</div>'"/>
-                      </div>
-                    </div>
-                  </div>`).join('')}
-
-                  <!-- Delta Map -->
-                  <div class="mb-2">
-                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Δ DELTA MAP</p>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div>
-                        <p class="text-[11px] text-gray-400 mb-1 text-center">Reference (original)</p>
-                        <img src="/api/verify/${r.id}/images/original"
-                             class="w-full rounded-lg border cursor-pointer aspect-square object-cover"
-                             onclick="openImageModal(this.src)"
-                             onerror="this.outerHTML='<div class=\\'w-full rounded-lg border bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Unavailable</div>'"/>
-                      </div>
-                      <div>
-                        <p class="text-[11px] text-gray-400 mb-1 text-center">Captured (aligned)</p>
-                        <img src="/api/verify/${r.id}/images/aligned"
-                             class="w-full rounded-lg border cursor-pointer aspect-square object-cover"
-                             onclick="openImageModal(this.src)"
-                             onerror="this.outerHTML='<div class=\\'w-full rounded-lg border bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Expired</div>'"/>
-                      </div>
-                      <div>
-                        <p class="text-[11px] text-gray-400 mb-1 text-center">|δ| heatmap</p>
-                        <img src="/api/verify/${r.id}/plot/moire/delta.png"
-                             class="w-full rounded-lg border cursor-pointer aspect-square object-cover"
-                             onclick="openImageModal(this.src)"
-                             onerror="this.outerHTML='<div class=\\'w-full rounded-lg border bg-gray-100 flex items-center justify-center py-10 text-xs text-gray-400\\'>Expired</div>'"/>
-                      </div>
-                    </div>
-                  </div>
-                </div>`;
+                renderSingleResult(r);
 
             } else {
                 // ── Batch ─────────────────────────────────────────────────
@@ -525,6 +637,11 @@ async function pgVerify(el) {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg> Authenticate Label`;
         }
+    }
+
+    vb.addEventListener('click', () => {
+        if (!files.length) return;
+        runVerify();
     });
 }
 

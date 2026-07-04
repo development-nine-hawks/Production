@@ -1,0 +1,3 @@
+filename,verdict,confidence,seed_recovered,pattern_id,moire,correlation,gradient,color,alignment_method,processing_time,success,failure_reason
+tc-05-flash.jpeg,AUTHENTIC,0.8120,903571945,,0.7989,0.9931,0.9052,0.5762,—,0.86,True,
+tc-05.jpeg,SUSPICIOUS,0.4906,903571945,,0.4286,0.7893,0.8032,0.1266,—,0.93,True,

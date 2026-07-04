@@ -45,29 +45,31 @@ C_WHITE  = colors.white
 C_BLACK  = colors.black
 
 EXPECTED_VERDICTS = {
-    "tc-01.jpeg": "AUTHENTIC",
-    "tc-02.jpeg": "AUTHENTIC",
-    "tc-03.jpeg": "AUTHENTIC",
-    "tc-04.jpeg": "AUTHENTIC",
-    "tc-05.jpeg": "AUTHENTIC",
-    "tc-06.jpeg": "AUTHENTIC",
-    "tc-07.jpeg": "AUTHENTIC",
-    "tc-08.jpeg": "AUTHENTIC",
-    "tc-09.jpeg": "COUNTERFEIT",
-    "tc-10.jpeg": "COUNTERFEIT",
+    # "tc-01.jpeg": "AUTHENTIC",
+    # "tc-02.jpeg": "AUTHENTIC",
+    # "tc-03.jpeg": "AUTHENTIC",
+    # "tc-04.jpeg": "AUTHENTIC",
+    "tc-05.jpeg":       "AUTHENTIC",
+    "tc-05-flash.jpeg": "AUTHENTIC",
+    # "tc-06.jpeg": "AUTHENTIC",
+    # "tc-07.jpeg": "AUTHENTIC",
+    # "tc-08.jpeg": "AUTHENTIC",
+    # "tc-09.jpeg": "COUNTERFEIT",
+    # "tc-10.jpeg": "COUNTERFEIT",
 }
 
 TEST_CASE_DESCRIPTIONS = {
-    "tc-01.jpeg": "Genuine label, photo straight-on",
-    "tc-02.jpeg": "Genuine label, slight angle (~30°)",
-    "tc-03.jpeg": "Genuine label, rotated 90°",
-    "tc-04.jpeg": "Genuine label, rotated 180°",
-    "tc-05.jpeg": "Genuine label, low light",
-    "tc-06.jpeg": "Genuine label, glare/flash on pattern",
-    "tc-07.jpeg": "Genuine label, far away (pattern small in frame)",
-    "tc-08.jpeg": "Genuine label, motion blur",
-    "tc-09.jpeg": "Counterfeit label, straight-on (print → photo → reprint → photo)",
-    "tc-10.jpeg": "Counterfeit label, at an angle",
+    # "tc-01.jpeg": "Genuine label, photo straight-on",
+    # "tc-02.jpeg": "Genuine label, slight angle (~30°)",
+    # "tc-03.jpeg": "Genuine label, rotated 90°",
+    # "tc-04.jpeg": "Genuine label, rotated 180°",
+    "tc-05.jpeg":       "Genuine label, low light — no flash",
+    "tc-05-flash.jpeg": "Genuine label, low light — phone flash",
+    # "tc-06.jpeg": "Genuine label, glare/flash on pattern",
+    # "tc-07.jpeg": "Genuine label, far away (pattern small in frame)",
+    # "tc-08.jpeg": "Genuine label, motion blur",
+    # "tc-09.jpeg": "Counterfeit label, straight-on (print → photo → reprint → photo)",
+    # "tc-10.jpeg": "Counterfeit label, at an angle",
 }
 
 

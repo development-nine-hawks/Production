@@ -774,9 +774,10 @@ async def run_verify(
         "dm_diagnostic":  doc["dm_diagnostic"],
         "roi_filename":   doc["roi_filename"],
         "aligned_filename": doc["aligned_filename"],
-        "print_size_mm":  doc["print_size_mm"],
-        "notes":          doc["notes"],
-        "created_at":     doc["created_at"].isoformat(),
+        "print_size_mm":   doc["print_size_mm"],
+        "notes":           doc["notes"],
+        "created_at":      doc["created_at"].isoformat(),
+        "capture_quality": result.get("capture_quality"),
     }
 
 

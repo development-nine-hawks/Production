@@ -1803,7 +1803,7 @@ def test_moire_detection(captured_gray, reference_gray=None):
             ncc = np.sum(cf * rf) / (np.sqrt(np.sum(cf**2) * np.sum(rf**2))
                                      + 1e-10)
             score += weight * max(0.0, ncc)
-        return float(np.clip(score / 0.25, 0.0, 1.0))
+        return float(np.clip(score / 0.49, 0.0, 1.0))
 
     # No reference — fallback: measure HF energy presence
     f = np.fft.fftshift(np.fft.fft2(captured_gray.astype(np.float64)))
@@ -1861,18 +1861,20 @@ def test_prng_correlation(captured_gray, reference_gray, block_size=16):
 
     # (block_px, norm_divisor, score_cap)
     # Finer → easier to max out (cap 1.0), coarser → capped lower.
-    # norm_divisor set so raw ~0.55 → score ~0.92 (good 1st-gen),
-    # raw ~0.49 → score ~0.82 (degraded copy).  Preserves the gap.
+    # norm_divisor at block_size recalibrated 2026-07-03: max genuine
+    # pearson_r (0.8294, 38 cases, 5 phones) / 0.96 ceiling = 0.86.
+    # Previous value 0.60 predated fine-alignment (Step 2c) and was based
+    # on an assumed genuine r~0.55 that was never validated.
     if CDP_FLAG_CORR_FINE_BLOCKS:
         scale_configs = [
             (block_size // 4, 0.45, 1.0),
             (block_size // 2, 0.55, 1.0),
-            (block_size,      0.60, 1.0 if not CDP_FLAG_CORR_COARSE_CAP else 1.0),
+            (block_size,      0.86, 1.0 if not CDP_FLAG_CORR_COARSE_CAP else 1.0),
             (block_size * 2,  0.65, 0.50 if CDP_FLAG_CORR_COARSE_CAP else 0.50),
         ]
     else:
         scale_configs = [
-            (block_size,     0.60, 1.0  if not CDP_FLAG_CORR_COARSE_CAP else 0.75),
+            (block_size,     0.86, 1.0  if not CDP_FLAG_CORR_COARSE_CAP else 0.75),
             (block_size * 2, 0.65, 0.75 if not CDP_FLAG_CORR_COARSE_CAP else 0.50),
             (block_size * 4, 0.75, 0.50),
         ]
@@ -1957,7 +1959,7 @@ def _moire_raw(captured_gray, reference_gray):
         rf = rb.flatten() - rb.mean()
         ncc = np.sum(cf * rf) / (np.sqrt(np.sum(cf ** 2) * np.sum(rf ** 2)) + 1e-10)
         score += w_ * max(0.0, ncc)
-    return float(score / 0.25), float(score)   # (pre_clip_normed, raw_score)
+    return float(score / 0.49), float(score)   # (pre_clip_normed, raw_score)
 
 
 def _corr_raw(captured_gray, reference_gray, block_size=16):
@@ -1973,12 +1975,12 @@ def _corr_raw(captured_gray, reference_gray, block_size=16):
         scale_configs = [
             (block_size // 4, 0.45, 1.0),
             (block_size // 2, 0.55, 1.0),
-            (block_size,      0.60, 1.0),
+            (block_size,      0.86, 1.0),
             (block_size * 2,  0.65, 0.50),
         ]
     else:
         scale_configs = [
-            (block_size,     0.60, 1.0  if not CDP_FLAG_CORR_COARSE_CAP else 0.75),
+            (block_size,     0.86, 1.0  if not CDP_FLAG_CORR_COARSE_CAP else 0.75),
             (block_size * 2, 0.65, 0.75 if not CDP_FLAG_CORR_COARSE_CAP else 0.50),
             (block_size * 4, 0.75, 0.50),
         ]
@@ -2025,6 +2027,66 @@ def _gradient_raw(captured_gray, reference_gray):
     ref_n = ref_h / (ref_h.sum() + 1e-10)
     similarity = float(np.sum(np.sqrt(cap_n * ref_n)))
     return (similarity - 0.60) / 0.35, similarity  # (pre_clip, bhattacharyya)
+
+
+# --------------------------------------------------------------------------
+# Capture quality assessment
+# --------------------------------------------------------------------------
+
+def assess_capture_quality(gray_roi: np.ndarray) -> dict:
+    """Assess image quality on the fine-aligned 512×512 grayscale ROI.
+
+    Runs on the same image that gets scored so the thresholds are meaningful
+    relative to what the scoring pipeline actually sees.  Returns raw metrics
+    and a list of zero or more user-facing hint strings.
+
+    Brightness thresholds are empirically calibrated against the CDP pattern
+    (binary noise on a label background): a good-light capture of the pattern
+    region typically has mean_brightness ≈ 100–160 after INTER_AREA resize to
+    512×512.  Low-light captures consistently fall below 70.
+
+    Blur (Laplacian variance) is artificially reduced by the INTER_AREA resize,
+    so the threshold (< 60) is calibrated against post-resize sharpness, not
+    full-resolution sharpness.
+    """
+    mean_brightness = float(np.mean(gray_roi))
+    laplacian_var   = float(cv2.Laplacian(gray_roi.astype(np.float64),
+                                          cv2.CV_64F).var())
+    bright_fraction = float(np.mean(gray_roi > 245))
+
+    is_very_dark   = mean_brightness < 45
+    is_low_light   = mean_brightness < 70
+    is_blurry      = laplacian_var   < 60
+    is_overexposed = bright_fraction > 0.08
+
+    hints = []
+    if is_very_dark:
+        hints.append(
+            "Image is very dark — enable flash or move to brighter light before scanning"
+        )
+    elif is_low_light:
+        hints.append(
+            "Low light detected — try enabling flash for a cleaner scan"
+        )
+    if is_blurry:
+        hints.append(
+            "Image appears blurry — hold the phone steady and ensure the label is in focus"
+        )
+    if is_overexposed:
+        hints.append(
+            "Flash glare detected on the pattern — step back slightly or disable flash"
+        )
+
+    return {
+        "mean_brightness":  round(mean_brightness, 1),
+        "laplacian_var":    round(laplacian_var, 1),
+        "bright_fraction":  round(bright_fraction, 4),
+        "is_low_light":     is_low_light,
+        "is_very_dark":     is_very_dark,
+        "is_blurry":        is_blurry,
+        "is_overexposed":   is_overexposed,
+        "hints":            hints,
+    }
 
 
 # ==========================================================================
@@ -3020,25 +3082,35 @@ def verify_pattern(captured_path, uploads_dir="uploads"):
         dict with keys: verdict, confidence, seed_recovered, scores, weights,
         dm_diagnostic, roi_filename, reference_filename, aligned_filename.
 
-    KNOWN GAP (2026-07-02): fine-alignment correction (Step 2c) fixes false
-    COUNTERFEIT verdicts on genuine labels captured with slight misalignment
-    (confirmed on tc-03 rotated, tc-05 low-light, tc-06 glare).  However, it
-    also raises correlation/moire scores for at least one known counterfeit
-    sample (tc-09), causing it to cross THRESHOLD_AUTHENTIC.
+    KNOWN GAP (2026-07-02, updated 2026-07-03): Fine-alignment correction
+    (Step 2c) fixes false COUNTERFEIT verdicts on genuine labels captured with
+    slight misalignment (confirmed on tc-03 rotated, tc-05 low-light, tc-06
+    glare).  However, it also raises moire/corr scores for tc-09/tc-10-style
+    counterfeits that successfully pass through fine-alignment, causing them to
+    cross THRESHOLD_AUTHENTIC.  This is a separate open problem — recalibrating
+    the denominators does not address it.
 
-    Working hypothesis: the counterfeit's printer could not reproduce the CDP
-    pattern at sufficient fidelity to survive alignment — meaning fine alignment
-    removes an INCIDENTAL defense that was never the intended detection
-    mechanism.  The tc-09 sample happened to be caught previously only because
-    capture misalignment degraded its PRNG correlation below threshold.
+    Denominator recalibration (2026-07-03): moire 0.25 → 0.49, corr 0.60 →
+    0.86.  Dataset: original 8-sample single-phone batch plus 4 additional
+    phones (5 phones total, 38 non-outlier genuine cases, 9 non-outlier
+    counterfeit cases).  3 cases excluded as outliers (2 genuine with
+    capture/alignment failures, 1 counterfeit with unexplained low score
+    despite successful fine-alignment); exclusion list should be revisited as
+    more phones and capture conditions accumulate.
 
-    This is unverified against only one counterfeit sample.  Needs:
-      (a) more counterfeit samples across different reproduction techniques to
-          test whether the incidental-misalignment catch is representative;
-      (b) potential redesign of the CDP pattern itself to encode higher-frequency
-          detail that is difficult for common printers to reproduce even under
-          correct alignment, making moire/correlation a real rather than
-          incidental discriminator.
+    Post-recalibration discrimination margins (normalized space):
+      corr  vs properly-caught counterfeits: gap = +0.026  (healthy)
+      moire vs properly-caught counterfeits: gap = −0.013  (FRAGILE — driven
+        by a single close pair: one genuine rotated-label case sitting barely
+        below one properly-caught counterfeit in moire raw space).  Modest
+        additional phone or lighting variance could flip this.  Do not treat
+        moire as reliably solved.
+
+    For tc-09/tc-10-style counterfeits that successfully pass fine-alignment:
+    moire and corr scores both overlap with the genuine range regardless of
+    denominator.  These cases need additional detection mechanisms (higher-
+    frequency CDP pattern features that survive printing more distinctly), not
+    denominator recalibration.
     """
     os.makedirs(uploads_dir, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
@@ -3208,6 +3280,16 @@ def verify_pattern(captured_path, uploads_dir="uploads"):
     captured_rgb  = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2RGB)
     captured_gray = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2GRAY)
 
+    # Capture quality assessment — runs on the fine-aligned grayscale ROI
+    # (same image that gets scored) so results are directly interpretable.
+    capture_quality = assess_capture_quality(captured_gray)
+    if capture_quality["hints"]:
+        for _h in capture_quality["hints"]:
+            print(f"[QUALITY] {_h}")
+    print(f"[QUALITY] brightness={capture_quality['mean_brightness']:.1f}  "
+          f"blur={capture_quality['laplacian_var']:.1f}  "
+          f"bright_frac={capture_quality['bright_fraction']:.3f}")
+
     print("[VERIFY] === STEP 4b: NCC check on fine-aligned crop vs reference ===")
     _ncc_4b = _ncc_thumbnail(roi_bgr, reference_gray)
     print(f"[VERIFY] Step 4b: fine-aligned roi_bgr vs reference NCC = {_ncc_4b:.4f}")
@@ -3332,4 +3414,5 @@ def verify_pattern(captured_path, uploads_dir="uploads"):
         "fine_align_n":       _fa_n,
         "fine_align_dx":      _fa_dx,
         "fine_align_dy":      _fa_dy,
+        "capture_quality":    capture_quality,
     }

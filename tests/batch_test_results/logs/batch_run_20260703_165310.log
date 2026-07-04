@@ -1,0 +1,51 @@
+2026-07-03 16:53:10  INFO      ============================================================
+2026-07-03 16:53:10  INFO      PhoneCDP Batch Verification Run
+2026-07-03 16:53:10  INFO      Run timestamp : 2026-07-03 16:53:10
+2026-07-03 16:53:10  INFO      Input folder  : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix new\Production\tests\batch_test
+2026-07-03 16:53:10  INFO      Output folder : C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix new\Production\tests\batch_test_results
+2026-07-03 16:53:10  INFO      Images found  : 2
+2026-07-03 16:53:10  INFO      ============================================================
+2026-07-03 16:53:11  INFO      --- Image 1/2 ---
+2026-07-03 16:53:11  INFO      Processing: tc-05-flash.jpeg
+2026-07-03 16:53:11  INFO      [CROP] image shape: (1600, 1204, 3)
+2026-07-03 16:53:11  INFO      [CROP] DM raw rect: left=372, top=538, width=300, height=138 | corrected: left_full=372.00, top_full=538.00, w_full=300.00, h_full=138.00 | y_top_cv=924.00, y_bottom_cv=1062.00 | img_h=1600, scale=1
+2026-07-03 16:53:11  INFO      [CROP] DM raw rect: left=690, top=223, width=138, height=303 | corrected: left_full=690.00, top_full=223.00, w_full=138.00, h_full=303.00 | y_top_cv=1074.00, y_bottom_cv=1377.00 | img_h=1600, scale=1
+2026-07-03 16:53:11  INFO      [CROP] class=content top_dm=300x138 right_dm=138x303 dm_long=303
+2026-07-03 16:53:11  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-07-03 16:53:11  INFO      [CROP] Layer 3 rotation debug: cos_t=1.0000, sin_t=-0.0096, unit_right=[ 0.99995404 -0.00958422], unit_down=[0.00958422 0.99995404] | top_dm_center=[522. 993.], right_dm_center=[ 759.  1225.5] | _TOP_DM_CX=252.00, _TOP_DM_CY=112.00 | _pat_x=0.00, _pat_y=258.00, _pat_w=504.00, _pat_h=504.00
+2026-07-03 16:53:11  INFO      [CROP] Layer 3 computed corners: TL=[ 374.1897 1080.539 ], TR=[ 671.46106 1077.6897 ], BR=[ 674.3103 1374.961 ], BL=[ 377.03894 1377.8103 ] | image_bounds=(1204, 1600) | l3_scale=0.590 | observed_dm_dist=332.0 canonical_dm_dist=562.9
+2026-07-03 16:53:11  INFO      [CROP] Layer 3 geometry-only crop ncc=0.6437
+2026-07-03 16:53:11  INFO      [CROP] Layer 3 ncc=0.6405 pattern_center=(524,1228) scale=0.590
+2026-07-03 16:53:11  INFO      [CROP] Layer 3 used (last resort)
+2026-07-03 16:53:12  INFO      [STEP2B] DEFERRED: Step 2b fell back to Layer 3 crop  ncc=0.6405
+2026-07-03 16:53:12  INFO        tc-05-flash.jpeg: fine-align applied=True n=4/4 dx=-4.0 dy=-5.0
+2026-07-03 16:53:12  INFO        tc-05-flash.jpeg: AUTHENTIC  conf=0.812  moire=0.799  corr=0.993  grad=0.905  color=0.576
+2026-07-03 16:53:16  INFO      --- Image 2/2 ---
+2026-07-03 16:53:16  INFO      Processing: tc-05.jpeg
+2026-07-03 16:53:16  INFO      [CROP] image shape: (1600, 1204, 3)
+2026-07-03 16:53:16  INFO      [CROP] DM raw rect: left=339, top=574, width=348, height=159 | corrected: left_full=339.00, top_full=574.00, w_full=348.00, h_full=159.00 | y_top_cv=867.00, y_bottom_cv=1026.00 | img_h=1600, scale=1
+2026-07-03 16:53:16  INFO      [CROP] DM raw rect: left=705, top=202, width=159, height=354 | corrected: left_full=705.00, top_full=202.00, w_full=159.00, h_full=354.00 | y_top_cv=1044.00, y_bottom_cv=1398.00 | img_h=1600, scale=1
+2026-07-03 16:53:16  INFO      [CROP] class=content top_dm=348x159 right_dm=159x354 dm_long=354
+2026-07-03 16:53:16  INFO      [CROP] Layer 3 — DM geometry fallback
+2026-07-03 16:53:16  INFO      [CROP] Layer 3 rotation debug: cos_t=1.0000, sin_t=0.0055, unit_right=[0.9999849  0.00549442], unit_down=[-0.00549442  0.9999849 ] | top_dm_center=[513.  946.5], right_dm_center=[ 784.5 1221. ] | _TOP_DM_CX=252.00, _TOP_DM_CY=112.00 | _pat_x=0.00, _pat_y=258.00, _pat_w=504.00, _pat_h=504.00
+2026-07-03 16:53:16  INFO      [CROP] Layer 3 computed corners: TL=[ 339.59546 1045.6959 ], TR=[ 685.304  1047.5955], BR=[ 683.4045 1393.3041], BL=[ 337.69598 1391.4045 ] | image_bounds=(1204, 1600) | l3_scale=0.686 | observed_dm_dist=386.1 canonical_dm_dist=562.9
+2026-07-03 16:53:16  INFO      [CROP] Layer 3 geometry-only crop ncc=0.6555
+2026-07-03 16:53:16  INFO      [CROP] Layer 3 ncc=0.6555 pattern_center=(511,1220) scale=0.686
+2026-07-03 16:53:16  INFO      [CROP] Layer 3 used (last resort)
+2026-07-03 16:53:17  INFO      [STEP2B] DEFERRED: Step 2b fell back to Layer 3 crop  ncc=0.6555
+2026-07-03 16:53:17  INFO        tc-05.jpeg: fine-align applied=False n=2/4 dx=+0.0 dy=+0.0
+2026-07-03 16:53:17  INFO        tc-05.jpeg: SUSPICIOUS  conf=0.491  moire=0.429  corr=0.789  grad=0.803  color=0.127
+2026-07-03 16:53:21  INFO      
+2026-07-03 16:53:21  INFO      ============================================================
+2026-07-03 16:53:21  INFO      BATCH SUMMARY
+2026-07-03 16:53:21  INFO        Total       : 2
+2026-07-03 16:53:21  INFO        Authentic   : 1
+2026-07-03 16:53:21  INFO        Suspicious  : 1
+2026-07-03 16:53:21  INFO        Counterfeit : 0
+2026-07-03 16:53:21  INFO        Unable/Error: 0
+2026-07-03 16:53:21  INFO        Avg Confidence: 65.1%
+2026-07-03 16:53:21  INFO      ============================================================
+2026-07-03 16:53:21  INFO      CSV saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix new\Production\tests\batch_test_results\reports\batch_results_20260703_165310.csv
+2026-07-03 16:53:21  INFO      JSON saved: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix new\Production\tests\batch_test_results\reports\batch_results_20260703_165310.json
+2026-07-03 16:53:21  INFO      Generating PDF report → C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix new\Production\tests\batch_test_results\batch_test_report.pdf
+2026-07-03 16:53:29  INFO      PDF report ready: C:\Users\kanis\OneDrive\Desktop\AIB Innovations\QR\Data Matrix new\Production\tests\batch_test_results\batch_test_report.pdf
