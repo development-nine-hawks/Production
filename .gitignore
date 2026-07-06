@@ -1,13 +1,35 @@
+# ── Python artefacts ──────────────────────────────────────────
 __pycache__/
 *.pyc
 *.pyo
+.venv/
+venv/
+
+# ── Environment / secrets ──────────────────────────────────────
 .env
+
+# ── Runtime data ──────────────────────────────────────────────
 data/*.db
+data/localdb/
+data/localcdn/
+data/aligned_*.png
+data/reference_*.png
+data/roi_*.png
+data/tmp*
 uploads/*
 patterns/*
 !uploads/.gitkeep
 !patterns/.gitkeep
 !data/.gitkeep
-.venv/
-venv/
+
+# ── Generated reports ───────────────────────────────────────────
 *.pdf
+
+# ── Session-generated scratch and debug ─────────────────────────
+scratch/
+debug_images/
+debugging/
+archive/
+
+# ── Tests (entire folder — data, scripts, generated output) ────
+tests/
