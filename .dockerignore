@@ -6,3 +6,15 @@ __pycache__
 data/*.db
 uploads/*
 patterns/*
+.git
+data
+scratch
+uploads
+debug_images
+debugging
+tests
+docs
+*.pyc
+__pycache__
+.claude
+tests/batch_test_results
