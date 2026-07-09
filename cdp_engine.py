@@ -34,6 +34,14 @@ PATTERN_SIZE = (512, 512)
 # distance can be changed independently without inflating/deflating ring radii.
 BLOCK_SIZE = 16
 
+# Grating frequency-modulation depth range used by generate_pattern/
+# regenerate_reference when no mod_depth_override is given: randomized
+# MOD_DEPTH_MIN + random()*MOD_DEPTH_RANGE, i.e. [0.05, 0.15).
+# (Was [0.2, 0.5) until 2026-07-08, briefly a fixed 0.05-0.15 constant after
+# that; see scratch/mod_depth_label_batch/ investigation.)
+MOD_DEPTH_MIN   = 0.05
+MOD_DEPTH_RANGE = 0.10
+
 # M1 fiducial marker constants — ported from cdp_engine_main.py unchanged.
 # Ring geometry is derived from FIDUCIAL_MARKER_SIZE // 2 so placement distance
 # (FIDUCIAL_MARKER_OFFSET) can be changed without rescaling the ring radii.
@@ -879,16 +887,19 @@ def _draw_alignment_overlay(image, dbg, disp_w=1100):
     return ov
 
 
-def generate_pattern(output_dir, seed=None, serial_number="SN-0001", pattern_size=512, block_size=16):
+def generate_pattern(output_dir, seed=None, serial_number="SN-0001", pattern_size=512, block_size=16,
+                      mod_depth_override: float = None):
     if seed is None:
         seed = int(np.random.randint(0, 2**31))
-    
+
     w = h = pattern_size
 
     grating_rng = np.random.RandomState(seed=seed + 2000)
     base_freq = 8 + grating_rng.random() * 6
     mod_freq = 1.5 + grating_rng.random() * 2.5
-    mod_depth = 0.2 + grating_rng.random() * 0.3
+    mod_depth = MOD_DEPTH_MIN + grating_rng.random() * MOD_DEPTH_RANGE
+    if mod_depth_override is not None:
+        mod_depth = mod_depth_override
 
     grating = generate_frequency_modulated_grating(w, h, base_freq, mod_freq, mod_depth)
     prng = generate_prng_macro_pattern(w, h, seed, block_size=block_size)
@@ -3145,7 +3156,7 @@ def extract_pattern_roi(image_bgr, dm_results):
         return None
 
 
-def regenerate_reference(seed, block_size=BLOCK_SIZE, pattern_size=None):
+def regenerate_reference(seed, block_size=BLOCK_SIZE, pattern_size=None, mod_depth_override: float = None):
     """
     Step 3 - In-Memory Reference Generation.
 
@@ -3160,6 +3171,10 @@ def regenerate_reference(seed, block_size=BLOCK_SIZE, pattern_size=None):
     the block_size stored in the DB for this seed (defaults to BLOCK_SIZE only as
     a last resort).
 
+    mod_depth_override MUST match whatever value (explicit or None/random) was
+    passed to generate_pattern() for this seed, same as block_size above — it is
+    not persisted anywhere and must be supplied by the caller to stay in lockstep.
+
     Returns:
         (reference_rgb: np.ndarray H x W x 3 uint8,
          reference_gray: np.ndarray H x W uint8)
@@ -3172,7 +3187,9 @@ def regenerate_reference(seed, block_size=BLOCK_SIZE, pattern_size=None):
     grating_rng = np.random.RandomState(seed=seed + 2000)
     base_freq   = 8   + grating_rng.random() * 6
     mod_freq    = 1.5 + grating_rng.random() * 2.5
-    mod_depth   = 0.2 + grating_rng.random() * 0.3
+    mod_depth   = MOD_DEPTH_MIN + grating_rng.random() * MOD_DEPTH_RANGE
+    if mod_depth_override is not None:
+        mod_depth = mod_depth_override
 
     grating     = generate_frequency_modulated_grating(w, h, base_freq, mod_freq, mod_depth)
     prng        = generate_prng_macro_pattern(w, h, seed, block_size)
