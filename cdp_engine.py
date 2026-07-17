@@ -9,6 +9,7 @@ import cv2
 from datetime import datetime
 import os
 from config import BORDER_CELL_SIZE
+import dm_color_config
 import math
 import logging
 _crop_logger = logging.getLogger("batch_runner")
@@ -2671,23 +2672,54 @@ def draw_auth_block_opencv(auth_canvas, layout, pattern_img, top_dm_img, right_d
         _, bw = cv2.threshold(resized, 128, 255, cv2.THRESH_BINARY)
         return bw
 
+    def _dm_bw_to_canvas(bw_gray, module_px, label):
+        """Convert a pure 0/255 DM grid to the auth_canvas's color space.
+
+        "bw" mode (default): identical to the original grayscale->BGR
+        passthrough — byte-identical to pre-colorization behavior.
+        "colored" mode: light modules stay pure white; each dark module
+        gets its own color, deterministically derived from its (row, col)
+        position within this DM via dm_color_config.dark_color_for_module
+        (converted RGB->BGR here since OpenCV canvases are BGR). `module_px`
+        is the pixel size of one module after INTER_NEAREST scaling, used to
+        map pixel blocks back to (row, col) module indices; `label`
+        distinguishes the top DM from the right DM so they don't render
+        identical hue patterns for identical bit patterns.
+        """
+        if len(auth_canvas.shape) != 3:
+            return bw_gray
+        if dm_color_config.DM_COLOR_MODE != "colored":
+            return cv2.cvtColor(bw_gray, cv2.COLOR_GRAY2BGR)
+        h, w = bw_gray.shape
+        rows, cols = max(h // module_px, 1), max(w // module_px, 1)
+        out = np.full((h, w, 3), 255, dtype=np.uint8)  # light modules stay pure white
+        for r in range(rows):
+            y0, y1 = r * module_px, min((r + 1) * module_px, h)
+            for c in range(cols):
+                x0, x1 = c * module_px, min((c + 1) * module_px, w)
+                block = bw_gray[y0:y1, x0:x1]
+                if block.size and block.mean() < 128:
+                    rgb = dm_color_config.dark_color_for_module(r, c, seed=label)
+                    out[y0:y1, x0:x1] = rgb[::-1]  # RGB -> BGR
+        return out
+
     # Draw pattern (CDP texture — area interpolation is correct here)
     pat_resized = cv2.resize(pattern_img, (pw, ph), interpolation=cv2.INTER_AREA)
     if len(pat_resized.shape) == 2 and len(auth_canvas.shape) == 3:
         pat_resized = cv2.cvtColor(pat_resized, cv2.COLOR_GRAY2BGR)
     auth_canvas[py:py+ph, px:px+pw] = pat_resized
 
+    module_px = int(layout["module_px"])
+
     # Draw Top DM — scale then hard-threshold
     top_bw = _scale_dm_bw(top_dm_img, tw, th)
-    if len(auth_canvas.shape) == 3:
-        top_bw = cv2.cvtColor(top_bw, cv2.COLOR_GRAY2BGR)
+    top_bw = _dm_bw_to_canvas(top_bw, module_px, "top")
     auth_canvas[ty:ty+th, tx:tx+tw] = top_bw
 
     # Draw Right DM — rotate 90° CW, scale, hard-threshold
     rot_right_dm = cv2.rotate(right_dm_img, cv2.ROTATE_90_CLOCKWISE)
     right_bw = _scale_dm_bw(rot_right_dm, rw, rh)
-    if len(auth_canvas.shape) == 3:
-        right_bw = cv2.cvtColor(right_bw, cv2.COLOR_GRAY2BGR)
+    right_bw = _dm_bw_to_canvas(right_bw, module_px, "right")
     auth_canvas[ry:ry+rh, rx:rx+rw] = right_bw
 
 
