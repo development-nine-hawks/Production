@@ -17,6 +17,7 @@ import tempfile
 from datetime import datetime
 
 import config
+import dm_color_config
 from database import (
     init_db, get_db, get_next_id, is_db_available,
     upload_to_cloudinary, destroy_cloudinary, download_from_cloudinary,
@@ -280,27 +281,49 @@ def download_pattern_label_pdf(
                 width=pw * scale, height=ph * scale)
                 
     # Helper to draw DM
-    def draw_dm(dm_img, bx, by, bw, bh):
+    def draw_dm(dm_img, bx, by, bw, bh, num_modules=None, label=""):
         rows, cols = dm_img.shape
         mod_w = bw / cols
         mod_h = bh / rows
-        c.setFillColorRGB(0, 0, 0)
-        for r in range(rows):
-            for col in range(cols):
-                if dm_img[r, col] < 128:
-                    mx = bx + col * mod_w
-                    my = by + r * mod_h
-                    # ReportLab y = hole_y + (auth_h - my - mod_h)
-                    pdf_x = hole_x_pts + mx * scale
-                    pdf_y = hole_y_pts + (auth_h_scaled - my - mod_h) * scale
-                    c.rect(pdf_x, pdf_y, mod_w * scale, mod_h * scale, stroke=0, fill=1)
+        if dm_color_config.DM_COLOR_MODE == "colored":
+            # dm_img is the native pixel bitmap (several pixels per module),
+            # not a module grid — group native pixels back into module cells
+            # so each whole module gets one color, not one per native pixel.
+            m_rows, m_cols = num_modules if num_modules is not None else (rows, cols)
+            block_h = max(rows // m_rows, 1)
+            block_w = max(cols // m_cols, 1)
+            for r in range(rows):
+                for col in range(cols):
+                    if dm_img[r, col] < 128:
+                        mx = bx + col * mod_w
+                        my = by + r * mod_h
+                        # ReportLab y = hole_y + (auth_h - my - mod_h)
+                        pdf_x = hole_x_pts + mx * scale
+                        pdf_y = hole_y_pts + (auth_h_scaled - my - mod_h) * scale
+                        rgb = dm_color_config.dark_color_for_module(
+                            r // block_h, col // block_w, seed=label)
+                        c.setFillColorRGB(*(v / 255.0 for v in rgb))
+                        c.rect(pdf_x, pdf_y, mod_w * scale, mod_h * scale, stroke=0, fill=1)
+                    # light modules stay pure white (page background) — no fill
+        else:
+            c.setFillColorRGB(0, 0, 0)
+            for r in range(rows):
+                for col in range(cols):
+                    if dm_img[r, col] < 128:
+                        mx = bx + col * mod_w
+                        my = by + r * mod_h
+                        # ReportLab y = hole_y + (auth_h - my - mod_h)
+                        pdf_x = hole_x_pts + mx * scale
+                        pdf_y = hole_y_pts + (auth_h_scaled - my - mod_h) * scale
+                        c.rect(pdf_x, pdf_y, mod_w * scale, mod_h * scale, stroke=0, fill=1)
 
     tx, ty, tw, th = scaled_layout["top_dm_rect"]
-    draw_dm(top_dm_img, tx, ty, tw, th)
-    
+    draw_dm(top_dm_img, tx, ty, tw, th, num_modules=top_dm_mods, label="top")
+
     rot_right_dm = cv2.rotate(right_dm_img, cv2.ROTATE_90_CLOCKWISE)
     rx, ry, rw, rh = scaled_layout["right_dm_rect"]
-    draw_dm(rot_right_dm, rx, ry, rw, rh)
+    draw_dm(rot_right_dm, rx, ry, rw, rh,
+            num_modules=(right_dm_mods[1], right_dm_mods[0]), label="right")
 
     c.save()
 
