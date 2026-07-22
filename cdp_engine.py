@@ -35,13 +35,13 @@ PATTERN_SIZE = (512, 512)
 # distance can be changed independently without inflating/deflating ring radii.
 BLOCK_SIZE = 16
 
-# Grating frequency-modulation depth range used by generate_pattern/
-# regenerate_reference when no mod_depth_override is given: randomized
-# MOD_DEPTH_MIN + random()*MOD_DEPTH_RANGE, i.e. [0.05, 0.15).
-# (Was [0.2, 0.5) until 2026-07-08, briefly a fixed 0.05-0.15 constant after
-# that; see scratch/mod_depth_label_batch/ investigation.)
-MOD_DEPTH_MIN   = 0.05
-MOD_DEPTH_RANGE = 0.10
+# Fixed grating frequency-modulation depth used by generate_pattern/
+# regenerate_reference when no mod_depth_override is given.
+# History: [0.2, 0.5) random until 2026-07-08; briefly [0.05, 0.15) random;
+# now fixed at 0.15 again.  The 148+4 previously-registered patterns were
+# generated under those earlier ranges and do NOT match this value.
+# (see scratch/mod_depth_label_batch/ investigation.)
+DEFAULT_MOD_DEPTH = 0.15
 
 # M1 fiducial marker constants — ported from cdp_engine_main.py unchanged.
 # Ring geometry is derived from FIDUCIAL_MARKER_SIZE // 2 so placement distance
@@ -898,7 +898,8 @@ def generate_pattern(output_dir, seed=None, serial_number="SN-0001", pattern_siz
     grating_rng = np.random.RandomState(seed=seed + 2000)
     base_freq = 8 + grating_rng.random() * 6
     mod_freq = 1.5 + grating_rng.random() * 2.5
-    mod_depth = MOD_DEPTH_MIN + grating_rng.random() * MOD_DEPTH_RANGE
+    grating_rng.random()  # consumed to keep RNG stream order stable; result discarded
+    mod_depth = DEFAULT_MOD_DEPTH
     if mod_depth_override is not None:
         mod_depth = mod_depth_override
 
@@ -3219,7 +3220,8 @@ def regenerate_reference(seed, block_size=BLOCK_SIZE, pattern_size=None, mod_dep
     grating_rng = np.random.RandomState(seed=seed + 2000)
     base_freq   = 8   + grating_rng.random() * 6
     mod_freq    = 1.5 + grating_rng.random() * 2.5
-    mod_depth   = MOD_DEPTH_MIN + grating_rng.random() * MOD_DEPTH_RANGE
+    grating_rng.random()  # consumed to keep RNG stream order stable; result discarded
+    mod_depth   = DEFAULT_MOD_DEPTH
     if mod_depth_override is not None:
         mod_depth = mod_depth_override
 
