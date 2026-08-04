@@ -70,6 +70,24 @@ class PatternCreate(BaseModel):
     block_size: int = 16
 
 
+def _dm_shares_for_pattern(p: dict) -> tuple:
+    """(share_a, share_b) to print for a pattern doc.
+
+    Rows created after the matrix cutover carry dm_format == 2 and use the
+    current encoder. Everything else predates it and must go through the legacy
+    encoder to reproduce the exact DataMatrix codes already glued to physical
+    product.
+
+    The distinction is stored explicitly rather than inferred from the seed's
+    width, because a legacy 31-bit seed lands below 0xFFFF roughly once in
+    32,768 — and that row would then silently reprint in the wrong format.
+    """
+    from cdp_engine import split_seed_for_dm, split_seed_for_dm_legacy
+    if p.get("dm_format") == 2:
+        return split_seed_for_dm(int(p["seed"]))
+    return split_seed_for_dm_legacy(int(p["seed"]))
+
+
 @app.get("/api/patterns")
 def list_patterns():
     db = get_db()
@@ -95,6 +113,10 @@ def create_pattern(data: PatternCreate):
     doc = {
         "id": pid,
         "seed": result["seed"],
+        # Which DataMatrix payload format this pattern was issued in.
+        # Absent on rows created before the matrix cutover; see
+        # _dm_shares_for_pattern() for why this is stored, not inferred.
+        "dm_format": 2,
         "serial_number": data.serial_number,
         "label": data.label,
         "filename": result["filename"],
@@ -255,8 +277,8 @@ def download_pattern_label_pdf(
     qr_y2 = qr_y1 + qr_h_found
     hole_y_pts = oy + (label_h_px - qr_y2) * scale
     
-    from cdp_engine import generate_cropped_dm, split_seed_for_dm, calculate_auth_block_layout
-    share_a, share_b = split_seed_for_dm(p['seed'])
+    from cdp_engine import generate_cropped_dm, calculate_auth_block_layout
+    share_a, share_b = _dm_shares_for_pattern(p)
     top_dm_img, top_dm_mods = generate_cropped_dm(share_a)
     right_dm_img, right_dm_mods = generate_cropped_dm(share_b)
 
@@ -329,7 +351,7 @@ def _render_label_png_file(p: dict, size_px: int = 512, pdf_mode: bool = False):
     import cv2
     import numpy as np
     import base64
-    from cdp_engine import calculate_auth_block_layout, generate_cropped_dm, split_seed_for_dm, draw_auth_block_opencv
+    from cdp_engine import calculate_auth_block_layout, generate_cropped_dm, draw_auth_block_opencv
 
     # Download pattern image from Cloudinary
     tmp_img = tempfile.NamedTemporaryFile(suffix=".png", delete=False, dir=config.DATA_DIR)
@@ -356,7 +378,7 @@ def _render_label_png_file(p: dict, size_px: int = 512, pdf_mode: bool = False):
     # Calculate layout
     pat = size_px
     quiet_px = int(0.5 * pat / 7.5)
-    share_a, share_b = split_seed_for_dm(p['seed'])
+    share_a, share_b = _dm_shares_for_pattern(p)
     top_dm_img, top_dm_mods = generate_cropped_dm(share_a)
     right_dm_img, right_dm_mods = generate_cropped_dm(share_b)
 

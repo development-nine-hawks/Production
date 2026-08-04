@@ -881,7 +881,13 @@ def _draw_alignment_overlay(image, dbg, disp_w=1100):
 
 def generate_pattern(output_dir, seed=None, serial_number="SN-0001", pattern_size=512, block_size=16):
     if seed is None:
-        seed = int(np.random.randint(0, 2**31))
+        # 16 bits, not 31: the seed must survive the round trip through the
+        # DataMatrix payload, which now carries two 16-bit matrices whose
+        # product is the seed. See the seed-width note in the DATAMATRIX
+        # ENCODING banner. A wider seed here would generate a pattern that its
+        # own label cannot reproduce.
+        seed = int(np.random.randint(0, 1 << SEED_BITS))
+    seed = int(seed) & SEED_MASK
     
     w = h = pattern_size
 
@@ -2335,25 +2341,52 @@ def verify_pattern_legacy(original_path, captured_path, uploads_dir="uploads", b
 
 # ==========================================================================
 # ==========================================================================
-# DATAMATRIX ENCODING  —  Feistel-4 + RFC 4648 Base32 + check character
+# DATAMATRIX ENCODING  —  seed = A · B   (2x2 matrix product over GF(2^4))
 # ==========================================================================
 #
+# The two DataMatrix codes carry two matrices. Multiplying them gives the seed.
+#
 # Pipeline (encode):
-#   seed (32-bit int)
-#   → 4-round Feistel encrypt  → 32-bit ciphertext
-#   → Base32 encode (7 chars)  + 1 weighted check char
-#   → 8-char payload  →  split  →  share_a (first 4),  share_b (last 4)
+#   seed (16-bit int)  →  2x2 matrix S over GF(2^4)
+#   →  pick A (2x2, invertible, derived deterministically from the seed)
+#   →  B = A^-1 · S                        so that  A · B == S
+#   →  35-bit field:  version(3) | A(16) | B(16)
+#   →  Base32 encode (7 chars)  + 1 weighted check char
+#   →  8-char payload  →  split  →  share_a (first 4),  share_b (last 4)
 #
 # Pipeline (decode):
 #   share_a + share_b  →  8-char payload
-#   → verify check char  →  Base32 decode  →  Feistel decrypt  →  seed
+#   →  verify check char  →  Base32 decode  →  split off 3-bit version
+#   →  unpack A and B  →  seed = A · B
 #
-# Why this design?
+# ── WHY THE SEED IS 16 BITS NOW (read before changing anything) ────────────
+# This is arithmetic, not a preference. The payload field is 7 Base32 chars =
+# 35 bits. Three go to the version tag, leaving 32 for data. Carrying TWO
+# matrices inside those 32 bits means 16 bits each, so each is 2x2 over GF(2^4)
+# (four 4-bit elements). Their product is also 2x2 over GF(2^4) = 16 bits.
+#
+#   seed space: 2^31 (~2.1 billion)  ->  2^16 (65,536)
+#
+# Consequences, stated plainly:
+#   • Two labels share a pattern after ~300 issued (birthday bound on 2^16).
+#   • All 65,536 patterns can be enumerated offline in minutes.
+# Widening the seed again would need a bigger DataMatrix symbol than 8x18,
+# which is what the 0.417 mm / 4.9-printer-dot module budget below rules out.
+#
+# ── WHAT THIS DOES NOT DO ──────────────────────────────────────────────────
+# It does not protect the seed. Both matrices are printed on the label, and
+# the multiplication is right here in this file, so anyone holding the label
+# can recover the seed exactly as before — read both codes, multiply. A value
+# computed from two public inputs is itself public. This design was requested
+# as the simple, direct expression of "the two codes multiply to the seed";
+# it is not a security control and must not be described as one.
+#
+# Why the physical format is unchanged
 #   • 4-char per DM  →  8x18 symbol (minimum reliable rectangular DM)
 #   • 8x18 has 18 columns  →  0.417 mm/module  →  4.9 printer-dots @ 300 DPI
-#   • Current 16x48 had 48 columns  →  0.156 mm/module  →  1.8 dots (fails)
-#   • Feistel prevents trivial human readability of the seed value
-#   • Check char detects 100% of single-character substitution errors
+#   • Old 16x48 had 48 columns  →  0.156 mm/module  →  1.8 dots (fails)
+#   • Check char detects 100% of single-character substitution errors AND
+#     doubles as the rotation-invariant Top-vs-Right classifier
 # ==========================================================================
 
 # Fixed 8-byte Feistel key  (4 × 16-bit round keys, concatenated)
@@ -2366,6 +2399,31 @@ _B32_IDX: dict = {c: i for i, c in enumerate(_B32_ALPHA)}
 # Weights for the check character — all must be non-zero mod 32 (all are odd),
 # ensuring that any single-character substitution changes the check value.
 _CHECK_WEIGHTS: tuple = (3, 7, 11, 13, 17, 19, 23)
+
+# ── DataMatrix payload format version ─────────────────────────────────────
+# _b32_encode(x, 7) is a 35-bit field. The old format carried a 32-bit value in
+# it, so bits 32..34 were always zero (verified: the leading Base32 character
+# of an old payload is always A-D). Those 3 free bits now hold a format version.
+#
+#   v0 — LEGACY. Payload IS the seed, Feistel-obfuscated. Every label printed
+#        before this change decodes as v0 automatically, because the old
+#        encoder had no way to set these bits.
+#   v2 — CURRENT. Payload is version | A | B, and the seed is the product A·B.
+#
+# The tag is not decoration. Without it the new decoder still ACCEPTS an old
+# payload — the check character is computed over the same 7 characters by the
+# same function and validates fine — then reads the bits as two matrices and
+# multiplies them, producing a wrong seed and reporting COUNTERFEIT on a
+# genuine label. Every pre-cutover label in the field, silently.
+#
+# (v1 is deliberately skipped: it is used by the separate HMAC branch, so a
+# label from either branch can never be silently misread by the other.)
+_DM_VERSION_LEGACY: int = 0
+_DM_VERSION_MATRIX: int = 2
+
+# Seed width. Fixed by the payload budget — see the section banner above.
+SEED_BITS: int = 16
+SEED_MASK: int = (1 << SEED_BITS) - 1
 
 
 def _feistel_f(half: int, round_key: int) -> int:
@@ -2436,49 +2494,194 @@ def _check_char(payload7: str) -> str:
     return _B32_ALPHA[val]
 
 
+# ==========================================================================
+# MATRIX LAYER  —  2x2 over GF(2^4),  seed = A · B
+# ==========================================================================
+#
+# GF(2^4) is the field of 16 elements, built modulo x^4 + x + 1. Ordinary
+# integer arithmetic will not do here: the product of two 4-bit numbers does
+# not fit in 4 bits, so the result could not be written back into the payload.
+# In this field every operation on two elements yields another element of the
+# same field, and every non-zero element has an exact inverse — which is what
+# makes the encode step reversible.
+#
+# Addition in GF(2^4) is XOR. Multiplication is carry-less multiplication
+# followed by reduction modulo the polynomial.
+# ==========================================================================
+
+_GF4_POLY: int = 0x3        # x^4 + x + 1, low bits after the implicit x^4
+_GF4_MASK: int = 0xF
+
+
+def _gf4_mul(a: int, b: int) -> int:
+    """Multiply two GF(2^4) elements (Russian-peasant, poly x^4+x+1)."""
+    p = 0
+    for _ in range(4):
+        if b & 1:
+            p ^= a
+        hi = a & 0x8
+        a = (a << 1) & _GF4_MASK
+        if hi:
+            a ^= _GF4_POLY
+        b >>= 1
+    return p
+
+
+def _gf4_inv(a: int) -> int:
+    """Multiplicative inverse in GF(2^4), computed as a^14.
+
+    The multiplicative group has order 15, so a^15 == 1 and a^14 == a^-1 for
+    every non-zero a. Verified exhaustively over all 15 non-zero elements.
+    """
+    if a == 0:
+        raise ZeroDivisionError("0 has no inverse in GF(2^4)")
+    r = 1
+    for _ in range(14):
+        r = _gf4_mul(r, a)
+    return r
+
+
+def _m4_mul(X: list, Y: list) -> list:
+    """2x2 by 2x2 matrix product over GF(2^4). XOR is the field's addition."""
+    return [[_gf4_mul(X[i][0], Y[0][j]) ^ _gf4_mul(X[i][1], Y[1][j])
+             for j in range(2)] for i in range(2)]
+
+
+def _m4_det(M: list) -> int:
+    """Determinant of a 2x2 GF(2^4) matrix.
+
+    In characteristic 2, -x == x, so the usual ad - bc is ad XOR bc.
+    """
+    return _gf4_mul(M[0][0], M[1][1]) ^ _gf4_mul(M[0][1], M[1][0])
+
+
+def _m4_inv(M: list) -> list:
+    """Inverse of a 2x2 GF(2^4) matrix via the adjugate (no sign flips in
+    characteristic 2). Caller must ensure the determinant is non-zero."""
+    d = _gf4_inv(_m4_det(M))
+    return [[_gf4_mul(d, M[1][1]), _gf4_mul(d, M[0][1])],
+            [_gf4_mul(d, M[1][0]), _gf4_mul(d, M[0][0])]]
+
+
+def _m4_pack(M: list) -> int:
+    """2x2 GF(2^4) matrix -> 16-bit int, row-major, 4 bits per element."""
+    return ((M[0][0] & 0xF) << 12 | (M[0][1] & 0xF) << 8 |
+            (M[1][0] & 0xF) << 4 | (M[1][1] & 0xF))
+
+
+def _m4_unpack(n: int) -> list:
+    """16-bit int -> 2x2 GF(2^4) matrix. Exact inverse of _m4_pack."""
+    return [[(n >> 12) & 0xF, (n >> 8) & 0xF],
+            [(n >> 4) & 0xF, n & 0xF]]
+
+
+def _pick_matrix_a(seed: int) -> list:
+    """Choose the Top-code matrix A for a given seed. Deterministic.
+
+    Determinism is a hard requirement, not a nicety: re-printing the label for
+    an existing pattern calls split_seed_for_dm() again, and the reprint must
+    reproduce the exact DataMatrix codes already glued to physical product. A
+    random A would print a different label for the same pattern every time.
+
+    A must also be invertible, since B is computed as A^-1 · S. Most 2x2
+    matrices over GF(2^4) are (about 92%), so the scan below terminates almost
+    immediately; it is written as a loop only to be exhaustive-safe.
+
+    The multiplier spreads consecutive seeds apart so that neighbouring seeds
+    do not produce near-identical Top codes. It is a mixing step, nothing more.
+    """
+    x = (seed * 0x9E3779B1) & 0xFFFF
+    for i in range(1 << 16):
+        M = _m4_unpack((x + i) & 0xFFFF)
+        if _m4_det(M) != 0:
+            return M
+    raise RuntimeError("no invertible 2x2 GF(2^4) matrix found")  # unreachable
+
+
+def split_seed_for_dm_legacy(seed: int) -> tuple[str, str]:
+    """LEGACY v0 encoder — DO NOT USE FOR NEW LABELS.
+
+    The pre-cutover format, byte-for-byte: the payload IS the seed, obfuscated
+    only by the Feistel cipher. Kept because patterns registered before this
+    change must re-print the exact DataMatrix codes already in the field —
+    emitting a v2 label for a legacy row would print codes whose matrix product
+    is a different seed from the pattern printed beside them.
+
+    Example (seed=920789066) -> ('AM3I', 'SC5Y')   [verified unchanged]
+    """
+    payload7 = _b32_encode(feistel_encrypt(seed & 0xFFFFFFFF), 7)
+    full8    = payload7 + _check_char(payload7)
+    return full8[:4], full8[4:]
+
+
 def split_seed_for_dm(seed: int) -> tuple[str, str]:
     """
-    Encode a 32-bit seed into two 4-character Base32 shares for DataMatrix.
+    Encode a 16-bit seed into two 4-character Base32 shares for DataMatrix.
 
-    Encoding pipeline:
-        seed  →  Feistel-4 encrypt  →  32-bit ciphertext
-              →  7 Base32 chars (35 bits, lower 32 used)
-              →  + 1 weighted check char
-              →  8-char payload  →  split at position 4
+    The seed is factored into two matrices whose product recovers it:
 
-    Example (seed=920789066):
-        ciphertext   = Feistel-4(920789066)  =  some 32-bit value
-        payload7     = 'AM3ISC5'  (7 Base32 chars)
-        check        = 'Y'
-        full8        = 'AM3ISC5Y'
-        share_a      = 'AM3I'
-        share_b      = 'SC5Y'
+        S = seed as a 2x2 matrix over GF(2^4)
+        A = _pick_matrix_a(seed)          invertible, deterministic
+        B = A^-1 · S                      so that  A · B == S
 
-    Both shares are encoded into 8x18 Data Matrix symbols:
-        18 columns  x  0.417 mm/column  =  4.9 printer dots at 300 DPI
-        (vs 16x48 old:  48 cols  x 0.156 mm  =  1.8 dots — fails on thermal)
+        field35  = version(3) | A(16) | B(16)
+        payload7 = Base32(field35), 7 chars
+        full8    = payload7 + weighted check char
+        share_a, share_b = full8[:4], full8[4:]
+
+    NOTE ON THE SPLIT: A and B do not land tidily one per DataMatrix. The
+    35-bit field is cut 20/15 across the two codes (share_b gives up one
+    character to the check digit), while A and B are 16 bits each. So the Top
+    code carries the version, all of A, and one bit of B; the Right code
+    carries the rest of B plus the check character. Base32 characters are 5
+    bits and the matrices are 16, so no split aligns both at once. The
+    round-trip is exact either way — only the tidy "one matrix per code"
+    picture is approximate.
+
+    The seed is masked to 16 bits. Anything wider cannot survive the round trip
+    (see the seed-width note in the section banner), so silently truncating
+    here would produce a label that never verifies.
 
     Returns (share_a: str, share_b: str), each exactly 4 Base32 characters.
     """
-    ct       = feistel_encrypt(seed)
-    payload7 = _b32_encode(ct, 7)
-    check    = _check_char(payload7)
-    full8    = payload7 + check          # e.g. 'AM3ISC5Y'
-    return full8[:4], full8[4:]          # ('AM3I', 'SC5Y')
+    seed = int(seed) & SEED_MASK
+    A = _pick_matrix_a(seed)
+    B = _m4_mul(_m4_inv(A), _m4_unpack(seed))
+
+    field35  = (_DM_VERSION_MATRIX << 32) | (_m4_pack(A) << 16) | _m4_pack(B)
+    payload7 = _b32_encode(field35, 7)
+    full8    = payload7 + _check_char(payload7)
+    return full8[:4], full8[4:]
 
 
 def recombine_seed_from_dm(share_a: str, share_b: str) -> int | None:
     """
-    Recover the original seed from two 4-character Base32 shares.
+    Recover the seed from two 4-character Base32 shares by multiplying them.
+
+    ── THIS FUNCTION IS ALSO THE TOP-vs-RIGHT DATAMATRIX CLASSIFIER ─────────
+    Three other call sites use its None/not-None result to decide which code is
+    Top and which is Right, rotation-invariantly. It must stay total and
+    non-throwing: return None on ANY malformed input, never raise, never guess.
+    If it starts accepting swapped pairs, detect_and_crop_pattern does not
+    error — it silently falls back to y-position guessing and produces
+    plausible-but-wrong crops and verdicts.
+
+    That is why the check character survives this redesign. Pure matrix
+    multiplication carries no redundancy: every 8-character pair would multiply
+    to *some* seed, so there would be no way to reject a misread code or tell
+    the two codes apart.
+    ─────────────────────────────────────────────────────────────────────────
 
     Decoding pipeline:
         share_a + share_b  →  8-char payload
-                           →  verify check character  (returns None on failure)
-                           →  Base32 decode 7 chars  →  32-bit ciphertext
-                           →  Feistel-4 decrypt  →  original seed
+                           →  verify check character   (None on failure)
+                           →  Base32 decode 7 chars    →  35-bit field
+                           →  split off 3-bit version  (None if unknown)
+        v2: →  unpack A and B  →  seed = A · B
+        v0: →  Feistel decrypt →  seed            (legacy pre-cutover stock)
 
-    Returns seed (int) on success, or None if the check character fails
-    (indicating a decode error, wrong pairing, or corrupted DM).
+    Returns seed (int) on success, or None on a decode error, a wrong pairing,
+    a corrupted code, or an unrecognised format version.
     """
     if not share_a or not share_b:
         return None
@@ -2492,8 +2695,16 @@ def recombine_seed_from_dm(share_a: str, share_b: str) -> int | None:
     payload7, check_got = full8[:7], full8[7]
     if _check_char(payload7) != check_got:
         return None                       # integrity check failed
-    ct   = _b32_decode(payload7) & 0xFFFFFFFF
-    return feistel_decrypt(ct)
+
+    field35 = _b32_decode(payload7)
+    version = (field35 >> 32) & 0x7
+    if version == _DM_VERSION_MATRIX:
+        A = _m4_unpack((field35 >> 16) & 0xFFFF)
+        B = _m4_unpack(field35 & 0xFFFF)
+        return _m4_pack(_m4_mul(A, B))    # <-- the seed IS the matrix product
+    if version == _DM_VERSION_LEGACY:
+        return feistel_decrypt(field35 & 0xFFFFFFFF)
+    return None                           # unknown payload format version
 
 
 def generate_cropped_dm(data: str, size: str = "8x18"):

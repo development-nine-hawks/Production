@@ -33,3 +33,5 @@ archive/
 
 # ── Tests (entire folder — data, scripts, generated output) ────
 tests/
+# ── Self-test scratch output (the suite itself IS tracked) ──────
+selftest/_out/
