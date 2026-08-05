@@ -1,8 +1,42 @@
+# Build context sent to the Docker daemon. Render builds from the git clone,
+# so what matters here is TRACKED files — 291 MB before these rules, of which
+# 110 MB is the tests/ photo corpus. None of it is used at runtime (verified:
+# no module under app.py's import graph references these directories).
+
 __pycache__
 *.pyc
+*.pyo
 .git
 .gitignore
+.claude/
 *.md
-data/*.db
+
+# ── Virtualenvs ────────────────────────────────────────────────────────────
+# A local venv is platform-specific and would be dead weight inside a Linux
+# image. Gitignored too, so this only matters for a local `docker build`.
+.venv/
+venv/
+env/
+
+# ── Test corpus and self-test suite ────────────────────────────────────────
+# tests/ is ~2,666 tracked files (110 MB of label photos and PDF reports).
+# selftest/ is the assertion suite. Both are development-only.
+tests/
+selftest/
+
+# ── Session scratch and debug artefacts ────────────────────────────────────
+scratch/
+debug_images/
+debugging/
+archive/
+docs/
+
+# ── Runtime data — the directories are recreated by the Dockerfile ─────────
+data/
 uploads/*
 patterns/*
+!uploads/.gitkeep
+!patterns/.gitkeep
+
+# ── Generated reports ──────────────────────────────────────────────────────
+*.pdf

@@ -9,7 +9,22 @@ opencv-python-headless
 gunicorn==22.0.0
 reportlab
 requests
-playwright
+# Pinned because the browser binary is a SEPARATE download tied to the exact
+# playwright version: 1.62 wants chromium_headless_shell-1234, 1.58 wants
+# chromium-1208. Leaving this unpinned means pip resolves a version whose
+# browser was never downloaded, and the label-pdf / label-png endpoints then
+# fail with HTTP 500 ("Executable doesn't exist at ...") while every other
+# endpoint keeps working.
+# After installing or bumping this, run:  python -m playwright install chromium
+playwright==1.62.0
 matplotlib
-pylibdmtx
-zxing-cpp
+# Needs the libdmtx system library on Linux — see the Dockerfile apt-get line.
+# There is no Linux wheel; the pure-Python one loads libdmtx.so via ctypes.
+pylibdmtx==0.1.10
+# Pinned to a 3.x release. decode_dm_zxing() passes try_invert=True, which
+# exists ONLY in zxing-cpp >= 3.0 — 2.2.0 and 2.3.0 both reject it with a
+# TypeError. That call sits inside `except Exception: continue`, so on a 2.x
+# install every zxing attempt fails SILENTLY and the sweep degrades to the slow
+# pylibdmtx fallback with nothing logged. manylinux cp311 wheels exist, so this
+# needs no system package.
+zxing-cpp==3.1.1
