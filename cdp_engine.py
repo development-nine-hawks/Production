@@ -898,9 +898,8 @@ def generate_pattern(output_dir, seed=None, serial_number="SN-0001", pattern_siz
     grating_rng = np.random.RandomState(seed=seed + 2000)
     base_freq = 8 + grating_rng.random() * 6
     mod_freq = 1.5 + grating_rng.random() * 2.5
-    mod_depth = MOD_DEPTH_MIN + grating_rng.random() * MOD_DEPTH_RANGE
-    if mod_depth_override is not None:
-        mod_depth = mod_depth_override
+    mod_depth = (mod_depth_override if mod_depth_override is not None
+                 else MOD_DEPTH_MIN + grating_rng.random() * MOD_DEPTH_RANGE)
 
     grating = generate_frequency_modulated_grating(w, h, base_freq, mod_freq, mod_depth)
     prng = generate_prng_macro_pattern(w, h, seed, block_size=block_size)
@@ -1987,18 +1986,21 @@ def test_prng_correlation(captured_gray, reference_gray, block_size=16):
     # pearson_r (0.8294, 38 cases, 5 phones) / 0.96 ceiling = 0.86.
     # Previous value 0.60 predated fine-alignment (Step 2c) and was based
     # on an assumed genuine r~0.55 that was never validated.
+    # Scale steps are exact powers of two, so the quarter/half/double/quadruple
+    # block sizes are taken with shifts: for any non-negative block_size,
+    # x >> 2 == x // 4, x >> 1 == x // 2, x << 1 == x * 2, x << 2 == x * 4.
     if CDP_FLAG_CORR_FINE_BLOCKS:
         scale_configs = [
-            (block_size // 4, 0.45, 1.0),
-            (block_size // 2, 0.55, 1.0),
+            (block_size >> 2, 0.45, 1.0),
+            (block_size >> 1, 0.55, 1.0),
             (block_size,      0.86, 1.0 if not CDP_FLAG_CORR_COARSE_CAP else 1.0),
-            (block_size * 2,  0.65, 0.50 if CDP_FLAG_CORR_COARSE_CAP else 0.50),
+            (block_size << 1, 0.65, 0.50 if CDP_FLAG_CORR_COARSE_CAP else 0.50),
         ]
     else:
         scale_configs = [
-            (block_size,     0.86, 1.0  if not CDP_FLAG_CORR_COARSE_CAP else 0.75),
-            (block_size * 2, 0.65, 0.75 if not CDP_FLAG_CORR_COARSE_CAP else 0.50),
-            (block_size * 4, 0.75, 0.50),
+            (block_size,      0.86, 1.0  if not CDP_FLAG_CORR_COARSE_CAP else 0.75),
+            (block_size << 1, 0.65, 0.75 if not CDP_FLAG_CORR_COARSE_CAP else 0.50),
+            (block_size << 2, 0.75, 0.50),
         ]
 
     # Minimum std-dev of captured block means to consider a scale "usable".
@@ -3219,9 +3221,8 @@ def regenerate_reference(seed, block_size=BLOCK_SIZE, pattern_size=None, mod_dep
     grating_rng = np.random.RandomState(seed=seed + 2000)
     base_freq   = 8   + grating_rng.random() * 6
     mod_freq    = 1.5 + grating_rng.random() * 2.5
-    mod_depth   = MOD_DEPTH_MIN + grating_rng.random() * MOD_DEPTH_RANGE
-    if mod_depth_override is not None:
-        mod_depth = mod_depth_override
+    mod_depth   = (mod_depth_override if mod_depth_override is not None
+                   else MOD_DEPTH_MIN + grating_rng.random() * MOD_DEPTH_RANGE)
 
     grating     = generate_frequency_modulated_grating(w, h, base_freq, mod_freq, mod_depth)
     prng        = generate_prng_macro_pattern(w, h, seed, block_size)
