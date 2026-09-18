@@ -1,6 +1,6 @@
 # Ternary and Bitwise Operator Changes
 
-Branch: matrix-direct-seed
+Branches: written on matrix-direct-seed, then applied to all branches - datamatrix, label, main, matrix-direct-seed, and mod-depth-constant-0.15. All of them point at the same commit, so the code is identical on each.
 File changed: cdp_engine.py
 Scope: two changes, one ternary operator and one bitwise operator, both placed in code that runs on the generation and detection paths.
 
